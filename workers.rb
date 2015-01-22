@@ -1,3 +1,5 @@
+#!/usr/bin/ruby
+#
 # Preforking RabbitMQ job runner using Servolux.
 #
 # In this example, we prefork 7 processes each of which connect to our
@@ -20,7 +22,7 @@
 
 require 'servolux'
 require 'bunny'
-require './lib/bagit'
+require_relative './lib/bagit'
 
 module JobProcessor
   # Open a connection to our rabbitmq queue. This method is called once just

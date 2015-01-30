@@ -20,9 +20,11 @@
 #   end
 # --------
 
-require 'servolux'
 require 'bunny'
+require 'json'
+require 'servolux'
 require_relative './lib/bagit'
+require relative './lib/book_publisher'
 
 module JobProcessor
   # Open a connection to our rabbitmq queue. This method is called once just

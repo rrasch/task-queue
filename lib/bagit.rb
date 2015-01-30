@@ -1,7 +1,9 @@
+require 'open3'
+
 class Bagit
  
-  attr :bag_dir
-  attr :bagit_tool
+  attr_accessor :bag_dir
+  attr_accessor :bagit_tool
  
   def initialize(bag_dir = ".")
     @bag_dir = bag_dir

@@ -66,7 +66,8 @@ module JobProcessor
       puts " [x] Received '#{body}'"
       task = JSON.parse(body)
       p task
-      class_name = classify(task['class'])
+      #class_name = classify(task['class'])
+      class_name = task['class']
       obj = Object::const_get(class_name).new
       obj.rstar_dir = task['rstar_dir']
       obj.ids = task['identifiers']

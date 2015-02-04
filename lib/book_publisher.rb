@@ -10,8 +10,9 @@ class BookPublisher
   attr_accessor :ids
 
   def create_derivatives
-    cmd = mkcmd('create_deriv_images.pl')
+    cmd = mkcmd('create-deriv-images.pl')
     output, status = Open3.capture2e(cmd)
+    puts output
   end
 
   def stitch_pages
@@ -33,9 +34,8 @@ class BookPublisher
 
 end
 
-bp = BookPublisher.new
-bp.rstar_dir = "/content/prod/rstar/content/nyu/aco"
-bp.ids = ["nyu_aco000003"]
-bp.create_pdf
-
+# bp = BookPublisher.new
+# bp.rstar_dir = "/content/prod/rstar/content/nyu/aco"
+# bp.ids = ["nyu_aco000003"]
+# bp.create_pdf
 

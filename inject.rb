@@ -2,8 +2,11 @@
 # encoding: utf-8
 
 require "bunny"
+require "json"
 
-conn = Bunny.new(:automatically_recover => false)
+hostname = "localhost"
+
+conn = Bunny.new(:hostname => hostname, :automatically_recover => false)
 conn.start
 
 ch = conn.create_channel

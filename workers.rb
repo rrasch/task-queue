@@ -20,8 +20,10 @@
 #   end
 # --------
 
+require 'rubygems'
 require 'bunny'
 require 'json'
+require 'logger'
 require 'servolux'
 require_relative './lib/bagit'
 require_relative './lib/book_publisher'
@@ -30,16 +32,27 @@ module JobProcessor
   # Open a connection to our RabbitMQ queue. This method is called once just
   # before entering the child run loop.
   def before_executing
-    @conn = Bunny.new(:automatically_recover => false)
-    @conn.start
-    @ch = @conn.create_channel
-    @q = @ch.queue("task_queue", :durable => true)
-    @ch.prefetch(1)
+    puts "before_executing"
+    mqhost = 'localhost'
+    foo = fuck
+    begin
+      puts "Connecting to #{mqhost}"
+      @conn = Bunny.new(:host => mqhost, :automatically_recover => true)
+      @conn.start
+      @ch = @conn.create_channel
+      @q = @ch.queue("task_queue", :durable => true)
+      @ch.prefetch(1)
+    rescue Bunny::TCPConnectionFailed => e
+      puts "Connection to #{mqhost} failed #{e}"
+    rescue Exception => e
+      puts e
+    end
   end
 
   # Close the connection to our RabbitMQ queue. This method is called once
   # just after the child run loop stops and just before the child exits.
   def after_executing
+    puts $?
     puts "after_executing"
     @conn.close
   end
@@ -62,6 +75,7 @@ module JobProcessor
   # This method is called repeatedly by the child run loop until the child is
   # killed via SIGHUP or SIGTERM or halted by the parent.
   def execute
+    puts "execute"
     @q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
       puts " [x] Received '#{body}'"
       task = JSON.parse(body)
@@ -102,6 +116,7 @@ pool = Servolux::Prefork.new(:timeout => 600, :module => JobProcessor)
 
 # Start up 7 child processes to handle jobs
 pool.start 1
+puts "Waiting"
 
 # When SIGINT is received, kill all child process and then reap the child PIDs
 # from the proc table.

@@ -28,23 +28,41 @@ require 'servolux'
 require_relative './lib/bagit'
 require_relative './lib/book_publisher'
 
+module Logging
+  # This is the magical bit that gets mixed into your classes
+  def logger
+    Logging.logger
+  end
+
+  # Global, memoized, lazy initialized instance of a logger
+  def self.logger
+    @logger ||= ::Logger.new( $stderr )
+  end
+end
+
 module JobProcessor
+
+  include Logging
+
   # Open a connection to our RabbitMQ queue. This method is called once just
   # before entering the child run loop.
   def before_executing
-    puts "before_executing"
+    logger.debug "JobProcessor logger id: #{logger.__id__}"
+    logger.debug "before_executing"
     mqhost = 'localhost'
     begin
-      puts "Connecting to #{mqhost}"
+      logger.debug "Connecting to #{mqhost}"
       @conn = Bunny.new(:host => mqhost, :automatically_recover => true)
       @conn.start
       @ch = @conn.create_channel
       @q = @ch.queue("task_queue", :durable => true)
       @ch.prefetch(1)
     rescue Bunny::TCPConnectionFailed => e
-      puts "Connection to #{mqhost} failed #{e}"
+      logger.fatal "Connection to #{mqhost} failed #{e}"
+      exit 1
     rescue Exception => e
-      puts e
+      logger.fatal e
+      exit 1
     end
   end
 
@@ -52,7 +70,7 @@ module JobProcessor
   # just after the child run loop stops and just before the child exits.
   def after_executing
     puts $?
-    puts "after_executing"
+    logger.debug "after_executing"
     @conn.close
   end
 
@@ -74,7 +92,7 @@ module JobProcessor
   # This method is called repeatedly by the child run loop until the child is
   # killed via SIGHUP or SIGTERM or halted by the parent.
   def execute
-    puts "execute"
+    logger.debug "execute"
     @q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
       puts " [x] Received '#{body}'"
       task = JSON.parse(body)
@@ -103,11 +121,14 @@ end
 
 class TaskQueueServer < ::Servolux::Server
 
-  # Create a preforking server that has the given minimum and maximum boundaries
+  include Logging
+
+  # Create a preforking server that has the given minimum and
+  # maximum boundaries
   #
   def initialize( min_workers = 2, max_workers = 10 )
-    @logger = ::Logger.new( $stderr )
-    super( self.class.name, :interval => 2, :logger => @logger )
+    super( self.class.name, :interval => 2, :logger => logger )
+    logger.debug "TaskQueueServer logger id: #{logger.__id__}"
     # Create our preforking worker pool. Each worker will run the
     # code found in the JobProcessor module. We set a timeout of 10
     # minutes. The child process must send a "heartbeat" message to

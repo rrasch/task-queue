@@ -49,16 +49,15 @@ module JobProcessor
   def before_executing
     logger.debug "JobProcessor logger id: #{logger.__id__}"
     logger.debug "before_executing"
-    mqhost = 'localhost'
     begin
-      logger.debug "Connecting to #{mqhost}"
-      @conn = Bunny.new(:host => mqhost, :automatically_recover => true)
+      logger.debug "Connecting to #{$mqhost}"
+      @conn = Bunny.new(:host => $mqhost, :automatically_recover => true)
       @conn.start
       @ch = @conn.create_channel
       @q = @ch.queue("task_queue", :durable => true)
       @ch.prefetch(1)
     rescue Bunny::TCPConnectionFailed => e
-      logger.fatal "Connection to #{mqhost} failed #{e}"
+      logger.fatal "Connection to #{$mqhost} failed #{e}"
       exit 1
     rescue Exception => e
       logger.fatal e
@@ -233,9 +232,11 @@ class TaskQueueServer < ::Servolux::Server
   end
 end
 
-if $0 == __FILE__ then
-  tqs = TaskQueueServer.new
-  tqs.startup
-end
+
+$mqhost = ARGV[0] || "localhost"
+
+tqs = TaskQueueServer.new
+tqs.startup
+
 
 # vim: et:

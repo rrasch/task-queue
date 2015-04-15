@@ -194,7 +194,8 @@ class TaskQueueServer < ::Servolux::Server
   def before_starting
     log "Starting up the Pool"
     # Start up child processes to handle jobs
-    @pool.start( @pool.min_workers )
+    num_workers = ((@pool.min_workers + @pool.max_workers) / 2).round
+    @pool.start( num_workers )
     log "Send a USR1 to add a worker                        (kill -usr1 #{Process.pid})"
     log "Send a USR2 to kill all the workers                (kill -usr2 #{Process.pid})"
     log "Send a INT (Ctrl-C) or TERM to shutdown the server (kill -term #{Process.pid})"

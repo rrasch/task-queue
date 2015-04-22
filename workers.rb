@@ -25,8 +25,8 @@ require 'bunny'
 require 'json'
 require 'logger'
 require 'servolux'
-require_relative './lib/bagit'
-require_relative './lib/book_publisher'
+require './lib/bagit'
+require './lib/book_publisher'
 
 module Logging
   # This is the magical bit that gets mixed into your classes
@@ -96,11 +96,12 @@ module JobProcessor
       puts " [x] Received '#{body}'"
       task = JSON.parse(body)
       p task
-      #class_name = classify(task['class'])
-      class_name = task['class']
+      class_name = classify(task['class'])
+      #class_name = task['class']
       obj = Object::const_get(class_name).new
       obj.rstar_dir = task['rstar_dir']
       obj.ids = task['identifiers']
+      obj.logger = logger
       method_name = task['operation'].tr('-', '_')
       obj.send(method_name)
       puts " [x] Done"
@@ -109,6 +110,8 @@ module JobProcessor
   rescue Interrupt => _
     @ch.close
     @conn.close
+  rescue Exception => e
+    logger.fatal e
   ensure
   end
 end
@@ -126,7 +129,7 @@ class TaskQueueServer < ::Servolux::Server
   # maximum boundaries
   #
   def initialize( min_workers = 2, max_workers = 10 )
-    super( self.class.name, :interval => 2, :logger => logger )
+    super( self.class.name, :interval => 60, :logger => logger )
     logger.debug "TaskQueueServer logger id: #{logger.__id__}"
     # Create our preforking worker pool. Each worker will run the
     # code found in the JobProcessor module. We set a timeout of 10

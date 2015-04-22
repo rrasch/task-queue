@@ -8,34 +8,26 @@ class BookPublisher
 
   attr_accessor :rstar_dir
   attr_accessor :ids
+  attr_accessor :logger
 
   def create_derivatives
-    cmd = mkcmd('create-deriv-images.pl')
-    output, status = Open3.capture2e(cmd)
-    puts output
+    do_cmd('create-deriv-images.pl')
   end
 
   def stitch_pages
-    cmd = mkcmd('stitch-pages.pl')
-    output, status = Open3.capture2e(cmd)
+    do_cmd('stitch-pages.pl')
   end
 
   def create_pdf
-    cmd = mkcmd('create-pdf.pl')
-    puts cmd
-    output, status = Open3.capture2e(cmd)
-    puts output
-    status.exitstatus
+    do_cmd('create-pdf.pl')
   end
 
-  def mkcmd(script_name)
-    BIN_DIR + "/#{script_name} -r #{rstar_dir} #{ids.join(',')}"
+  def do_cmd(script_name)
+    cmd = BIN_DIR + "/#{script_name} -q -r #{rstar_dir} #{ids.join(',')}"
+    output, status = Open3.capture2e(cmd)
+    logger.debug output
+    return status.exitstatus
   end
 
 end
-
-# bp = BookPublisher.new
-# bp.rstar_dir = "/content/prod/rstar/content/nyu/aco"
-# bp.ids = ["nyu_aco000003"]
-# bp.create_pdf
 

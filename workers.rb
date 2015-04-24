@@ -56,6 +56,7 @@ module JobProcessor
       @ch = @conn.create_channel
       @q = @ch.queue("task_queue", :durable => true)
       @ch.prefetch(1)
+      logger.debug "Connected."
     rescue Bunny::TCPConnectionFailed => e
       logger.fatal "Connection to #{$mqhost} failed #{e}"
       exit 1
@@ -103,7 +104,12 @@ module JobProcessor
       obj.ids = task['identifiers']
       obj.logger = logger
       method_name = task['operation'].tr('-', '_')
-      obj.send(method_name)
+      success = obj.send(method_name)
+      if success then
+        puts "Success!"
+      else
+        puts "Failure!"
+      end
       puts " [x] Done"
       @ch.ack(delivery_info.delivery_tag)
     end

@@ -24,6 +24,7 @@ require 'rubygems'
 require 'bunny'
 require 'json'
 require 'logger'
+require 'optparse'
 require 'servolux'
 require './lib/bagit'
 require './lib/book_publisher'
@@ -36,7 +37,7 @@ module Logging
 
   # Global, memoized, lazy initialized instance of a logger
   def self.logger
-    @logger ||= ::Logger.new( $stderr )
+    @logger ||= ::Logger.new($stderr)
   end
 end
 
@@ -50,15 +51,15 @@ module JobProcessor
     logger.debug "JobProcessor logger id: #{logger.__id__}"
     logger.debug "before_executing"
     begin
-      logger.debug "Connecting to #{$mqhost}"
-      @conn = Bunny.new(:host => $mqhost, :automatically_recover => true)
+      logger.debug "Connecting to #{$options[:mqhost]}"
+      @conn = Bunny.new(:host => $options[:mqhost], :automatically_recover => true)
       @conn.start
       @ch = @conn.create_channel
       @q = @ch.queue("task_queue", :durable => true)
       @ch.prefetch(1)
       logger.debug "Connected."
     rescue Bunny::TCPConnectionFailed => e
-      logger.fatal "Connection to #{$mqhost} failed #{e}"
+      logger.fatal "Connection to #{$options[:mqhost]} failed #{e}"
       exit 1
     rescue Exception => e
       logger.fatal e
@@ -69,21 +70,18 @@ module JobProcessor
   # Close the connection to our RabbitMQ queue. This method is called once
   # just after the child run loop stops and just before the child exits.
   def after_executing
-    puts $?
+    logger.debug $?
     logger.debug "after_executing"
     @conn.close
   end
 
-  # Close the RabbitMQ socket when we receive SIGHUP. This allows the execute
+  # Close the RabbitMQ socket when we receive SIGTERM. This allows the execute
   # thread to return processing back to the child run loop; the child run loop
   # will gracefully shutdown the process.
-  def hup
+  def term
     @conn.close
     @thread.wakeup
   end
-
-  # We want to do the same thing when we receive SIGTERM.
-  alias :term :hup
 
   # Reserve a job from the RabbitMQ queue, and processes jobs as we receive
   # them. We have a timeout set for 2 minutes so that we can send a heartbeat
@@ -94,7 +92,7 @@ module JobProcessor
   def execute
     logger.debug "execute"
     @q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
-      puts " [x] Received '#{body}'"
+      logger.debug " [x] Received '#{body}'"
       task = JSON.parse(body)
       p task
       class_name = classify(task['class'])
@@ -106,11 +104,11 @@ module JobProcessor
       method_name = task['operation'].tr('-', '_')
       success = obj.send(method_name)
       if success then
-        puts "Success!"
+        logger.debug "Success!"
       else
-        puts "Failure!"
+        logger.debug "Failure!"
       end
-      puts " [x] Done"
+      logger.debug " [x] Done"
       @ch.ack(delivery_info.delivery_tag)
     end
   rescue Interrupt => _
@@ -134,7 +132,7 @@ class TaskQueueServer < ::Servolux::Server
   # Create a preforking server that has the given minimum and
   # maximum boundaries
   #
-  def initialize( min_workers = 2, max_workers = 10 )
+  def initialize( min_workers = 1, max_workers = 10 , timeout = nil)
     super( self.class.name, :interval => 60, :logger => logger )
     logger.debug "TaskQueueServer logger id: #{logger.__id__}"
     # Create our preforking worker pool. Each worker will run the
@@ -150,7 +148,7 @@ class TaskQueueServer < ::Servolux::Server
     # This also means that if any job processed by a worker takes
     # longer than 10 minutes to run, that child worker will be
     # killed.
-    @pool = Servolux::Prefork.new( :module => JobProcessor, :timeout => 600,
+    @pool = Servolux::Prefork.new( :module => JobProcessor, :timeout => timeout,
                                    :min_workers => min_workers, :max_workers => max_workers )
   end
 
@@ -242,10 +240,39 @@ class TaskQueueServer < ::Servolux::Server
   end
 end
 
+# Start
 
-$mqhost = ARGV[0] || "localhost"
 
-tqs = TaskQueueServer.new
+$options = {
+  :mqhost => "localhost",
+  :timeout => nil,
+}
+
+OptionParser.new do |opts|
+
+  opts.banner = "Usage: workers.rb [options]"
+
+  opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |h|
+    $options[:mqhost] = h
+  end
+
+  opts.on('-t', '--timeout PORT', 'Worker timeout') do |t|
+    $options[:timeout] = t
+  end
+
+  opts.on('-h', '--help', 'Print help message') do
+    puts opts
+    exit
+  end
+
+end.parse!
+
+Process.daemon(no_chdir = true, no_close = false)
+$stdout.reopen("worker.log", "w")
+$stdout.sync = true
+$stderr.reopen($stdout)
+
+tqs = TaskQueueServer.new(3, 10, $options[:timeout])
 tqs.startup
 
 

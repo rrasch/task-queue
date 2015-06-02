@@ -18,7 +18,7 @@ on hosts do |host|
     execute :git, :clone, repo, install_dir
   end
   within install_dir do
-    execute './workers-ctrl', 'restart'
+    execute './workersctl', 'restart'
   end
 end
 

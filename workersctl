@@ -4,6 +4,8 @@ PIDFILE=taskqueueserver.pid
 
 MQHOST=${MQHOST:-localhost}
 
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+
 start() {
 	./workers.rb -m $MQHOST
 }

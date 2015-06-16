@@ -8,14 +8,24 @@ PIDFILE=taskqueueserver.pid
 
 MQHOST=${MQHOST:-localhost}
 
-[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+RVMRC=$HOME/.rvm/scripts/rvm
+
+if [ -s $RVMRC ]; then
+	. $RVMRC
+fi
+
+RETVAL=0
 
 start() {
 	./workers.rb -m $MQHOST
+	RETVAL=$?
 }
 
 stop() {
-	[ -f $PIDFILE ] && kill `cat $PIDFILE`
+	if [ -f $PIDFILE ]; then
+		kill `cat $PIDFILE`
+		RETVAL=$?
+	fi
 }
 
 restart() {
@@ -40,4 +50,4 @@ case "$1" in
 	;;
 esac
 
-:
+exit $RETVAL

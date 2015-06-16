@@ -5,6 +5,8 @@ require 'sshkit/dsl'
 
 hosts = %w{rasan@test}
 
+mqhost = "localhost"
+
 repo = 'https://github.com/rrasch/task-queue.git'
 
 install_dir = '/usr/local/dlib/task-queue'
@@ -18,7 +20,10 @@ on hosts do |host|
     execute :git, :clone, repo, install_dir
   end
   within install_dir do
-    execute './workersctl', 'restart'
+    with mqhost: mqhost do
+      #execute './workersctl', 'restart'
+      puts capture('./workersctl', 'restart')
+    end
   end
 end
 

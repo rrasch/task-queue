@@ -2,10 +2,9 @@
 
 PIDFILE=taskqueueserver.pid
 
+MQHOST=${MQHOST:-localhost}
+
 start() {
-	if [ -z "MQHOST" ]; then
-		MQHOST=localhost
-	fi
 	./workers.rb -m $MQHOST
 }
 

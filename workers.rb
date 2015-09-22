@@ -57,6 +57,7 @@ module JobProcessor
       @ch = @conn.create_channel
       @q = @ch.queue("task_queue", :durable => true)
       @ch.prefetch(1)
+      @x = @ch.topic("tq_logging", :auto_delete => true)
       logger.debug "Connected."
     rescue Bunny::TCPConnectionFailed => e
       logger.fatal "Connection to #{$options[:mqhost]} failed #{e}"
@@ -104,11 +105,15 @@ module JobProcessor
       method_name = task['operation'].tr('-', '_')
       success = obj.send(method_name)
       if success then
-        logger.debug "Success!"
+        state = "success"
       else
-        logger.debug "Failure!"
+        state = "error"
       end
+      logger.debug "#{state.capitalize}!"
       logger.debug " [x] Done"
+      task['state'] = state
+      task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+      @x.publish(JSON.pretty_generate(task), :routing_key => "task_queue.#{state}")
       @ch.ack(delivery_info.delivery_tag)
     end
   rescue Interrupt => _

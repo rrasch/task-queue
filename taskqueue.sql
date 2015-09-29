@@ -24,7 +24,9 @@ CREATE TABLE task_queue_log (
 	collection_id int UNSIGNED NOT NULL,
 	wip_id int UNSIGNED NOT NULL,
 	state ENUM ('processing', 'success', 'error') NOT NULL,
-	completed DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+--	CURRENT_TIMESTAMP doesn't work for MySQL 5.1
+--	completed DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+	completed DATETIME NOT NULL,
     PRIMARY KEY (collection_id, wip_id),
 	FOREIGN KEY (collection_id) REFERENCES collection(collection_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

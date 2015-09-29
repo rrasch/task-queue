@@ -28,11 +28,21 @@ class BookPublisher
     do_cmd('create-pdf.pl')
   end
 
-  def do_cmd(script_name)
-    cmd = BIN_DIR + "/#{script_name} -q -r #{rstar_dir} #{ids.join(' ')}"
-    output, status = Open3.capture2e(cmd)
-    logger.debug output
-    return status.exitstatus.zero?
+  def do_cmd(*script_names)
+    total_output = ""
+    success = true
+    script_names.each do |script_name|
+      cmd = BIN_DIR + "/#{script_name} -q -r #{rstar_dir} #{ids.join(' ')}"
+      output, status = Open3.capture2e(cmd)
+      logger.debug output
+      total_output.concat(output)
+      success = status.exitstatus.zero?
+      break if !success
+    end
+    return {
+      :success => success,
+      :output  => total_output,
+    }
   end
 
 end

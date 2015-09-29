@@ -9,12 +9,13 @@ CREATE TABLE collection (
 	collection_id int UNSIGNED AUTO_INCREMENT NOT NULL,
 	provider VARCHAR(30) NOT NULL,
 	collection VARCHAR(30) NOT NULL,
+	id_prefix VARCHAR(30) NOT NULL,
 	PRIMARY KEY (collection_id),
 	UNIQUE KEY (collection, provider)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO collection VALUES (0, 'nyu', 'aco');
-INSERT INTO collection VALUES (0, 'cornell', 'aco');
+INSERT INTO collection VALUES (0, 'nyu',     'aco', 'nyu_aco');
+INSERT INTO collection VALUES (0, 'cornell', 'aco', 'cornell_aco');
 
 DROP TABLE IF EXISTS task_queue;
 DROP TABLE IF EXISTS task_queue_log;

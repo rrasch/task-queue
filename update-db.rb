@@ -4,12 +4,25 @@ require 'rubygems'
 require 'bunny'
 require 'json'
 require 'mysql2'
+require 'yaml'
+
+conf_file = "config.yml"
+
+if File.exists?(conf_file)
+  # puts "loading #{conf_file}"
+  config = YAML.load_file(conf_file)
+  # puts config.inspect
+else
+  abort "Missing config.yaml" 
+end
+
+puts config["dbhost"]
 
 client = Mysql2::Client.new(
-  :host     => "localhost",
-  :username => "tquser",
-  :password => "mypasswd",
-  :database => "task_queue_log")
+  :host     => config["dbhost"],
+  :database => config["dbname"],
+  :username => config["dbuser"],
+  :password => config["dbpass"])
 
 select_col = client.prepare(
  "SELECT collection_id FROM collection
@@ -26,7 +39,7 @@ update_log = client.prepare(
  "UPDATE task_queue_log SET state = ?, completed = ?
   WHERE collection_id = ? AND wip_id = ?")
 
-conn = Bunny.new
+conn = Bunny.new(:host => config['mqhost'])
 conn.start
 
 ch = conn.create_channel
@@ -34,7 +47,7 @@ x = ch.topic("tq_logging", :auto_delete => true)
 q = ch.queue("tq_log_reader", :durable => true)
 q.bind(x, :routing_key => "task_queue.*")
 
-q.subscribe(:block => true, :ack => false) do |delivery_info, properties, payload|
+q.subscribe(:block => true, :manual_ack => false) do |delivery_info, properties, payload|
   puts "Received #{payload}, message properties are #{properties.inspect}"
   task = JSON.parse(payload)
   puts task['identifiers'][0]

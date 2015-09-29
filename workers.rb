@@ -103,8 +103,8 @@ module JobProcessor
       obj.ids = task['identifiers']
       obj.logger = logger
       method_name = task['operation'].tr('-', '_')
-      success = obj.send(method_name)
-      if success then
+      status = obj.send(method_name)
+      if status[:success] then
         state = "success"
       else
         state = "error"

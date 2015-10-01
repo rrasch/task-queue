@@ -47,7 +47,7 @@ x = ch.topic("tq_logging", :auto_delete => true)
 q = ch.queue("tq_log_reader", :durable => true)
 q.bind(x, :routing_key => "task_queue.*")
 
-q.subscribe(:block => true, :manual_ack => false) do |delivery_info, properties, payload|
+q.subscribe(:block => true, :manual_ack => true) do |delivery_info, properties, payload|
   puts "Received #{payload}, message properties are #{properties.inspect}"
   task = JSON.parse(payload)
   puts task['identifiers'][0]

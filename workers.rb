@@ -29,41 +29,31 @@ require 'servolux'
 require './lib/bagit'
 require './lib/book_publisher'
 
-module Logging
-  # This is the magical bit that gets mixed into your classes
-  def logger
-    Logging.logger
-  end
-
-  # Global, memoized, lazy initialized instance of a logger
-  def self.logger
-    @logger ||= ::Logger.new($stderr)
-  end
-end
-
 module JobProcessor
-
-  include Logging
 
   # Open a connection to our RabbitMQ queue. This method is called once just
   # before entering the child run loop.
   def before_executing
-    logger.debug "JobProcessor logger id: #{logger.__id__}"
-    logger.debug "before_executing"
+    @logger = config[:logger]
+    @logger.debug "JobProcessor logger id: #{@logger.__id__}"
+    @logger.debug "before_executing"
     begin
-      logger.debug "Connecting to #{$options[:mqhost]}"
-      @conn = Bunny.new(:host => $options[:mqhost], :automatically_recover => true)
+      @logger.debug "Connecting to #{config[:mqhost]}"
+      @conn = Bunny.new(
+        :host => config[:mqhost],
+        :automatically_recover => true,
+      )
       @conn.start
       @ch = @conn.create_channel
       @q = @ch.queue("task_queue", :durable => true)
       @ch.prefetch(1)
       @x = @ch.topic("tq_logging", :auto_delete => true)
-      logger.debug "Connected."
+      @logger.debug "Connected."
     rescue Bunny::TCPConnectionFailed => e
-      logger.fatal "Connection to #{$options[:mqhost]} failed #{e}"
+      @logger.fatal "Connection to #{config[:mqhost]} failed #{e}"
       exit 1
     rescue Exception => e
-      logger.fatal e
+      @logger.fatal e
       exit 1
     end
   end
@@ -71,8 +61,8 @@ module JobProcessor
   # Close the connection to our RabbitMQ queue. This method is called once
   # just after the child run loop stops and just before the child exits.
   def after_executing
-    logger.debug $?
-    logger.debug "after_executing"
+    @logger.debug $?
+    @logger.debug "after_executing"
     @conn.close
   end
 
@@ -91,9 +81,9 @@ module JobProcessor
   # This method is called repeatedly by the child run loop until the child is
   # killed via SIGHUP or SIGTERM or halted by the parent.
   def execute
-    logger.debug "execute"
+    @logger.debug "execute"
     @q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
-      logger.debug " [x] Received '#{body}'"
+      @logger.debug " [x] Received '#{body}'"
       task = JSON.parse(body)
       p task
       class_name = classify(task['class'])
@@ -101,7 +91,7 @@ module JobProcessor
       obj = Object::const_get(class_name).new
       obj.rstar_dir = task['rstar_dir']
       obj.ids = task['identifiers']
-      obj.logger = logger
+      obj.logger = @logger
       method_name = task['operation'].tr('-', '_')
       status = obj.send(method_name)
       if status[:success] then
@@ -109,8 +99,8 @@ module JobProcessor
       else
         state = "error"
       end
-      logger.debug "#{state.capitalize}!"
-      logger.debug " [x] Done"
+      @logger.debug "#{state.capitalize}!"
+      @logger.debug " [x] Done"
       task['state'] = state
       task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
       @x.publish(JSON.pretty_generate(task), :routing_key => "task_queue.#{state}")
@@ -120,8 +110,10 @@ module JobProcessor
     @ch.close
     @conn.close
   rescue Exception => e
-    logger.fatal e
+    @logger.fatal e
+    exit 1
   ensure
+    # do something here
   end
 end
 
@@ -132,14 +124,19 @@ end
 
 class TaskQueueServer < ::Servolux::Server
 
-  include Logging
-
   # Create a preforking server that has the given minimum and
   # maximum boundaries
   #
-  def initialize( min_workers = 1, max_workers = 10 , timeout = nil)
-    super( self.class.name, :interval => 60, :logger => logger )
-    logger.debug "TaskQueueServer logger id: #{logger.__id__}"
+  def initialize(min_workers, max_workers, config)
+
+    @config = config
+    @logger = config[:logger]
+
+    super(self.class.name, :interval => 120, :logger => @logger,
+      :pid_file => config[:pidfile])
+
+    @logger.debug "TaskQueueServer logger id: #{@logger.__id__}"
+
     # Create our preforking worker pool. Each worker will run the
     # code found in the JobProcessor module. We set a timeout of 10
     # minutes. The child process must send a "heartbeat" message to
@@ -153,12 +150,17 @@ class TaskQueueServer < ::Servolux::Server
     # This also means that if any job processed by a worker takes
     # longer than 10 minutes to run, that child worker will be
     # killed.
-    @pool = Servolux::Prefork.new( :module => JobProcessor, :timeout => timeout,
-                                   :min_workers => min_workers, :max_workers => max_workers )
+    @pool = Servolux::Prefork.new(
+      :module => JobProcessor,
+      :timeout => config[:timeout],
+      :config => config,
+      :min_workers => min_workers,
+      :max_workers => max_workers
+    )
   end
 
-  def log( msg )
-    logger.info msg
+  def log(msg)
+    @logger.info msg
   end
 
   def log_pool_status
@@ -181,7 +183,7 @@ class TaskQueueServer < ::Servolux::Server
     end
   end
 
-  def log_worker_status( worker )
+  def log_worker_status(worker)
     if not worker.alive? then
       worker.wait
       if worker.error then
@@ -207,10 +209,11 @@ class TaskQueueServer < ::Servolux::Server
     log "Starting up the Pool"
     # Start up child processes to handle jobs
     num_workers = ((@pool.min_workers + @pool.max_workers) / 2).round
-    @pool.start( num_workers )
+    @pool.start(num_workers)
     log "Send a USR1 to add a worker                        (kill -usr1 #{Process.pid})"
     log "Send a USR2 to kill all the workers                (kill -usr2 #{Process.pid})"
     log "Send a INT (Ctrl-C) or TERM to shutdown the server (kill -term #{Process.pid})"
+    log "Send a HUP to reopen log file                      (kill -hup #{Process.pid})"
   end
 
   # Add a worker to the pool when USR1 is received
@@ -226,6 +229,12 @@ class TaskQueueServer < ::Servolux::Server
     shutdown_workers
   end
 
+  def hup
+    @config[:logfh].reopen(@config[:logfile], 'a')
+    @config[:logfh].sync = true
+    @logger.info "Reopened log file #{@config[:logfile]}"
+  end
+
   # By default, Servolux::Server will capture the TERM signal and call its
   # +shutdown+ method. After that +shutdown+ method is called it will call
   # +after_shutdown+ we're going to hook into that so that all the workers get
@@ -239,30 +248,43 @@ class TaskQueueServer < ::Servolux::Server
   def run
     log_pool_status
     @pool.each_worker do |worker|
-      log_worker_status( worker )
+      log_worker_status(worker)
     end
     @pool.ensure_worker_pool_size
   end
 end
 
+
 # Start
 
-
-$options = {
-  :mqhost => "localhost",
+config = {
+  :mqhost  => "localhost",
   :timeout => nil,
+  :logfile => Dir.pwd + "/worker.log",
+  :pidfile => Dir.pwd + "/taskqueueserver.pid",
 }
+
+# puts config[:logfile]
+# puts config[:pidfile]
 
 OptionParser.new do |opts|
 
   opts.banner = "Usage: workers.rb [options]"
 
   opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |h|
-    $options[:mqhost] = h
+    config[:mqhost] = h
   end
 
   opts.on('-t', '--timeout PORT', 'Worker timeout') do |t|
-    $options[:timeout] = t
+    config[:timeout] = t
+  end
+
+  opts.on('-l', '--logfile LOGFILE', 'Log output here') do |l|
+    config[:logfile] = l
+  end
+
+  opts.on('-p', '--pidfile PIDFILE', 'Pid file') do |l|
+    config[:pidfile] = p
   end
 
   opts.on('-h', '--help', 'Print help message') do
@@ -272,13 +294,15 @@ OptionParser.new do |opts|
 
 end.parse!
 
-Process.daemon(no_chdir = true, no_close = false)
-$stdout.reopen("worker.log", "w")
-$stdout.sync = true
-$stderr.reopen($stdout)
+Process.daemon
 
-tqs = TaskQueueServer.new(3, 10, $options[:timeout])
+config[:logfh] = File.new(config[:logfile], 'a')
+config[:logfh].sync = true
+$stdout = config[:logfh]
+$stderr = config[:logfh]
+config[:logger] = ::Logger.new(config[:logfh])
+
+tqs = TaskQueueServer.new(3, 10, config)
 tqs.startup
-
 
 # vim: et:

@@ -5,29 +5,33 @@ require 'bunny'
 require 'json'
 require 'mysql2'
 require 'optparse'
-require 'yaml'
-
 
 # Set default options
 options = {
-  :config  => Dir.pwd + "/config.yml",
-  :logfile => Dir.pwd + "/update.log",
+  :mqhost    => "localhost",
+  :my_cnf    => "/etc/my-taskqueue.cnf",
+  :logfile   => Dir.pwd + "/log-job-status.log",
+  :daemonize => false,
 }
 
 OptionParser.new do |opts|
 
   opts.banner = "Usage: #{$0} [options]"
-
-  opts.on('-c', '--config CONFIGFILE', 'Config file (yaml format)') do |c|
-    options[:config] = c
+  
+  opts.on('-q', '--mqhost MQHOST', 'RabbitMQ Host') do |q|
+    options[:mqhost] = q
   end
 
   opts.on('-l', '--logfile LOGFILE', 'Log file') do |l|
     options[:logfile] = l
   end
 
+  opts.on('-m', '--my-cnf CONFIG FILE', 'MySQL config for taskqueue db') do |m|
+    options[:my_cnf] = m
+  end
+
   opts.on('-d', '--daemonize', 'Daemonize process') do
-    daemonize = true
+    options[:daemonize] = true
   end
 
   opts.on('-h', '--help', 'Print help message') do
@@ -37,24 +41,21 @@ OptionParser.new do |opts|
 
 end.parse!
 
-
-logger = Logger.new($stderr)
-
-conf_file = options[:config]
-
-if File.exists?(conf_file)
-  config = YAML.load_file(conf_file)
-else
-  abort "Missing config.yaml" 
+if options[:daemonize]
+  logger.debug "Putting process #{Process.pid} in background"
+  Process.daemon
 end
 
-logger.debug "dbhost: #{config["dbhost"]}"
+logfile = File.new(options[:logfile], 'a')
+logfile.sync = true
+$stdout = logfile
+$stderr = logfile
+logger = Logger.new(logfile, 5, 1000000)
+logger.level = Logger::INFO
 
 client = Mysql2::Client.new(
-  :host     => config["dbhost"],
-  :database => config["dbname"],
-  :username => config["dbuser"],
-  :password => config["dbpass"])
+  :default_file  => options[:my_cnf],
+)
 
 # XXX: create a library for db statemets
 insert_col = client.prepare(
@@ -76,7 +77,7 @@ select_log = client.prepare(
   WHERE t.collection_id = c.collection_id
   AND t.collection_id = ? and t.wip_id = ?")
 
-conn = Bunny.new(:host => config['mqhost'])
+conn = Bunny.new(:host => options[:mqhost])
 conn.start
 
 ch = conn.create_channel
@@ -85,7 +86,8 @@ q = ch.queue("tq_log_reader", :durable => true)
 q.bind(x, :routing_key => "task_queue.*")
 
 q.subscribe(:block => true, :manual_ack => true) do |delivery_info, properties, payload|
-  puts "Received #{payload}, message properties are #{properties.inspect}"
+  logger.debug "Received #{payload}, ",
+               "message proprties are #{properties.inspect}"
   task = JSON.parse(payload)
 
   # parse rstar_dir to get provider and collection value

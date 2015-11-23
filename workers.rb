@@ -85,7 +85,10 @@ module JobProcessor
     @q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
       @logger.debug " [x] Received '#{body}'"
       task = JSON.parse(body)
-      p task
+      @logger.debug task.inspect
+      task['state'] = "processing"
+      @x.publish(JSON.pretty_generate(task),
+                 :routing_key => "task_queue.processing")
       class_name = classify(task['class'])
       #class_name = task['class']
       obj = Object::const_get(class_name).new
@@ -93,6 +96,7 @@ module JobProcessor
       obj.ids = task['identifiers']
       obj.logger = @logger
       method_name = task['operation'].tr('-', '_')
+      @logger.debug "Executing #{method_name}"
       status = obj.send(method_name)
       if status[:success] then
         state = "success"
@@ -103,7 +107,8 @@ module JobProcessor
       @logger.debug " [x] Done"
       task['state'] = state
       task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
-      @x.publish(JSON.pretty_generate(task), :routing_key => "task_queue.#{state}")
+      @x.publish(JSON.pretty_generate(task),
+                 :routing_key => "task_queue.#{state}")
       @ch.ack(delivery_info.delivery_tag)
     end
   rescue Interrupt => _

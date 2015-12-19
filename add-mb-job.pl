@@ -19,18 +19,19 @@ our $opt_d;   # add derivative creation job
 our $opt_p;   # add pdf creation job
 our $opt_s;   # add stitch pages job
 our $opt_a;   # add job combining 3 jobs above
+our $opt_t;   # add video transcoding job
 our $opt_m;   # hostname for messaging server
 our $opt_r;   # rstar directory
 
-getopts('hvbdpsam:r:');
+getopts('hvbdpsatm:r:');
 
-my $num_flags = count_flags($opt_d, $opt_p, $opt_s, $opt_a);
+my $num_flags = count_flags($opt_d, $opt_p, $opt_s, $opt_a, $opt_t);
 
 if ($opt_h) {
 	usage();
 	exit(0);
 } elsif (!$num_flags) {
-	usage("You must set one of -d, -p, -s, or -a");
+	usage("You must set one of -d, -p, -s, -a, or -t");
 	exit(1);
 } elsif ($num_flags > 1) {
 	usage("Please select only one of -d, -p, -s, or -a");
@@ -44,6 +45,8 @@ if ($opt_d) {
 	$op = "create-pdf";
 } elsif ($opt_s) {
 	$op = "stitch-pages";
+} elsif ($opt_t) {
+	$op = "transcode";
 } else {
 	$op = "gen-all";
 }
@@ -126,11 +129,12 @@ $mq->queue_declare(
 	}
 );
 
+my $class = $opt_t ? "video" : "book-publisher";
 
 for my $id (@ids)
 {
 	my $task = {
-		class       => "book-publisher",
+		class       => $class,
 		operation   => $op,
 		identifiers => [$id],
 		rstar_dir   => $rstar_dir,
@@ -185,7 +189,8 @@ sub usage
 		"        -d     flag to create job to generate derivatives\n",
 		"        -p     flag to create job to generate pdfs\n",
 		"        -s     flag to create job to stitch pages\n",
-		"        -a     flag to create job combining 3 jobs above\n";
+		"        -a     flag to create job combining 3 jobs above\n",
+		"        -t     flag to create job to transcode videos\n";
 	print STDERR "\n";
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require cmd
+require './lib/cmd'
 
 class Video
 
@@ -9,11 +9,11 @@ class Video
   end
 
   def transcode
-    @cmd.exec('convert2mp4')
+    @cmd.do_cmd('create-mp4')
   end
 
   def make_contact_sheet
-    @cmd.exec('vcs')
+    @cmd.do_cmd('vcs')
   end
 
 end

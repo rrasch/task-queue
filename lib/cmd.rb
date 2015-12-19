@@ -15,9 +15,9 @@ class Cmd
     total_output = ""
     success = true
     script_names.each do |script_name|
-      cmd = @bin_dir + "/#{script_name} -q -r #{rstar_dir} #{ids.join(' ')}"
+      cmd = @bin_dir + "/#{script_name} -q -r #{@rstar_dir} #{@ids.join(' ')}"
       output, status = Open3.capture2e(cmd)
-      logger.debug output
+      @logger.debug output
       total_output.concat(output)
       success = status.exitstatus.zero?
       break if !success

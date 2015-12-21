@@ -28,6 +28,7 @@ require 'optparse'
 require 'servolux'
 require './lib/bagit'
 require './lib/book_publisher'
+require './lib/video'
 
 module JobProcessor
 
@@ -36,12 +37,13 @@ module JobProcessor
   def before_executing
     @logger = config[:logger]
     @logger.debug "JobProcessor logger id: #{@logger.__id__}"
-    @logger.debug "before_executing"
+    @logger.debug "entering JobProcessor.before_executing()"
     begin
       @logger.debug "Connecting to #{config[:mqhost]}"
       @conn = Bunny.new(
         :host => config[:mqhost],
         :automatically_recover => true,
+        :logger => @logger
       )
       @conn.start
       @ch = @conn.create_channel
@@ -50,19 +52,18 @@ module JobProcessor
       @x = @ch.topic("tq_logging", :auto_delete => true)
       @logger.debug "Connected."
     rescue Bunny::TCPConnectionFailed => e
-      @logger.fatal "Connection to #{config[:mqhost]} failed #{e}"
-      exit 1
+      @logger.error "Connection to #{config[:mqhost]} failed - #{e}"
+      raise e
     rescue Exception => e
-      @logger.fatal e
-      exit 1
+      @logger.error e
+      raise e
     end
   end
 
   # Close the connection to our RabbitMQ queue. This method is called once
   # just after the child run loop stops and just before the child exits.
   def after_executing
-    @logger.debug $?
-    @logger.debug "after_executing"
+    @logger.debug "entering JobProcessor.after_executing()"
     @conn.close
   end
 
@@ -81,45 +82,47 @@ module JobProcessor
   # This method is called repeatedly by the child run loop until the child is
   # killed via SIGHUP or SIGTERM or halted by the parent.
   def execute
-    @logger.debug "execute"
+    @logger.debug "entering JobProcessor.execute()"
     @q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
-      @logger.debug " [x] Received '#{body}'"
-      task = JSON.parse(body)
-      @logger.debug task.inspect
-      task['state'] = "processing"
-      @x.publish(JSON.pretty_generate(task),
-                 :routing_key => "task_queue.processing")
-      class_name = classify(task['class'])
-      #class_name = task['class']
-      obj = Object::const_get(class_name).new
-      obj.rstar_dir = task['rstar_dir']
-      obj.ids = task['identifiers']
-      obj.logger = @logger
-      method_name = task['operation'].tr('-', '_')
-      @logger.debug "Executing #{method_name}"
-      status = obj.send(method_name)
-      if status[:success] then
-        state = "success"
-      else
-        state = "error"
+      begin
+        @logger.debug " [x] Received '#{body}'"
+        task = JSON.parse(body)
+        @logger.debug task.inspect
+        task['state'] = "processing"
+        @x.publish(JSON.pretty_generate(task),
+                   :routing_key => "task_queue.processing")
+        class_name = classify(task['class'])
+        @logger.debug "Creating new #{class_name} object"
+        obj = Object::const_get(class_name).new(
+                task['rstar_dir'], task['identifiers'], @logger)
+        method_name = task['operation'].tr('-', '_')
+        @logger.debug "Executing #{method_name}"
+        status = obj.send(method_name)
+        if status[:success] then
+          state = "success"
+        else
+          state = "error"
+        end
+        @logger.debug "#{state.capitalize}!"
+        @logger.debug " [x] Done"
+        task['state'] = state
+        task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+        @logger.debug "Publishing to task_queue.#{state}"
+        @x.publish(JSON.pretty_generate(task),
+                   :routing_key => "task_queue.#{state}")
+        @logger.debug "Sending ack"
+        @ch.ack(delivery_info.delivery_tag)
+      rescue Exception => e
+        @logger.error e
+        @conn.close
       end
-      @logger.debug "#{state.capitalize}!"
-      @logger.debug " [x] Done"
-      task['state'] = state
-      task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
-      @x.publish(JSON.pretty_generate(task),
-                 :routing_key => "task_queue.#{state}")
-      @ch.ack(delivery_info.delivery_tag)
     end
-  rescue Interrupt => _
-    @ch.close
-    @conn.close
   rescue Exception => e
-    @logger.fatal e
-    exit 1
-  ensure
-    # do something here
+    @logger.error e
+    @conn.close
+    raise e
   end
+
 end
 
 def classify(str)
@@ -211,9 +214,9 @@ class TaskQueueServer < ::Servolux::Server
 
   # this is run once before the Server's run loop
   def before_starting
-    log "Starting up the Pool"
     # Start up child processes to handle jobs
     num_workers = ((@pool.min_workers + @pool.max_workers) / 2).round
+    log "Starting up the pool of #{num_workers} workers"
     @pool.start(num_workers)
     log "Send a USR1 to add a worker                        (kill -usr1 #{Process.pid})"
     log "Send a USR2 to kill all the workers                (kill -usr2 #{Process.pid})"
@@ -267,6 +270,7 @@ config = {
   :timeout => nil,
   :logfile => Dir.pwd + "/worker.log",
   :pidfile => Dir.pwd + "/taskqueueserver.pid",
+  :quiet   => false,
 }
 
 # puts config[:logfile]
@@ -292,6 +296,10 @@ OptionParser.new do |opts|
     config[:pidfile] = p
   end
 
+  opts.on('-q', '--quiet', 'Suppress debugging messages') do
+    config[:quiet] = true
+  end
+
   opts.on('-h', '--help', 'Print help message') do
     puts opts
     exit
@@ -306,6 +314,10 @@ config[:logfh].sync = true
 $stdout = config[:logfh]
 $stderr = config[:logfh]
 config[:logger] = ::Logger.new(config[:logfh])
+if config[:quiet]
+  config[:logger].level = Logger::INFO
+end
+
 
 tqs = TaskQueueServer.new(3, 10, config)
 tqs.startup

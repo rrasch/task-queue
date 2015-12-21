@@ -27,6 +27,8 @@ getopts('hvbdpsatm:r:');
 
 my $num_flags = count_flags($opt_d, $opt_p, $opt_s, $opt_a, $opt_t);
 
+$opt_b ||= !-t STDIN;
+
 if ($opt_h) {
 	usage();
 	exit(0);

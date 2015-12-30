@@ -6,6 +6,7 @@
 
 use strict;
 use warnings;
+use DBI;
 use Getopt::Std;
 use JSON;
 use Net::AMQP::RabbitMQ;
@@ -22,8 +23,9 @@ our $opt_a;   # add job combining 3 jobs above
 our $opt_t;   # add video transcoding job
 our $opt_m;   # hostname for messaging server
 our $opt_r;   # rstar directory
+our $opt_c;   # mysql config file
 
-getopts('hvbdpsatm:r:');
+getopts('hvbdpsatm:r:c:');
 
 my $num_flags = count_flags($opt_d, $opt_p, $opt_s, $opt_a, $opt_t);
 
@@ -53,7 +55,7 @@ if ($opt_d) {
 	$op = "gen-all";
 }
 
-my $rstar_dir  = $opt_r || $ENV{RSTAR_DIR};
+my $rstar_dir = $opt_r || $ENV{RSTAR_DIR};
 
 if (!$rstar_dir) {
 	usage("You must specify rstar directory.");
@@ -62,6 +64,8 @@ if (!$rstar_dir) {
 	print STDERR "Directory $rstar_dir does not exist.\n";
 	exit(1);
 }
+
+my $my_cnf = $opt_c || "/etc/my-taskqueue.cnf";
 
 my $wip_dir = "$rstar_dir/wip/se";
 
@@ -133,8 +137,35 @@ $mq->queue_declare(
 
 my $class = $opt_t ? "video" : "book-publisher";
 
+my $dbh = DBI->connect("DBI:mysql:;mysql_read_default_file=$my_cnf");
+
+my ($provider, $collection) = $rstar_dir =~ /.*\/([^\/]+)\/([^\/]+)\/*$/;
+my $sth = $dbh->prepare(qq{
+	SELECT collection_id FROM collection
+	WHERE provider = '$provider' and collection = '$collection'
+}) or die $dbh->errstr;
+$sth->execute;
+my ($collection_id) = $sth->fetchrow_array;
+
+$sth = $dbh->prepare(qq{
+	SELECT state, worker_host, completed
+	FROM task_queue_log
+	WHERE collection_id = ? and wip_id = ? 
+}) or die $dbh->errstr;
+
 for my $id (@ids)
 {
+	if ($collection_id)
+	{
+		$sth->execute($collection_id, $id);
+		my ($state, $host, $completed) = $sth->fetchrow_array;
+		if ($state)
+		{
+			print STDERR "$id is already processing.\n";
+			next;
+		}
+	}
+
 	my $task = {
 		class       => $class,
 		operation   => $op,
@@ -174,6 +205,9 @@ for my $id (@ids)
 		},
 	);
 }
+
+$sth->finish;
+$dbh->disconnect;
 
 
 sub usage

@@ -26,6 +26,7 @@ require 'json'
 require 'logger'
 require 'optparse'
 require 'servolux'
+require 'socket'
 require './lib/bagit'
 require './lib/book_publisher'
 require './lib/video'
@@ -89,6 +90,7 @@ module JobProcessor
         task = JSON.parse(body)
         @logger.debug task.inspect
         task['state'] = "processing"
+        task['worker_host'] = get_ip_addr
         @x.publish(JSON.pretty_generate(task),
                    :routing_key => "task_queue.processing")
         class_name = classify(task['class'])
@@ -129,6 +131,10 @@ def classify(str)
   str.split(/[_-]/).collect(&:capitalize).join
 end
 
+def get_ip_addr
+  Socket.ip_address_list.detect{|ip|
+    ip.ipv4? and !ip.ipv4_loopback? and !ip.ipv4_multicast?}.ip_address
+end
 
 class TaskQueueServer < ::Servolux::Server
 

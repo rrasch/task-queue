@@ -171,6 +171,7 @@ for my $id (@ids)
 		operation   => $op,
 		identifiers => [$id],
 		rstar_dir   => $rstar_dir,
+		user_id     => scalar(getpwuid($<)),
 	};
 
 	my $json = JSON->new;

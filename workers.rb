@@ -90,6 +90,7 @@ module JobProcessor
         task = JSON.parse(body)
         @logger.debug task.inspect
         task['state'] = "processing"
+        #task['worker_host'] = Socket.gethostname[/^[^.]+/]
         task['worker_host'] = get_ip_addr
         @x.publish(JSON.pretty_generate(task),
                    :routing_key => "task_queue.processing")

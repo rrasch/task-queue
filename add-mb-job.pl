@@ -6,6 +6,7 @@
 
 use strict;
 use warnings;
+use Data::Dumper;
 use DBI;
 use Getopt::Std;
 use JSON;
@@ -13,50 +14,29 @@ use Net::AMQP::RabbitMQ;
 use Term::ANSIColor;
 use Term::ReadKey;
 
-our $opt_v;   # verbose
-our $opt_h;   # help message
-our $opt_b;   # batch mode
-our $opt_d;   # add derivative creation job
-our $opt_p;   # add pdf creation job
-our $opt_s;   # add stitch pages job
-our $opt_a;   # add job combining 3 jobs above
-our $opt_t;   # add video transcoding job
-our $opt_m;   # hostname for messaging server
-our $opt_r;   # rstar directory
-our $opt_c;   # mysql config file
+# Command line options
+# -v:  verbose
+# -h:  help message
+# -b:  batch mode
+# -d:  add derivative creation job
+# -p:  add pdf creation job
+# -s:  add stitch pages job
+# -a:  add job combining 3 jobs above
+# -t:  add video transcoding job
+# -m:  hostname for messaging server
+# -r:  rstar directory
+# -c:  mysql config file
+# -i:  message priority
 
-getopts('hvbdpsatm:r:c:');
+my %opt;
+getopts('hvbdpsatm:r:c:i:', \%opt);
 
-my $num_flags = count_flags($opt_d, $opt_p, $opt_s, $opt_a, $opt_t);
-
-$opt_b ||= !-t STDIN;
-
-if ($opt_h) {
+if ($opt{h}) {
 	usage();
 	exit(0);
-} elsif (!$num_flags) {
-	usage("You must set one of -d, -p, -s, -a, or -t");
-	exit(1);
-} elsif ($num_flags > 1) {
-	usage("Please select only one of -d, -p, -s, or -a");
-	exit(1);
 }
 
-my $op;
-if ($opt_d) {
-	$op = "create-derivatives";
-} elsif ($opt_p) {
-	$op = "create-pdf";
-} elsif ($opt_s) {
-	$op = "stitch-pages";
-} elsif ($opt_t) {
-	$op = "transcode";
-} else {
-	$op = "gen-all";
-}
-
-my $rstar_dir = $opt_r || $ENV{RSTAR_DIR};
-
+my $rstar_dir = $opt{r} || $ENV{RSTAR_DIR};
 if (!$rstar_dir) {
 	usage("You must specify rstar directory.");
 	exit(1);
@@ -65,7 +45,45 @@ if (!$rstar_dir) {
 	exit(1);
 }
 
-my $my_cnf = $opt_c || "/etc/my-taskqueue.cnf";
+if ((exists($opt{i}) && !defined($opt{i}))
+	|| (defined($opt{i}) && !($opt{i} =~ /^\d+$/ && $opt{i} <= 10)))
+{
+	usage("Priority must be an integer in the range 0..10");
+	exit(1);
+}
+
+my $priority = $opt{i} || 0;
+
+my $host = $opt{m} || $ENV{MQHOST} || "localhost";
+
+my $my_cnf = $opt{c} || "/etc/my-taskqueue.cnf";
+
+# Automatically go into batch mode if stdin isn't connected
+# to tty. Useful if using script in conjunction with xargs
+my $batch_mode = $opt{b} || !-t STDIN;
+
+my $num_flags = count_flags($opt{d}, $opt{p}, $opt{s}, $opt{a}, $opt{t});
+
+if (!$num_flags) {
+	usage("You must set one of -d, -p, -s, -a, or -t");
+	exit(1);
+} elsif ($num_flags > 1) {
+	usage("Please select only one of -d, -p, -s, or -a");
+	exit(1);
+}
+
+my $op;
+if ($opt{d}) {
+	$op = "create-derivatives";
+} elsif ($opt{p}) {
+	$op = "create-pdf";
+} elsif ($opt{s}) {
+	$op = "stitch-pages";
+} elsif ($opt{t}) {
+	$op = "transcode";
+} else {
+	$op = "gen-all";
+}
 
 my $wip_dir = "$rstar_dir/wip/se";
 
@@ -73,11 +91,9 @@ my @ids = @ARGV ? @ARGV : get_dir_contents($wip_dir);
 
 my $queue_name = "task_queue";
 
-my $host = $opt_m || $ENV{'MQHOST'} || "localhost";
-
 my $fh;
 
-if ($opt_b) {
+if ($batch_mode) {
 	$fh = *STDERR;
 } else {
 	open($fh, "|more") or die("Can't start more: $!");
@@ -90,9 +106,9 @@ for my $id (@ids)
 	print $fh "$id\n";
 }
 
-unless ($opt_b)
+unless ($batch_mode)
 {
-	close($fh) unless $opt_b;
+	close($fh);
 
 	my $answer = "";
 	do
@@ -122,6 +138,13 @@ $mq->connect(
 	}
 );
 
+my $prop = $mq->get_server_properties();
+print STDERR Dumper($prop), "\n" if $opt{v};
+if (!$prop->{capabilities}{consumer_priorities} && $priority)
+{
+	print STDERR "Priority queues not enabled in server.\n";
+}
+
 $mq->channel_open(1);
 
 $mq->queue_declare(
@@ -132,10 +155,11 @@ $mq->queue_declare(
 		durable     => 1,
 		exclusive   => 0,
 		passive     => 0,
-	}
+	},
+	{'x-max-priority' => 10}
 );
 
-my $class = $opt_t ? "video" : "book-publisher";
+my $class = $opt{t} ? "video" : "book-publisher";
 
 my $dbh = DBI->connect("DBI:mysql:;mysql_read_default_file=$my_cnf");
 
@@ -179,7 +203,7 @@ for my $id (@ids)
 	$json->utf8;
 	my $body = $json->encode($task);
 
-	print STDERR "Sending $body\n" if $opt_v;
+	print STDERR "Sending $body\n" if $opt{v};
 
 	$mq->publish(
 		1,
@@ -201,7 +225,7 @@ for my $id (@ids)
 # 			user_id          => 'guest',
 # 			app_id           => 'idd',
 # 			delivery_mode    => 1,
-# 			priority         => 2,
+			priority         => $priority,
 # 			timestamp        => 1271857990,
 		},
 	);
@@ -217,12 +241,13 @@ sub usage
 	print STDERR "\n";
 	print STDERR "$msg\n\n" if $msg;
 	print STDERR "Usage: $0 -r <rstar dir> [-m <mq host>] \n",
-		"           [ -b ] [ -d | -s | p ] [wip_id] ...\n\n",
+		"           [-i <priority>] [ -b ] [ -d | -s | p ] [wip_id] ...\n\n",
 		"        -m     <RabbitMQ host>\n",
 		"        -r     <R* directory>\n",
 		"        -h     flag to print help message\n",
 		"        -v     verbose output\n",
 		"        -b     batch mode, won't prompt user\n",
+		"        -i     <message priority>\n",
 		"        -d     flag to create job to generate derivatives\n",
 		"        -p     flag to create job to generate pdfs\n",
 		"        -s     flag to create job to stitch pages\n",

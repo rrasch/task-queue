@@ -96,7 +96,9 @@ my $fh;
 if ($batch_mode) {
 	$fh = *STDERR;
 } else {
-	open($fh, "|more") or die("Can't start more: $!");
+	my $more = "more";
+	$more .= " -R" if $^O =~ /darwin/;
+	open($fh, "|$more") or die("Can't start '$more': $!");
 }
 
 print $fh "Sending ", colored($op, 'red'), " job to ",

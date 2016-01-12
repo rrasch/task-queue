@@ -32,7 +32,7 @@ DROP TABLE IF EXISTS task_queue_log;
 CREATE TABLE task_queue_log (
 	collection_id int UNSIGNED NOT NULL,
 	wip_id VARCHAR(30) NOT NULL,
-	state ENUM ('processing', 'success', 'error') NOT NULL,
+	state ENUM ('pending', 'processing', 'success', 'error') NOT NULL,
 	user_id VARCHAR(20) NOT NULL,
 	worker_host VARCHAR(20),
 --	CURRENT_TIMESTAMP doesn't work as default value for DATETIME

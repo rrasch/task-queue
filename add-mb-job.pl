@@ -172,6 +172,15 @@ my $sth = $dbh->prepare(qq{
 }) or die $dbh->errstr;
 $sth->execute;
 my ($collection_id) = $sth->fetchrow_array;
+if (!$collection_id)
+{
+	$sth = $dbh->do(qq{
+		INSERT into collection (provider, collection)
+		VALUES ('$provider', '$collection')
+	});
+	$sth->execute;
+	$collection_id = $dbh->{mysql_insert_id};
+}
 
 $sth = $dbh->prepare(qq{
 	SELECT state, worker_host, completed
@@ -179,17 +188,21 @@ $sth = $dbh->prepare(qq{
 	WHERE collection_id = ? and wip_id = ? 
 }) or die $dbh->errstr;
 
+my $tql_insert = $dbh->prepare(qq{
+	INSERT INTO task_queue_log (collection_id, wip_id, state, user_id)
+	VALUES (?, ?, ?, ?)
+});
+
+my $login = getpwuid($<);
+
 for my $id (@ids)
 {
-	if ($collection_id)
+	$sth->execute($collection_id, $id);
+	my ($state, $host, $completed) = $sth->fetchrow_array;
+	if ($state)
 	{
-		$sth->execute($collection_id, $id);
-		my ($state, $host, $completed) = $sth->fetchrow_array;
-		if ($state)
-		{
-			print STDERR "$id is already processing.\n";
-			next;
-		}
+		print STDERR "$id is already in $state state. Skipping.\n";
+		next;
 	}
 
 	my $task = {
@@ -197,7 +210,7 @@ for my $id (@ids)
 		operation   => $op,
 		identifiers => [$id],
 		rstar_dir   => $rstar_dir,
-		user_id     => scalar(getpwuid($<)),
+		user_id     => $login,
 	};
 
 	my $json = JSON->new;
@@ -231,6 +244,7 @@ for my $id (@ids)
 # 			timestamp        => 1271857990,
 		},
 	);
+	$tql_insert->execute($collection_id, $id, 'pending', $login);
 }
 
 $sth->finish;

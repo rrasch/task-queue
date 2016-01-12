@@ -54,6 +54,9 @@ end
 $stdout = logfile
 $stderr = logfile
 
+logger.debug "Lowering priority of process #{Process.pid}"
+Process.setpriority(Process::PRIO_PROCESS, 0, 19)
+
 client = Mysql2::Client.new(
   :default_file  => options[:my_cnf],
 )

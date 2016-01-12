@@ -41,17 +41,18 @@ OptionParser.new do |opts|
 
 end.parse!
 
+logfile = File.new(options[:logfile], 'a')
+logfile.sync = true
+logger = Logger.new(logfile, 5, 1000000)
+logger.level = Logger::DEBUG
+
 if options[:daemonize]
   logger.debug "Putting process #{Process.pid} in background"
   Process.daemon
 end
 
-logfile = File.new(options[:logfile], 'a')
-logfile.sync = true
 $stdout = logfile
 $stderr = logfile
-logger = Logger.new(logfile, 5, 1000000)
-logger.level = Logger::DEBUG
 
 client = Mysql2::Client.new(
   :default_file  => options[:my_cnf],
@@ -140,8 +141,8 @@ begin
       consumer.cancel if consumer
     end
   end
-rescue Interrupt => e
-  logger.info "Caught Ctrl-C ... exiting"
+rescue SignalException => e
+  logger.info "Process #{Process.pid} received signal #{e} (#{e.signo})"
 rescue Exception => e
   logger.error e
 end

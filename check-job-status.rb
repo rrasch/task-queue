@@ -13,8 +13,8 @@ OptionParser.new do |opts|
 
   opts.banner = "Usage: #{$0} [options] [wip_ids]... "
 
-  opts.on('-m', '--my-cnf CONFIG FILE', 'MySQL config for taskqueue db') do |m|
-    options[:my_cnf] = m
+  opts.on('-c', '--my-cnf CONFIG FILE', 'MySQL config for taskqueue db') do |c|
+    options[:my_cnf] = c
   end
 
   opts.on('-r', '--rstar-dir DIRECTORY', 'R* directory for collection') do |r|
@@ -83,18 +83,7 @@ ids.each do |id|
   provider = File.basename(dirname)
   logger.debug "provider: #{provider}, collection: #{collection}"
 
-  # split wip_id into prefix and number
-  # e.g. nyu_aco000322
-  # wip_id_prefix = 'nyu_aco', wip_id_num = '000322'
-  logger.debug "wip_id: #{id}"
-  match_data = id.match(/^(.+?)(\d+)$/)
-  logger.debug match_data.inspect
-  wip_id_prefix = match_data[1]
-  wip_id_num    = match_data[2]
-  logger.debug "wip_id_prefix: #{wip_id_prefix}, wip_id_num: #{wip_id_num}"
-
   prov_col_str = "#{provider}_#{collection}"
-
   if !col_ids[prov_col_str]
     results = select_col.execute(provider, collection)
     col_ids[prov_col_str] = results.first['collection_id']
@@ -102,7 +91,7 @@ ids.each do |id|
   collection_id = col_ids[prov_col_str]
   logger.debug "collection id: #{collection_id}"
 
-  results = select_log.execute(collection_id, wip_id_num)
+  results = select_log.execute(collection_id, id)
   if results.count == 0
     print_row(id, "unknown", "")
   else

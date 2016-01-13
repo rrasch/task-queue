@@ -14,20 +14,33 @@ options = {
   :daemonize => false,
 }
 
+
+def find_coll_type(rstar_dir, wip_id)
+  data_dir = "#{rstar_dir}/wip/se/#{wip_id}/data"
+  if !Dir["#{data_dir}/*_d.mov"].empty?
+    'video'
+  elsif !Dir["#{data_dir}/*_mods.xml"].empty?
+    'book'
+  else
+    'photo'
+  end
+end
+
+
 OptionParser.new do |opts|
 
   opts.banner = "Usage: #{$0} [options]"
   
-  opts.on('-q', '--mqhost MQHOST', 'RabbitMQ Host') do |q|
-    options[:mqhost] = q
+  opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |m|
+    options[:mqhost] = m
   end
 
   opts.on('-l', '--logfile LOGFILE', 'Log file') do |l|
     options[:logfile] = l
   end
 
-  opts.on('-m', '--my-cnf CONFIG FILE', 'MySQL config for taskqueue db') do |m|
-    options[:my_cnf] = m
+  opts.on('-c', '--my-cnf CONFIG FILE', 'MySQL config for taskqueue db') do |c|
+    options[:my_cnf] = c
   end
 
   opts.on('-d', '--daemonize', 'Daemonize process') do
@@ -56,6 +69,7 @@ $stderr = logfile
 
 client = Mysql2::Client.new(
   :default_file  => options[:my_cnf],
+  :connect_timeout => 5,
 )
 
 # XXX: create a library for db statemets
@@ -145,17 +159,5 @@ rescue SignalException => e
   logger.info "Process #{Process.pid} received signal #{e} (#{e.signo})"
 rescue Exception => e
   logger.error e
-end
-
-
-def find_coll_type(rstar_dir, wip_id)
-  data_dir = "#{rstar_dir}/wip/se/#{wip_id}/data"
-  if !Dir["#{data_dir}/*_d.mov"].empty?
-    'video'
-  elsif !Dir["#{data_dir}/*_mods.xml"].empty?
-    'book'
-  else
-    'photo'
-  end
 end
 

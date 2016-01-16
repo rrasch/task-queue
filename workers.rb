@@ -48,7 +48,10 @@ module JobProcessor
       )
       @conn.start
       @ch = @conn.create_channel
-      @q = @ch.queue("task_queue", :durable => true)
+      @q = @ch.queue("task_queue",
+        :durable => true,
+        :arguments => {"x-max-priority" => 10}
+      )
       @ch.prefetch(1)
       @x = @ch.topic("tq_logging", :auto_delete => true)
       @logger.debug "Connected."

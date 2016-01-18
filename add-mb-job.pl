@@ -140,9 +140,10 @@ $mq->connect(
 	}
 );
 
-my $prop = $mq->get_server_properties();
-print STDERR Dumper($prop), "\n" if $opt{v};
-if (!$prop->{capabilities}{consumer_priorities} && $priority)
+my $prop;
+$prop = $mq->get_server_properties() if $Net::AMQP::RabbitMQ::VERSION >= 1.3;
+print STDERR Dumper($prop), "\n" if $prop && $opt{v};
+if ($prop && !$prop->{capabilities}{consumer_priorities} && $priority)
 {
 	print STDERR "Priority queues not enabled in server.\n";
 }

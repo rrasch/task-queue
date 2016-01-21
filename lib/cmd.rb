@@ -15,7 +15,12 @@ class Cmd
     total_output = ""
     success = true
     script_names.each do |script_name|
-      cmd = @bin_dir + "/#{script_name} -q -r #{@rstar_dir} #{@ids.join(' ')}"
+      if !@rstar_dir.nil?
+        cmd = "#{@bin_dir}/#{script_name} -q -r #{@rstar_dir} "\
+              "#{@ids.join(' ')}"
+      else
+        cmd = "#{script_name}"
+      end
       output, status = Open3.capture2e(cmd)
       @logger.debug output
       total_output.concat(output)
@@ -26,6 +31,21 @@ class Cmd
       :success => success,
       :output  => total_output,
     }
+  end
+
+  def self.get_cmd(logger)
+    self.new(nil, nil, logger, nil)
+  end
+
+  def self.do_or_die(cmd, logger)
+    logger.debug "Running '#{cmd}'"
+    output, status = Open3.capture2e(cmd)
+    logger.debug output
+    if ! status.exitstatus.zero?
+      logger.error "#{cmd} exited with status #{status.exitstatus}"
+      exit 1
+    end
+    return output
   end
 
 end

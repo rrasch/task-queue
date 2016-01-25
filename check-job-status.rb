@@ -6,7 +6,7 @@ require 'mysql2'
 require 'optparse'
 
 options = {
-  :my_cnf => "/etc/my-taskqueue.cnf",
+  :my_cnf => "/content/prod/rstar/etc/my-taskqueue.cnf",
 }
 
 OptionParser.new do |opts|

@@ -57,7 +57,7 @@ my $priority = $opt{i} || 0;
 
 my $host = $opt{m} || $ENV{MQHOST} || "localhost";
 
-my $my_cnf = $opt{c} || "/etc/my-taskqueue.cnf";
+my $my_cnf = $opt{c} || "/content/prod/rstar/etc/my-taskqueue.cnf";
 
 # Automatically go into batch mode if stdin isn't connected
 # to tty. Useful if using script in conjunction with xargs

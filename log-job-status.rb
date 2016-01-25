@@ -9,7 +9,7 @@ require 'optparse'
 # Set default options
 options = {
   :mqhost    => "localhost",
-  :my_cnf    => "/etc/my-taskqueue.cnf",
+  :my_cnf    => "/content/prod/rstar/etc/my-taskqueue.cnf",
   :logfile   => Dir.pwd + "/log-job-status.log",
   :daemonize => false,
 }

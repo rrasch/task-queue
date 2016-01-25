@@ -67,18 +67,23 @@ select_log = client.prepare(
 
 col_ids = Hash.new
 
+def fmt_date(date)
+  date.nil? || date.class == String ? date : date.strftime('%D %T')
+end
+
 def fmt(val, length=20)
   val = val || ""
   val.ljust(length)
 end
 
-def print_row(id, state, host="", date="")
-  date_str = date.nil? || date.class == String ? date : date.strftime('%D %T')
-  print fmt(id), fmt(state, 15), fmt(host, 17), date_str, "\n"
+def print_row(id, state, host, started, completed)
+  print fmt(id, 18), fmt(state, 11), fmt(host, 16),
+        fmt(fmt_date(started), 18), fmt_date(completed), "\n"
 end
 
-print_row('WIP ID', 'STATUS', 'HOST', 'COMPLETED')
-puts '-' * 69
+puts
+print_row('WIP ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED')
+puts '-' * 80
 
 ids.each do |id|
 
@@ -99,10 +104,11 @@ ids.each do |id|
 
   results = select_log.execute(collection_id, id)
   if results.count == 0
-    print_row(id, "unknown", "", "")
+    print_row(id, "unknown", "", "", "")
   else
     row = results.first
-    print_row(id, row['state'], row['worker_host'], row['completed'])
+    print_row(id, row['state'], row['worker_host'],
+              row['started'], row['completed'])
   end
 end
 

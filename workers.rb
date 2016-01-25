@@ -95,6 +95,7 @@ module JobProcessor
         task['state'] = "processing"
         #task['worker_host'] = Socket.gethostname[/^[^.]+/]
         task['worker_host'] = get_ip_addr
+        task['started'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
         @x.publish(JSON.pretty_generate(task),
                    :routing_key => "task_queue.processing")
         class_name = classify(task['class'])

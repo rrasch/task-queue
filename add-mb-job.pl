@@ -15,8 +15,9 @@ use Term::ANSIColor;
 use Term::ReadKey;
 
 # Command line options
-# -v:  verbose
 # -h:  help message
+# -v:  verbose
+# -f:  force adding jobs to the queue
 # -b:  batch mode
 # -d:  add derivative creation job
 # -p:  add pdf creation job
@@ -29,7 +30,7 @@ use Term::ReadKey;
 # -i:  message priority
 
 my %opt;
-getopts('hvbdpsatm:r:c:i:', \%opt);
+getopts('hvfbdpsatm:r:c:i:', \%opt);
 
 if ($opt{h}) {
 	usage();
@@ -191,7 +192,13 @@ $sth = $dbh->prepare(qq{
 
 my $tql_insert = $dbh->prepare(qq{
 	INSERT INTO task_queue_log (collection_id, wip_id, state, user_id)
-	VALUES (?, ?, ?, ?)
+	VALUES (?, ?, 'pending', ?)
+});
+
+my $tql_update = $dbh->prepare(qq{
+	UPDATE task_queue_log
+	SET state = 'pending', user_id = ?
+	WHERE collection_id = ? AND wip_id = ?
 });
 
 my $login = getpwuid($<);
@@ -200,7 +207,7 @@ for my $id (@ids)
 {
 	$sth->execute($collection_id, $id);
 	my ($state, $host, $completed) = $sth->fetchrow_array;
-	if ($state)
+	if ($state && !$opt{f})
 	{
 		print STDERR "$id is already in $state state. Skipping.\n";
 		next;
@@ -245,7 +252,12 @@ for my $id (@ids)
 # 			timestamp        => 1271857990,
 		},
 	);
-	$tql_insert->execute($collection_id, $id, 'pending', $login);
+
+	if (!$state) {
+		$tql_insert->execute($collection_id, $id, $login);
+	} else {
+		$tql_update->execute($login, $collection_id, $id);
+	}
 }
 
 $sth->finish;

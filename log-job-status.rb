@@ -12,6 +12,7 @@ options = {
   :my_cnf    => "/content/prod/rstar/etc/my-taskqueue.cnf",
   :logfile   => Dir.pwd + "/log-job-status.log",
   :daemonize => false,
+  :verbose   => false,
 }
 
 
@@ -47,6 +48,10 @@ OptionParser.new do |opts|
     options[:daemonize] = true
   end
 
+  opts.on('-v', '--verbose', 'Enable debugging messages') do
+    options[:verbose] = true
+  end
+
   opts.on('-h', '--help', 'Print help message') do
     puts opts
     exit
@@ -57,7 +62,7 @@ end.parse!
 logfile = File.new(options[:logfile], 'a')
 logfile.sync = true
 logger = Logger.new(logfile, 5, 1000000)
-logger.level = Logger::DEBUG
+logger.level = options[:verbose] ? Logger::DEBUG : Logger::INFO
 
 if options[:daemonize]
   logger.debug "Putting process #{Process.pid} in background"

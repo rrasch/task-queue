@@ -73,12 +73,12 @@ def fmt(val, length=20)
 end
 
 def print_row(id, state, host="", date="")
-  date_str = date.class == String ? date : date.strftime('%D %T')
-  print fmt(id), fmt(state, 15), fmt(host, 10), date_str, "\n"
+  date_str = date.nil? || date.class == String ? date : date.strftime('%D %T')
+  print fmt(id), fmt(state, 15), fmt(host, 17), date_str, "\n"
 end
 
 print_row('WIP ID', 'STATUS', 'HOST', 'COMPLETED')
-puts '-' * 62
+puts '-' * 69
 
 ids.each do |id|
 

@@ -77,17 +77,24 @@ client = Mysql2::Client.new(
 
 # XXX: create a library for db statemets
 insert_col = client.prepare(
- "INSERT INTO collection VALUES (0, ?, ?, ?)")
+ "INSERT INTO collection
+  (collection_id, provider, collection, type)
+  VALUES
+  (0, ?, ?, ?)")
 
 select_col = client.prepare(
  "SELECT collection_id FROM collection
   WHERE provider = ? AND collection = ?")
 
 insert_log = client.prepare(
- "INSERT INTO task_queue_log VALUES (?, ?, ?, ?, ?, ?)")
+ "INSERT INTO task_queue_log
+  (collection_id, wip_id, state, user_id, worker_host, started, completed)
+  VALUES 
+  (?, ?, ?, ?, ?, ?, ?)")
 
 update_log = client.prepare(
- "UPDATE task_queue_log SET state = ?, completed = ?
+ "UPDATE task_queue_log
+  SET state = ?, user_id = ?, worker_host = ?, started = ?, completed = ?
   WHERE collection_id = ? AND wip_id = ?")
 
 select_log = client.prepare(
@@ -144,13 +151,16 @@ begin
       results = select_log.execute(collection_id, wip_id)
       if results.count == 0
         logger.debug "Inserting into log for #{wip_id}"
-        insert_log.execute(collection_id, wip_id,
-                           task['state'], user_id,
-                           task['worker_host'], task['completed'])
+        insert_log.execute(
+          collection_id, wip_id,
+          task['state'], user_id, task['worker_host'],
+          task['started'], task['completed'])
       else
         logger.debug "Updating log for #{wip_id}"
-        update_log.execute(task['state'], task['completed'],
-                           collection_id, wip_id)
+        update_log.execute(
+          task['state'], user_id, task['worker_host'],
+          task['started'], task['completed'],
+          collection_id, wip_id)
       end
       ch.ack(delivery_info.delivery_tag)
     rescue Exception => e

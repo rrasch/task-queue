@@ -191,13 +191,14 @@ $sth = $dbh->prepare(qq{
 }) or die $dbh->errstr;
 
 my $tql_insert = $dbh->prepare(qq{
-	INSERT INTO task_queue_log (collection_id, wip_id, state, user_id)
+	INSERT INTO task_queue_log
+	(collection_id, wip_id, state, user_id)
 	VALUES (?, ?, 'pending', ?)
 });
 
 my $tql_update = $dbh->prepare(qq{
 	UPDATE task_queue_log
-	SET state = 'pending', user_id = ?
+	SET state = 'pending', user_id = ?, started = NULL, completed = NULL
 	WHERE collection_id = ? AND wip_id = ?
 });
 

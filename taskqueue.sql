@@ -35,10 +35,8 @@ CREATE TABLE task_queue_log (
 	state ENUM ('pending', 'processing', 'success', 'error') NOT NULL,
 	user_id VARCHAR(20) NOT NULL,
 	worker_host VARCHAR(20),
---	CURRENT_TIMESTAMP doesn't work as default value for DATETIME
---	type in MySQL 5.1
-	completed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+	started   TIMESTAMP NULL,
+	completed TIMESTAMP NULL,
 	PRIMARY KEY (collection_id, wip_id),
 	FOREIGN KEY (collection_id) REFERENCES collection(collection_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

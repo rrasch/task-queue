@@ -67,12 +67,18 @@ select_log = client.prepare(
 
 col_ids = Hash.new
 
-def print_row(id, state, date)
-  print id.ljust(20), state.ljust(10), date, "\n"
+def fmt(val, length=20)
+  val = val || ""
+  val.ljust(length)
 end
 
-print_row('WIP ID', 'STATUS', 'TIMESTAMP')
-puts '-' * 68
+def print_row(id, state, host="", date="")
+  date_str = date.class == String ? date : date.strftime('%D %T')
+  print fmt(id), fmt(state, 15), fmt(host, 10), date_str, "\n"
+end
+
+print_row('WIP ID', 'STATUS', 'HOST', 'COMPLETED')
+puts '-' * 62
 
 ids.each do |id|
 
@@ -93,10 +99,10 @@ ids.each do |id|
 
   results = select_log.execute(collection_id, id)
   if results.count == 0
-    print_row(id, "unknown", "")
+    print_row(id, "unknown", "", "")
   else
     row = results.first
-    print_row(id, row['state'], row['completed'])
+    print_row(id, row['state'], row['worker_host'], row['completed'])
   end
 end
 

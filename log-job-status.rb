@@ -77,7 +77,10 @@ Process.setpriority(Process::PRIO_PROCESS, 0, 19)
 
 client = Mysql2::Client.new(
   :default_file  => options[:my_cnf],
-  :connect_timeout => 5,
+  :read_timeout => 30,
+  :write_timeout => 60,
+  :connect_timeout => 10,
+  :reconnect => true,
 )
 
 # XXX: create a library for db statemets

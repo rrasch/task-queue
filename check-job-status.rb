@@ -4,6 +4,7 @@ require 'rubygems'
 require 'logger'
 require 'mysql2'
 require 'optparse'
+require 'resolv'
 
 options = {
   :my_cnf => "/content/prod/rstar/etc/my-taskqueue.cnf",
@@ -77,6 +78,9 @@ def fmt(val, length=20)
 end
 
 def print_row(id, state, host, started, completed)
+  if /\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\Z/ =~ host
+    host = Resolv.getname(host)[/^[^.]+/].downcase
+  end
   print fmt(id, 18), fmt(state, 11), fmt(host, 16),
         fmt(fmt_date(started), 18), fmt_date(completed), "\n"
 end

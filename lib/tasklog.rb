@@ -41,7 +41,7 @@ class TaskLog
   end
 
 
-  def update(task)
+  def update(collection_id, wip_id, task)
     select_log = @client.prepare(
      "SELECT t.collection_id FROM task_queue_log t, collection c
       WHERE t.collection_id = c.collection_id

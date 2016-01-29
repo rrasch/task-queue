@@ -112,11 +112,11 @@ begin
 
       coll_type = find_coll_type(rstar_dir, wip_id)
 
-      tasklog = TaskLog.new(options[:my_cnf])
-      collection_id = TaskLog.collection(provider, collection, coll_type)
+      tasklog = TaskLog.new(options[:my_cnf], logger)
+      collection_id = tasklog.collection(provider, collection, coll_type)
       logger.debug "collection_id: #{collection_id}"
-      TaskLog.update(collection_id, wip_id, task)
-      TaskLog.close
+      tasklog.update(collection_id, wip_id, task)
+      tasklog.close
 
       ch.ack(delivery_info.delivery_tag)
     rescue Exception => e

@@ -24,14 +24,13 @@ class BookPublisher
     do_cmd('create-pdf.pl')
   end
 
-# def gen_all
-#   do_cmd('create-deriv-images.pl') &&
-#   do_cmd('stitch-pages.pl') &&
-#   do_cmd('create-pdf.pl')
-# end
+  def create_ocr
+    do_cmd('create-ocr.pl')
+  end
 
   def gen_all
-    do_cmd('create-deriv-images.pl', 'stitch-pages.pl', 'create-pdf.pl')
+    do_cmd('create-deriv-images.pl', 'stitch-pages.pl',
+           'create-pdf.pl', 'create-ocr.pl')
   end
 
   def do_cmd(*script_names)

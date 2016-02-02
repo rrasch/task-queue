@@ -28,9 +28,10 @@ use Term::ReadKey;
 # -r:  rstar directory
 # -c:  mysql config file
 # -i:  message priority
+# -o:  operation
 
 my %opt;
-getopts('hvfbdpsatm:r:c:i:', \%opt);
+getopts('hvfbdpsatm:r:c:i:o:', \%opt);
 
 if ($opt{h}) {
 	usage();
@@ -63,27 +64,29 @@ my $my_cnf = $opt{c} || "/content/prod/rstar/etc/my-taskqueue.cnf";
 # to tty. Useful if using script in conjunction with xargs
 my $batch_mode = $opt{b} || !-t STDIN;
 
-my $num_flags = count_flags($opt{d}, $opt{p}, $opt{s}, $opt{a}, $opt{t});
+my $num_flags = count_flags(@opt{'d', 'p', 's', 'a', 't', 'o'});
 
 if (!$num_flags) {
-	usage("You must set one of -d, -p, -s, -a, or -t");
+	usage("You must set one of -d, -p, -s, -a, -t, or -o");
 	exit(1);
 } elsif ($num_flags > 1) {
-	usage("Please select only one of -d, -p, -s, or -a");
+	usage("Please select only one of -d, -p, -s, -a, -t, or -o");
 	exit(1);
 }
 
-my $op;
+my ($class, $op);
 if ($opt{d}) {
 	$op = "create-derivatives";
 } elsif ($opt{p}) {
 	$op = "create-pdf";
 } elsif ($opt{s}) {
 	$op = "stitch-pages";
+} elsif ($opt{a}) {
+	$op = "gen-all";
 } elsif ($opt{t}) {
 	$op = "transcode";
-} else {
-	$op = "gen-all";
+} elsif ($opt{o}) {
+	($class, $op) = split(/:/, $opt{o});
 }
 
 my $wip_dir = "$rstar_dir/wip/se";
@@ -163,7 +166,7 @@ $mq->queue_declare(
 	{'x-max-priority' => 10}
 );
 
-my $class = $opt{t} ? "video" : "book-publisher";
+$class = $opt{t} ? "video" : "book-publisher" if !$class;
 
 my $dbh = DBI->connect("DBI:mysql:;mysql_read_default_file=$my_cnf");
 
@@ -278,6 +281,7 @@ sub usage
 		"        -v     verbose output\n",
 		"        -b     batch mode, won't prompt user\n",
 		"        -i     <message priority>\n",
+		"        -o     <operation>\n",
 		"        -d     flag to create job to generate derivatives\n",
 		"        -p     flag to create job to generate pdfs\n",
 		"        -s     flag to create job to stitch pages\n",
@@ -292,7 +296,7 @@ sub count_flags
 	my $cnt = 0;
 	for my $flag (@_)
 	{
-		$cnt += $flag || 0;
+		$cnt++ if $flag;
 	}
 	return $cnt;
 }

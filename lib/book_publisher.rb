@@ -7,10 +7,10 @@ class BookPublisher
   BIN_DIR = "/usr/local/dlib/book-publisher/bin"
 
   def initialize(args)
-    cmd_args = args.clone
-    cmd_args['bin_dir'] = BIN_DIR
-    cmd_args['add_rstar'] = true
-    @cmd = Cmd.new(cmd_args)
+    @args = args.clone
+    @args['bin_dir'] = BIN_DIR
+    @args['add_rstar'] = true
+    @cmd = Cmd.new(@args)
   end
 
   def create_derivatives

@@ -1,53 +1,39 @@
 #!/usr/bin/env ruby
 
-require 'open3'
+require_relative './cmd'
 
 class BookPublisher
 
   BIN_DIR = "/usr/local/dlib/book-publisher/bin"
 
-  def initialize(rstar_dir, ids, logger)
-    @rstar_dir = rstar_dir
-    @ids = ids
-    @logger = logger
+  def initialize(args)
+    cmd_args = args.clone
+    cmd_args['bin_dir'] = BIN_DIR
+    cmd_args['add_rstar'] = true
+    @cmd = Cmd.new(cmd_args)
   end
 
   def create_derivatives
-    do_cmd('create-deriv-images.pl')
+    @cmd.do_cmd('create-deriv-images.pl')
   end
 
   def stitch_pages
-    do_cmd('stitch-pages.pl')
+    @cmd.do_cmd('stitch-pages.pl')
   end
 
   def create_pdf
-    do_cmd('create-pdf.pl')
+    @cmd.do_cmd('create-pdf.pl')
   end
 
   def create_ocr
-    do_cmd('create-ocr.pl')
+    @cmd.do_cmd('create-ocr.pl')
   end
 
   def gen_all
-    do_cmd('create-deriv-images.pl', 'stitch-pages.pl',
-           'create-pdf.pl', 'create-ocr.pl')
-  end
-
-  def do_cmd(*script_names)
-    total_output = ""
-    success = true
-    script_names.each do |script_name|
-      cmd = BIN_DIR + "/#{script_name} -q -r #{@rstar_dir} #{@ids.join(' ')}"
-      output, status = Open3.capture2e(cmd)
-      @logger.debug output
-      total_output.concat(output)
-      success = status.exitstatus.zero?
-      break if !success
-    end
-    return {
-      :success => success,
-      :output  => total_output,
-    }
+    @cmd.do_cmd('create-deriv-images.pl',
+                'stitch-pages.pl',
+                'create-pdf.pl',
+                'create-ocr.pl')
   end
 
 end

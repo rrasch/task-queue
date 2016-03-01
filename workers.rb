@@ -93,6 +93,7 @@ module JobProcessor
         @logger.debug " [x] Received '#{body}'"
         task = JSON.parse(body)
         @logger.debug task.inspect
+        task['logger'] = @logger
         task['state'] = "processing"
         #task['worker_host'] = Socket.gethostname[/^[^.]+/]
         task['worker_host'] = get_ip_addr
@@ -101,8 +102,7 @@ module JobProcessor
                    :routing_key => "task_queue.processing")
         class_name = classify(task['class'])
         @logger.debug "Creating new #{class_name} object"
-        obj = Object::const_get(class_name).new(
-                task['rstar_dir'], task['identifiers'], @logger)
+        obj = Object::const_get(class_name).new(task)
         method_name = task['operation'].tr('-', '_')
         @logger.debug "Executing #{method_name}"
         status = obj.send(method_name)

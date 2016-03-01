@@ -4,20 +4,21 @@ require 'open3'
 
 class Cmd
 
-  def initialize(rstar_dir, ids, logger, bin_dir = '/usr/bin')
-    @rstar_dir = rstar_dir
-    @ids = ids
-    @logger = logger
-    @bin_dir = bin_dir
+  BIN_DIR = '/usr/bin'
+
+  def initialize(args)
+    @args    = args.clone
+    @logger  = @args['logger']
+    @bin_dir = @args['bin_dir'] || BIN_DIR
   end
 
   def do_cmd(*script_names)
     total_output = ""
     success = true
     script_names.each do |script_name|
-      if !@rstar_dir.nil?
-        cmd = "#{@bin_dir}/#{script_name} -q -r #{@rstar_dir} "\
-              "#{@ids.join(' ')}"
+      if @args['add_rstar'] == true
+        cmd = "#{@bin_dir}/#{script_name} -q -r #{@args['rstar_dir']} "\
+              "#{@args['identifiers'].join(' ')}"
       else
         cmd = "#{script_name}"
       end
@@ -31,10 +32,6 @@ class Cmd
       :success => success,
       :output  => total_output,
     }
-  end
-
-  def self.get_cmd(logger)
-    self.new(nil, nil, logger, nil)
   end
 
   def self.do_or_die(cmd, logger)

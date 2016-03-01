@@ -1,19 +1,17 @@
 #!/usr/bin/env ruby
 
-require './lib/cmd'
+require_relative './cmd'
 
 class Video
 
-  def initialize(rstar_dir, ids, logger)
-    @cmd = Cmd.new(rstar_dir, ids, logger)
+  def initialize(args)
+    @args = args.clone
+    @args['add_rstar'] = true
+    @cmd = Cmd.new(@args)
   end
 
   def transcode
     @cmd.do_cmd('create-mp4')
-  end
-
-  def make_contact_sheet
-    @cmd.do_cmd('vcs')
   end
 
 end

@@ -273,8 +273,10 @@ sub usage
 	my $msg = shift;
 	print STDERR "\n";
 	print STDERR "$msg\n\n" if $msg;
-	print STDERR "Usage: $0 -r <rstar dir> [-m <mq host>] \n",
-		"           [-i <priority>] [-c <mysql config>] [ -b ] [ -f ] [ -d | -p | -s | -a | -t ] [wip_id] ...\n\n",
+	print STDERR "Usage: $0 -r <rstar dir> [-m <mq host>]\n",
+		"           [-i <priority>] [-c <mysql config>]\n",
+		"           [-b] [-f]  -d | -p | -s | -a | -t | -o <operation>\n",
+		"           [wip_id] ...\n\n",
 		"        -m     <RabbitMQ host>\n",
 		"        -r     <R* directory>\n",
 		"        -h     flag to print help message\n",

@@ -274,13 +274,15 @@ sub usage
 	print STDERR "\n";
 	print STDERR "$msg\n\n" if $msg;
 	print STDERR "Usage: $0 -r <rstar dir> [-m <mq host>] \n",
-		"           [-i <priority>] [ -b ] [ -d | -s | p ] [wip_id] ...\n\n",
+		"           [-i <priority>] [-c <mysql config>] [ -b ] [ -f ] [ -d | -p | -s | -a | -t ] [wip_id] ...\n\n",
 		"        -m     <RabbitMQ host>\n",
 		"        -r     <R* directory>\n",
 		"        -h     flag to print help message\n",
 		"        -v     verbose output\n",
 		"        -b     batch mode, won't prompt user\n",
+		"        -f     force adding jobs to queue\n",
 		"        -i     <message priority>\n",
+		"        -c     <path to mysql config file>\n",
 		"        -o     <operation>\n",
 		"        -d     flag to create job to generate derivatives\n",
 		"        -p     flag to create job to generate pdfs\n",

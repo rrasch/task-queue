@@ -18,9 +18,10 @@ class Cmd
     script_names.each do |script_name|
       if @args['add_rstar'] == true
         cmd = "#{@bin_dir}/#{script_name} -q -r #{@args['rstar_dir']} "\
+              "#{@args['extra_args']} "\
               "#{@args['identifiers'].join(' ')}"
       else
-        cmd = "#{script_name}"
+        cmd = "#{script_name} #{@args['extra_args']}"
       end
       output, status = Open3.capture2e(cmd)
       @logger.debug output

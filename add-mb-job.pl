@@ -29,9 +29,11 @@ use Term::ReadKey;
 # -c:  mysql config file
 # -i:  message priority
 # -o:  operation
+# -e:  extra command line args
+# -j:  json config to pass to job
 
 my %opt;
-getopts('hvfbdpsatm:r:c:i:o:', \%opt);
+getopts('hvfbdpsatm:r:c:i:o:e:j:', \%opt);
 
 if ($opt{h}) {
 	usage();
@@ -59,6 +61,10 @@ my $priority = $opt{i} || 0;
 my $host = $opt{m} || $ENV{MQHOST} || "localhost";
 
 my $my_cnf = $opt{c} || "/content/prod/rstar/etc/my-taskqueue.cnf";
+
+my $extra_args = $opt{e} || '';
+
+my $json_config = $opt{j} || '{}';
 
 # Automatically go into batch mode if stdin isn't connected
 # to tty. Useful if using script in conjunction with xargs
@@ -228,6 +234,16 @@ for my $id (@ids)
 	my $json = JSON->new;
 	$json->pretty;
 	$json->utf8;
+
+	if ($json_config)
+	{
+		my $cfg = $json->decode($json_config);
+		for (my ($k, $v) = each %$cfg)
+		{
+			$task->{$k} = $v;
+		}
+	}
+
 	my $body = $json->encode($task);
 
 	print STDERR "Sending $body\n" if $opt{v};
@@ -276,6 +292,7 @@ sub usage
 	print STDERR "Usage: $0 -r <rstar dir> [-m <mq host>]\n",
 		"           [-i <priority>] [-c <mysql config>]\n",
 		"           [-b] [-f]  -d | -p | -s | -a | -t | -o <operation>\n",
+		"           [-e <extra_args>] [-j <json config]\n",
 		"           [wip_id] ...\n\n",
 		"        -m     <RabbitMQ host>\n",
 		"        -r     <R* directory>\n",
@@ -290,7 +307,9 @@ sub usage
 		"        -p     flag to create job to generate pdfs\n",
 		"        -s     flag to create job to stitch pages\n",
 		"        -a     flag to create job combining 3 jobs above\n",
-		"        -t     flag to create job to transcode videos\n";
+		"        -t     flag to create job to transcode videos\n",
+		"        -e     <extra command ling args>\n",
+		"        -j     <json config to pass to job>\n";
 	print STDERR "\n";
 }
 

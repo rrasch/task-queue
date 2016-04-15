@@ -64,7 +64,7 @@ my $my_cnf = $opt{c} || "/content/prod/rstar/etc/my-taskqueue.cnf";
 
 my $extra_args = $opt{e} || '';
 
-my $json_config = $opt{j} || '{}';
+my $json_config = $opt{j} || '';
 
 # Automatically go into batch mode if stdin isn't connected
 # to tty. Useful if using script in conjunction with xargs

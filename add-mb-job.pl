@@ -207,7 +207,7 @@ my $tql_insert = $dbh->prepare(qq{
 
 my $tql_update = $dbh->prepare(qq{
 	UPDATE task_queue_log
-	SET state = 'pending', user_id = ?, started = NULL, completed = NULL
+	SET state = 'pending', user_id = ?, started = NULL, completed = NULL, worker_host = NULL
 	WHERE collection_id = ? AND wip_id = ?
 });
 

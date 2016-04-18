@@ -318,10 +318,11 @@ OptionParser.new do |opts|
 
 end.parse!
 
-Process.daemon
-
 config[:logfh] = File.new(config[:logfile], 'a')
 config[:logfh].sync = true
+
+Process.daemon
+
 $stdout = config[:logfh]
 $stderr = config[:logfh]
 config[:logger] = ::Logger.new(config[:logfh])

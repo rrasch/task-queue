@@ -6,6 +6,8 @@ set -e
 
 PIDFILE=taskqueueserver.pid
 
+LOGDIR=/content/prod/rstar/tmp/mdi/task-queue/logs
+
 MQHOST=${MQHOST:-localhost}
 
 RVMRC=$HOME/.rvm/scripts/rvm
@@ -17,7 +19,9 @@ fi
 RETVAL=0
 
 start() {
-	./workers.rb -m $MQHOST
+	HOST=$(hostname -s)
+	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
+	./workers.rb -m $MQHOST -l $LOGFILE
 	RETVAL=$?
 }
 

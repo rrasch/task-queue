@@ -79,7 +79,11 @@ end
 
 def print_row(id, state, host, started, completed)
   if /\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\Z/ =~ host
-    host = Resolv.getname(host)[/^[^.]+/].downcase
+    begin
+      host = Resolv.getname(host)[/^[^.]+/].downcase
+    rescue Resolv::ResolvError => e
+      # Do nothing
+    end
   end
   print fmt(id, 18), fmt(state, 11), fmt(host, 16),
         fmt(fmt_date(started), 18), fmt_date(completed), "\n"

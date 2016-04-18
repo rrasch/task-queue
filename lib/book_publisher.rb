@@ -32,8 +32,7 @@ class BookPublisher
   def gen_all
     @cmd.do_cmd('create-deriv-images.pl',
                 'stitch-pages.pl',
-                'create-pdf.pl',
-                'create-ocr.pl')
+                'create-pdf.pl')
   end
 
 end

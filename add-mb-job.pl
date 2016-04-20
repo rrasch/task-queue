@@ -141,14 +141,7 @@ unless ($batch_mode)
 my $mq = Net::AMQP::RabbitMQ->new();
 
 # connect to RabbitMQ
-$mq->connect(
-	$host,
-	{
-		user     => "guest",
-		password => "guest",
-		timeout  => 3,
-	}
-);
+$mq->connect($host, {timeout => 3});
 
 my $prop;
 $prop = $mq->get_server_properties() if $Net::AMQP::RabbitMQ::VERSION >= 1.3;
@@ -166,8 +159,6 @@ $mq->queue_declare(
 	{
 		auto_delete => 0,
 		durable     => 1,
-		exclusive   => 0,
-		passive     => 0,
 	},
 	{'x-max-priority' => 10}
 );
@@ -177,107 +168,71 @@ $class = $opt{t} ? "video" : "book-publisher" if !$class;
 my $dbh = DBI->connect("DBI:mysql:;mysql_read_default_file=$my_cnf");
 
 my ($provider, $collection) = $rstar_dir =~ /.*\/([^\/]+)\/([^\/]+)\/*$/;
+
 my $sth = $dbh->prepare(qq{
 	SELECT collection_id FROM collection
 	WHERE provider = '$provider' and collection = '$collection'
 }) or die $dbh->errstr;
 $sth->execute;
 my ($collection_id) = $sth->fetchrow_array;
-if (!$collection_id)
-{
-	$sth = $dbh->do(qq{
-		INSERT into collection (provider, collection)
-		VALUES ('$provider', '$collection')
-	});
-	$sth->execute;
-	$collection_id = $dbh->{mysql_insert_id};
-}
 
 $sth = $dbh->prepare(qq{
-	SELECT state, worker_host, completed
+	SELECT state
 	FROM task_queue_log
 	WHERE collection_id = ? and wip_id = ? 
 }) or die $dbh->errstr;
 
-my $tql_insert = $dbh->prepare(qq{
-	INSERT INTO task_queue_log
-	(collection_id, wip_id, state, user_id)
-	VALUES (?, ?, 'pending', ?)
-});
-
-my $tql_update = $dbh->prepare(qq{
-	UPDATE task_queue_log
-	SET state = 'pending', user_id = ?, started = NULL, completed = NULL, worker_host = NULL
-	WHERE collection_id = ? AND wip_id = ?
-});
-
 my $login = getpwuid($<);
+
+my $task = {
+	class       => $class,
+	operation   => $op,
+	rstar_dir   => $rstar_dir,
+	user_id     => $login,
+	state       => 'pending',
+};
+
+my $json = JSON->new;
+$json->pretty;
+$json->utf8;
+
+if ($json_config)
+{
+	my $json_str = read_file($json_config);
+	my $cfg = $json->decode($json_str);
+	while (my ($k, $v) = each $cfg)
+	{
+		$task->{$k} = $v;
+	}
+}
 
 for my $id (@ids)
 {
-	$sth->execute($collection_id, $id);
-	my ($state, $host, $completed) = $sth->fetchrow_array;
+	my ($state);
+
+	if ($collection_id)
+	{
+		$sth->execute($collection_id, $id);
+		($state) = $sth->fetchrow_array;
+	}
+
 	if ($state && !$opt{f})
 	{
 		print STDERR "$id is already in $state state. Skipping.\n";
 		next;
 	}
 
-	my $task = {
-		class       => $class,
-		operation   => $op,
-		identifiers => [$id],
-		rstar_dir   => $rstar_dir,
-		user_id     => $login,
-	};
-
-	my $json = JSON->new;
-	$json->pretty;
-	$json->utf8;
-
-	if ($json_config)
-	{
-		my $cfg = $json->decode($json_config);
-		for (my ($k, $v) = each %$cfg)
-		{
-			$task->{$k} = $v;
-		}
-	}
+	$task->{identifiers} = [$id];
 
 	my $body = $json->encode($task);
 
 	print STDERR "Sending $body\n" if $opt{v};
 
-	$mq->publish(
-		1,
-		$queue_name,
-		$body,
-		{
-			exchange  => "",    # default exchange
-			immediate => 0,
-			mandatory => 0,
-		},
-		{
-			content_type     => 'application/json',
-# 			content_encoding => 'none',
-# 			correlation_id   => '123',
-# 			reply_to         => 'somequeue',
-# 			expiration       => 60 * 1000,
-# 			message_id       => 'ABC',
-# 			type             => 'notmytype',
-# 			user_id          => 'guest',
-# 			app_id           => 'idd',
-# 			delivery_mode    => 1,
-			priority         => $priority,
-# 			timestamp        => 1271857990,
-		},
-	);
+	$mq->publish(1, "$queue_name.pending", $body,
+		{exchange => 'tq_logging'});
 
-	if (!$state) {
-		$tql_insert->execute($collection_id, $id, $login);
-	} else {
-		$tql_update->execute($login, $collection_id, $id);
-	}
+	$mq->publish(1, $queue_name, $body, {},
+		{priority => $priority});
 }
 
 $sth->finish;
@@ -309,7 +264,7 @@ sub usage
 		"        -a     flag to create job combining 3 jobs above\n",
 		"        -t     flag to create job to transcode videos\n",
 		"        -e     <extra command ling args>\n",
-		"        -j     <json config to pass to job>\n";
+		"        -j     <json config file to pass to job>\n";
 	print STDERR "\n";
 }
 
@@ -322,6 +277,17 @@ sub count_flags
 		$cnt++ if $flag;
 	}
 	return $cnt;
+}
+
+
+sub read_file
+{
+	my $file = shift;
+	local $/ = undef;
+	open(my $in, $file) or die("can't open $file: $!");
+	my $str = <$in>;
+	close($in);
+	return $str;
 }
 
 

@@ -200,7 +200,7 @@ if ($json_config)
 {
 	my $json_str = read_file($json_config);
 	my $cfg = $json->decode($json_str);
-	while (my ($k, $v) = each $cfg)
+	while (my ($k, $v) = each %$cfg)
 	{
 		$task->{$k} = $v;
 	}

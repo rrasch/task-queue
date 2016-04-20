@@ -29,12 +29,12 @@ class TaskLog
       (0, ?, ?, ?)")
 
     results = select_col.execute(provider, collection)
-    if results.count == 0
+    if results.count > 0
+      collection_id = results.first['collection_id']
+    elsif create
       coll_type = find_coll_type(rstar_dir, wip_id)
       insert_col.execute(provider, collection, coll_type)
       collection_id = @client.last_id
-    elsif create
-      collection_id = results.first['collection_id']
     end
 
     return collection_id
@@ -52,12 +52,12 @@ class TaskLog
       (collection_id, wip_id, state, user_id, worker_host, started, completed)
       VALUES 
       (?, ?, ?, ?, ?, ?, ?)")
-    
+
     update_log = @client.prepare(
      "UPDATE task_queue_log
       SET state = ?, user_id = ?, worker_host = ?, started = ?, completed = ?
       WHERE collection_id = ? AND wip_id = ?")
-   
+
     results = select_log.execute(collection_id, wip_id)
     if results.count == 0
       @logger.debug "Inserting into log for #{wip_id}"

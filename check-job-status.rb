@@ -59,13 +59,6 @@ select_col = client.prepare(
   FROM collection
   WHERE provider = ? AND collection = ?")
 
-select_log = client.prepare(
- "SELECT *
-  FROM task_queue_log t, collection c
-  WHERE t.collection_id = c.collection_id
-  AND t.collection_id = ?
-  AND t.wip_id = ?")
-
 col_ids = Hash.new
 
 def fmt_date(date)
@@ -108,9 +101,15 @@ ids.each do |id|
     col_ids[prov_col_str] = results.first['collection_id']
   end
   collection_id = col_ids[prov_col_str]
-  logger.debug "collection id: #{collection_id}"
+  logger.debug "collection id: #{collection_id}, id: #{id}"
 
-  results = select_log.execute(collection_id, id)
+  results = client.query(
+   "SELECT *
+    FROM task_queue_log t, collection c
+    WHERE t.collection_id = c.collection_id
+    AND t.collection_id = #{collection_id}
+    AND t.wip_id = '#{id}'"
+  )
   if results.count == 0
     print_row(id, "unknown", "", "", "")
   else

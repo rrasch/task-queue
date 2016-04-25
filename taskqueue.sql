@@ -3,12 +3,27 @@ DROP DATABASE IF EXISTS task_queue_log;
 CREATE DATABASE task_queue_log;
 USE task_queue_log;
 
-DROP TABLE IF EXISTS job_set;
+DROP TABLE IF EXISTS batch;
 
-CREATE TABLE job_set (
+CREATE TABLE batch (
+	batch_id int UNSIGNED AUTO_INCREMENT NOT NULL,
+	user_id VARCHAR(20) NOT NULL,
+	PRIMARY KEY (batch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS job;
+
+CREATE TABLE job (
 	job_id int UNSIGNED AUTO_INCREMENT NOT NULL,
-	PRIMARY KEY (job_id)
-);
+	batch_id int UNSIGNED NOT NULL,
+	state ENUM ('pending', 'processing', 'success', 'error') NOT NULL,
+	request TEXT NOT NULL,
+	worker_host VARCHAR(20),
+	started   TIMESTAMP NULL,
+	completed TIMESTAMP NULL,
+	PRIMARY KEY (job_id),
+	FOREIGN KEY (batch_id) REFERENCES batch(batch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS collection;
 

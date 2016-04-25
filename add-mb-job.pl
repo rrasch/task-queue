@@ -90,7 +90,7 @@ if ($opt{d}) {
 } elsif ($opt{a}) {
 	$op = "gen-all";
 } elsif ($opt{t}) {
-	$op = "transcode";
+	$op = "transcode_wip";
 } elsif ($opt{o}) {
 	($class, $op) = split(/:/, $opt{o});
 }

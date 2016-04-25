@@ -13,7 +13,7 @@ class Audio
     @cmd    = Cmd.new(@args)
   end
 
-  def transcode
+  def transcode_dir
     cmds = get_transcode_cmds(@args['input_dir'], @args['output_dir'])
     @cmd.do_cmd(*cmds)
   end

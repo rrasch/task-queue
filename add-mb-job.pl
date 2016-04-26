@@ -6,6 +6,7 @@
 
 use strict;
 use warnings;
+use Cwd qw(abs_path);
 use Data::Dumper;
 use DBI;
 use Getopt::Std;
@@ -24,6 +25,8 @@ use Net::AMQP::RabbitMQ;
 # -s:  service
 # -e:  extra command line args
 # -j:  json config to pass to job
+
+my $cmd_line = join(" ", abs_path($0), @ARGV);
 
 my %opt;
 getopt('h:v:mriocpsej', \%opt);
@@ -92,10 +95,18 @@ my $login = getpwuid($<);
 
 my $dbh = DBI->connect("DBI:mysql:;mysql_read_default_file=$my_cnf");
 
-$dbh->do("INSERT into batch (user_id) VALUES ('$login')")
-	or die $dbh->errstr;
+$dbh->do("
+	INSERT into batch (user_id, cmd_line)
+	VALUES ('$login', '$cmd_line')")
+  or die $dbh->errstr;
 
 my $batch_id = $dbh->{mysql_insertid};
+
+my $insert_job = $dbh->prepare("
+	INSERT INTO job
+	(batch_id, state, request, user_id, submitted)
+	VALUES ($batch_id, 'pending', ?, '$login', NOW())")
+  or die $dbh->errstr;
 
 my $task = {
 	class       => $class,
@@ -105,7 +116,6 @@ my $task = {
 	output_dir  => $output_dir,
 	user_id     => $login,
 	batch_id    => $batch_id,
-	state       => 'pending',
 };
 
 my $json = JSON->new;
@@ -129,19 +139,25 @@ if ($rstar_dir)
 	for my $id (@ids)
 	{
 		$task->{identifiers} = [$id];
-		publish($mq, $task, $priority);
+		publish($task);
 	}
 }
 else
 {
-	publish($mq, $task, $priority);
+	publish($task);
 }
+
+print STDERR "The batch id $batch_id\n";
 
 
 sub publish
 {
-	my ($mq, $task, $priority) = @_;
+	my ($task) = @_;
 	my $body = $json->encode($task);
+	$insert_job->execute($body);
+	$task->{job_id} = $dbh->{mysql_insertid};
+	$body = $json->encode($task);
+	delete $task->{job_id};
 	print STDERR "Sending $body\n" if $opt{v};
 	$mq->publish(1, "$queue_name.pending", $body,
 		{exchange => 'tq_logging'});

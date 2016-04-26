@@ -5,7 +5,7 @@ require 'bunny'
 require 'json'
 require 'mysql2'
 require 'optparse'
-require './lib/tasklog'
+require './lib/joblog'
 
 # Set default options
 options = {
@@ -92,32 +92,13 @@ begin
               :manual_ack => true) do |delivery_info, properties, payload|
     begin
       consumer = delivery_info[:consumer]
-
       logger.debug "Received #{payload}, "\
                    "message proprties are #{properties.inspect}, and "\
                    "delivery info is #{delivery_info.inspect}"
-
       task = JSON.parse(payload)
-
-      # parse rstar_dir to get provider and collection value
-      # e.g. /content/prod/rstar/content/nyu/aco/
-      # provider = 'nyu', collection = 'aco'
-      rstar_dir = task['rstar_dir']
-      dirname, collection = File.split(rstar_dir)
-      provider = File.basename(dirname)
-      logger.debug "provider: #{provider}, collection: #{collection}"
-
-      wip_id =  task['identifiers'][0]
-      logger.debug "wip_id: #{wip_id}"
-
-      coll_type = find_coll_type(rstar_dir, wip_id)
-
-      tasklog = TaskLog.new(options[:my_cnf], logger)
-      collection_id = tasklog.collection(provider, collection, coll_type)
-      logger.debug "collection_id: #{collection_id}"
-      tasklog.update(collection_id, wip_id, task)
-      tasklog.close
-
+      joblog = JobLog.new(options[:my_cnf], logger)
+      joblog.update_job(task)
+      joblog.close
       ch.ack(delivery_info.delivery_tag)
     rescue Exception => e
       logger.error e

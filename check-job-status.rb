@@ -1,25 +1,45 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
+require 'chronic'
 require 'logger'
-require 'mysql2'
 require 'optparse'
 require 'resolv'
+require './lib/joblog'
 
 options = {
   :my_cnf => "/content/prod/rstar/etc/my-taskqueue.cnf",
+  :limit => 100,
+  :from => '3 days ago',
+  :to => 'now',
 }
 
 OptionParser.new do |opts|
 
-  opts.banner = "Usage: #{$0} [options] [wip_ids]... "
+  opts.banner = "Usage: #{$0} [options]"
 
-  opts.on('-c', '--my-cnf CONFIG FILE', 'MySQL config for taskqueue db') do |c|
+  opts.on('-c', '--my-cnf CONFIG_FILE', 'MySQL config for taskqueue db') do |c|
     options[:my_cnf] = c
   end
 
-  opts.on('-r', '--rstar-dir DIRECTORY', 'R* directory for collection') do |r|
-    options[:rstar_dir] = r
+  opts.on('-b', '--batch-id NUMBER', 'Query jobs from batch id') do |b|
+    options[:batch_id] = b
+  end
+
+  opts.on('-f', '--from DATETIME', 'Query jobs from date') do |f|
+    options[:from] = f
+  end
+
+  opts.on('-t', '--to DATETIME', 'Query jobs to date') do |t|
+    options[:to] = t
+  end
+
+  opts.on('-l', '--limit LIMIT', 'Limit results to this number') do |l|
+    options[:limit] = l
+  end
+
+  opts.on('-v', '--verbose', 'Enable debugging messages') do
+    options[:verbose] = true
   end
 
   opts.on('-h', '--help', 'Print help message') do
@@ -30,44 +50,27 @@ OptionParser.new do |opts|
 end.parse!
 
 logger = Logger.new($stderr)
-logger.level = Logger::INFO
-
-if !options[:rstar_dir]
-  abort "You must specify an R* directory."
-elsif !File.directory?(options[:rstar_dir])
-  abort "R* directory '#{options[:rstar_dir]}' doesn't exist."
-end
+logger.level = options[:verbose] ? Logger::DEBUG : Logger::INFO
 
 if !File.file?(options[:my_cnf])
   abort "MySQL config file #{options[:my_cnf]} doesn't exist."
 end
  
-ids = []
-if ARGV.size > 0
-  ids = ARGV
-else
- ids = Dir.glob("#{options[:rstar_dir]}/wip/se/*")
-                .map{ |d| File.basename(d) }.sort
-end
-
-client = Mysql2::Client.new(
-  :default_file  => options[:my_cnf],
-)
-
-select_col = client.prepare(
- "SELECT collection_id
-  FROM collection
-  WHERE provider = ? AND collection = ?")
-
-col_ids = Hash.new
-
 def fmt_date(date)
-  date.nil? || date.class == String ? date : date.strftime('%D %T')
+  date.nil? || date.is_a?(String) ? date : date.strftime('%D %T')
 end
 
-def fmt(val, length=20)
+def sql_date(human_date)
+  Chronic.parse(human_date).strftime('%Y-%m-%d %H:%M:%S')
+end
+
+def fmt(val, length=20, left_justify=true)
   val = val || ""
-  val.ljust(length)
+  if left_justify
+    val.ljust(length)
+  else
+    val.rjust(length)
+  end
 end
 
 def print_row(id, state, host, started, completed)
@@ -78,45 +81,25 @@ def print_row(id, state, host, started, completed)
       # Do nothing
     end
   end
-  print fmt(id, 18), fmt(state, 11), fmt(host, 16),
-        fmt(fmt_date(started), 18), fmt_date(completed), "\n"
+  print fmt(id.to_s, 8, false), fmt('', 2), fmt(state, 11), fmt(host, 16),
+        fmt(fmt_date(started), 20), fmt_date(completed), "\n"
 end
 
+options[:from] = sql_date(options[:from]) if options.key?(:from)
+options[:to] = sql_date(options[:to]) if options.key?(:to)
+
 puts
-print_row('WIP ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED')
+print_row('JOB ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED')
 puts '-' * 80
 
-ids.each do |id|
-
-  # parse rstar_dir to get provider and collection value
-  # e.g. /content/prod/rstar/content/nyu/aco/
-  # provider = 'nyu', collection = 'aco'
-  dirname, collection = File.split(options[:rstar_dir])
-  provider = File.basename(dirname)
-  logger.debug "provider: #{provider}, collection: #{collection}"
-
-  prov_col_str = "#{provider}_#{collection}"
-  if !col_ids[prov_col_str]
-    results = select_col.execute(provider, collection)
-    col_ids[prov_col_str] = results.first['collection_id']
-  end
-  collection_id = col_ids[prov_col_str]
-  logger.debug "collection id: #{collection_id}, id: #{id}"
-
-  results = client.query(
-   "SELECT *
-    FROM task_queue_log t, collection c
-    WHERE t.collection_id = c.collection_id
-    AND t.collection_id = #{collection_id}
-    AND t.wip_id = '#{id}'"
+JobLog.new(options[:my_cnf], logger).select_job(options).each do |row|
+  print_row(
+    row['job_id'],
+    row['state'],
+    row['worker_host'],
+    row['started'],
+    row['completed']
   )
-  if results.count == 0
-    print_row(id, "unknown", "", "", "")
-  else
-    row = results.first
-    print_row(id, row['state'], row['worker_host'],
-              row['started'], row['completed'])
-  end
 end
 
 # vim: set et:

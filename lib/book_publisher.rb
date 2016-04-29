@@ -29,6 +29,10 @@ class BookPublisher
     @cmd.do_cmd('create-ocr.pl')
   end
 
+  def create_map
+    @cmd.do_cmd('gen-kml.pl')
+  end
+
   def gen_all
     @cmd.do_cmd('create-deriv-images.pl',
                 'stitch-pages.pl',

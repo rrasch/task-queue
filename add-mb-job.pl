@@ -29,7 +29,7 @@ use Net::AMQP::RabbitMQ;
 my $cmd_line = join(" ", abs_path($0), @ARGV);
 
 my %opt;
-getopt('h:v:mriocpsej', \%opt);
+getopts('hvm:r:i:o:c:p:s:e:j:', \%opt);
 
 if ($opt{h}) {
 	usage();

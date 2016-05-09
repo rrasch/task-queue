@@ -21,7 +21,7 @@ class Cmd
               "#{@args['extra_args']} "\
               "#{@args['identifiers'].join(' ')}"
       else
-        cmd = "#{script_name} #{@args['extra_args']}"
+        cmd = "#{script_name}"
       end
       output, status = Open3.capture2e(cmd)
       @logger.debug output

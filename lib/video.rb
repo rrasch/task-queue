@@ -24,8 +24,11 @@ class Video
       basename = File.basename(input_file, ".*")
       basename.sub!(/_m$/, '')
       output_base = "#{output_dir}/#{basename}"
+      cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
-      cmds << "convert2mp4 #{input_file} #{output_base}"
+      cmds << "convert2mp4 #{@args['extra_args']} "\
+              "#{input_file} #{output_base}"
+      cmds << "vcs -q -Wc -o #{cs_file} #{input_file}"
     end
     @cmd.do_cmd(*cmds)
   end

@@ -1,0 +1,13 @@
+[Unit]
+Description=Task Queue as a system service
+
+[Service]
+Type=forking
+User=rstar
+Group=rstar
+ExecStart=/usr/local/dlib/task-queue/workersctl start
+ExecStop=/usr/local/dlib/task-queue/workersctl stop
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -10,8 +10,10 @@ exec 2>&1
 # set -x
 set -e
 
-if [ -f /content/prod/rstar/etc/taskqueue.sysconfig ]
-    . /content/prod/rstar/etc/taskqueue.sysconfig
+CONFIG_FILE=/content/prod/rstar/etc/taskqueue.sysconfig
+
+if [ -f "$CONFIG_FILE" ]; then
+    . $CONFIG_FILE
 fi
 
 TQHOME=${TQHOME:-/usr/local/dlib/task-queue}

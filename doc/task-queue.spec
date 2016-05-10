@@ -119,6 +119,8 @@ rm -rf %{buildroot}
 %{_bindir}/*
 %{_unitdir}/*
 %{_initrddir}
+/etc/cron.d/%{name}
+/etc/logrotate.d/taskqueue
 
 %changelog
 

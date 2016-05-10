@@ -44,6 +44,7 @@ ln -s {dlibdir}/log-job-status.rb \
 	%{buildroot}%{_bindir}/log-job-status
 
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
+install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/taskqueue
 

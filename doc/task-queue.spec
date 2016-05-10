@@ -30,20 +30,21 @@ BuildRequires:  git
 rm -rf %{buildroot}
 
 git clone %{url}.git %{buildroot}%{dlibdir}
+cd  %{buildroot}%{dlibdir}
 rm -rf %{buildroot}%{dlibdir}/.git*
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -regextype posix-extended -regex '.*\.(pl|rb)' | xargs chmod 0755
 
 mkdir -p %{buildroot}%{_bindir}
-ln -s ../..%{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
-ln -s ../..%{dlibdir}/check-job-status.rb \
+ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
+ln -s %{dlibdir}/check-job-status.rb \
 	%{buildroot}%{_bindir}/check-job-status
-ln -s ../..%{dlibdir}/log-job-status.rb \
+ln -s {dlibdir}/log-job-status.rb \
 	%{buildroot}%{_bindir}/log-job-status
 
-install    -m 0644 doc/task-queue.service %{buildroot}%{_unitdir}
-install -D -m 0755 workerctl %{_buildroot}%{_initrddir}/%{name}
+install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
+install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 
 %pre
 if [ "$1" = "2" ]; then

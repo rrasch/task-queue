@@ -1,16 +1,28 @@
 #!/bin/bash
+#
+# task-queue	Start up Task Queue
+#
+# chkconfig: 2345 99 01
+# description: Task Queue runs jobs in parallel.
+# pidfile: /content/prod/rstar/tmp/taskqueueserver.pid
 
 exec 2>&1
 # set -x
 set -e
 
-PIDFILE=taskqueueserver.pid
+if [ -f /content/prod/rstar/etc/taskqueue.sysconfig ]
+    . /content/prod/rstar/etc/taskqueue.sysconfig
+fi
 
-LOGDIR=/content/prod/rstar/tmp/mdi/task-queue/logs
+TQHOME=${TQHOME:-/usr/local/dlib/task-queue}
+
+PIDFILE=${PIDFILE:-/content/prod/rstar/tmp/taskqueueserver.pid}
+
+LOGDIR=${LOGDIR:-/content/prod/rstar/tmp/mdi/task-queue/logs}
 
 MQHOST=${MQHOST:-localhost}
 
-RVMRC=$HOME/.rvm/scripts/rvm
+RVMRC=${RVMRC:-$HOME/.rvm/scripts/rvm}
 
 if [ -s $RVMRC ]; then
 	. $RVMRC
@@ -21,7 +33,7 @@ RETVAL=0
 start() {
 	HOST=$(hostname -s)
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
-	./workers.rb -m $MQHOST -l $LOGFILE
+	$TQHOME/workers.rb -m $MQHOST -l $LOGFILE
 	RETVAL=$?
 }
 

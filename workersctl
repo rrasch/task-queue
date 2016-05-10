@@ -22,7 +22,7 @@ LOGDIR=${LOGDIR:-/content/prod/rstar/tmp/mdi/task-queue/logs}
 
 MQHOST=${MQHOST:-localhost}
 
-RVMRC=${RVMRC:-$HOME/.rvm/scripts/rvm}
+RVMRC=${RVMRC:-$TQHOME/.rvm/scripts/rvm}
 
 if [ -s $RVMRC ]; then
 	. $RVMRC

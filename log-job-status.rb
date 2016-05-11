@@ -5,7 +5,7 @@ require 'bunny'
 require 'json'
 require 'mysql2'
 require 'optparse'
-require './lib/joblog'
+require_relative './lib/joblog'
 
 # Set default options
 options = {

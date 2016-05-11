@@ -1,6 +1,20 @@
 #!/bin/bash
 
-RUBY_HOME=/usr/local/dlib/task-queue/ruby
-export GEM_HOME=$RUBY_HOME/gems
-export GEM_PATH=$GEM_HOME:$GEM_HOME@global
-exec $RUBY_HOME/bin/ruby "$@"
+export RUBY_HOME=/usr/local/dlib/task-queue/ruby
+export GEM_HOME=$RUBY_HOME
+export GEM_PATH=$GEM_HOME:$RUBY_HOME/lib/ruby/gems/2.1.0
+export LD_LIBRARY_PATH=$RUBY_HOME/lib
+export PATH=$RUBY_HOME/bin:$PATH
+
+RUBYLIB=""
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby/2.1.0
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby/2.1.0/x86_64-linux
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby/2.1.0
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby/2.1.0/x86_64-linux
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/2.1.0
+RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/2.1.0/x86_64-linux
+export RUBYLIB
+
+exec ruby "$@"

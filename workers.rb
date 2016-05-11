@@ -27,10 +27,10 @@ require 'logger'
 require 'optparse'
 require 'servolux'
 require 'socket'
-require './lib/audio'
-require './lib/bagit'
-require './lib/book_publisher'
-require './lib/video'
+require_relative './lib/audio'
+require_relative './lib/bagit'
+require_relative './lib/book_publisher'
+require_relative './lib/video'
 
 module JobProcessor
 

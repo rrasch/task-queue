@@ -5,7 +5,7 @@ require 'chronic'
 require 'logger'
 require 'optparse'
 require 'resolv'
-require './lib/joblog'
+require_relative './lib/joblog'
 
 options = {
   :my_cnf => "/content/prod/rstar/etc/my-taskqueue.cnf",

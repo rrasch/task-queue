@@ -4,6 +4,7 @@
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 %define _unitdir /usr/lib/systemd/system
+%define rubyver  2.1.6
 
 Summary:        Run jobs in parallel using RabbitMQ.
 Name:           %{name}
@@ -13,8 +14,9 @@ License:        NYU DLTS
 Vendor:         NYU DLTS (rasan@nyu.edu)
 Group:          System Environment/Daemons
 URL:            https://github.com/rrasch/%{name}
+Source:         rvm-ruby-%{rubyver}.tar.bz2
 BuildRoot:      %{_tmppath}/%{name}-root
-BuildArch:      noarch
+# BuildArch:      noarch
 %if 0%{?fedora} > 0 || 0%{?centos} > 0
 BuildRequires:  git
 %endif
@@ -34,19 +36,25 @@ cd  %{buildroot}%{dlibdir}
 rm -rf %{buildroot}%{dlibdir}/.git*
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
-find %{buildroot}%{dlibdir} -regextype posix-extended -regex '.*\.(pl|rb)' | xargs chmod 0755
+find %{buildroot}%{dlibdir} -regextype posix-extended \
+        -regex '.*\.(pl|rb)' | xargs chmod 0755
+
+find . -name '*.rb' | xargs perl -pi -e \
+        "s,#!/usr/bin/env ruby,#!%{dlibdir}/ruby,"
 
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
 ln -s %{dlibdir}/check-job-status.rb \
 	%{buildroot}%{_bindir}/check-job-status
-ln -s {dlibdir}/log-job-status.rb \
+ln -s %{dlibdir}/log-job-status.rb \
 	%{buildroot}%{_bindir}/log-job-status
 
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/taskqueue
+
+tar -jxf %{SOURCE0} --strip=1 -C %{buildroot}%{dlibdir} --exclude=doc
 
 %pre
 if [ "$1" = "2" ]; then

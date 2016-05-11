@@ -39,8 +39,9 @@ find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -regextype posix-extended \
         -regex '.*\.(pl|rb)' | xargs chmod 0755
 
+chmod 0755 %{buildroot}%{dlibdir}/rubywrap
 find . -name '*.rb' | xargs perl -pi -e \
-        "s,#!/usr/bin/env ruby,#!%{dlibdir}/ruby,"
+        "s,#!/usr/bin/env ruby,#!%{dlibdir}/rubywrap,"
 
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
@@ -54,7 +55,8 @@ install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/taskqueue
 
-tar -jxf %{SOURCE0} --strip=1 -C %{buildroot}%{dlibdir} --exclude=doc
+mkdir -p %{buildroot}%{dlibdir}/ruby
+tar -jxf %{SOURCE0} --strip=2 -C %{buildroot}%{dlibdir}/ruby --exclude=doc
 
 %pre
 if [ "$1" = "2" ]; then

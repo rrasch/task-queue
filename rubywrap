@@ -1,0 +1,6 @@
+#!/bin/bash
+
+RUBY_HOME=/usr/local/dlib/task-queue/ruby
+export GEM_HOME=$RUBY_HOME/gems
+export GEM_PATH=$GEM_HOME:$GEM_HOME@global
+exec $RUBY_HOME/bin/ruby "$@"

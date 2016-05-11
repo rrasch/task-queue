@@ -18,6 +18,8 @@ fi
 
 TQHOME=${TQHOME:-/usr/local/dlib/task-queue}
 
+TQUSER=${TQUSER:-rstar}
+
 PIDFILE=${PIDFILE:-/content/prod/rstar/tmp/taskqueueserver.pid}
 
 LOGDIR=${LOGDIR:-/content/prod/rstar/tmp/mdi/task-queue/logs}
@@ -35,7 +37,15 @@ RETVAL=0
 start() {
 	HOST=$(hostname -s)
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
-	$TQHOME/workers.rb -m $MQHOST -l $LOGFILE
+	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE"
+	if [ "$TQUSER" != "$(whoami)" ]; then
+		if [ -f $LOGFILE ]; then
+			TQGROUP=$(id -gn $TQUSER)
+			chown $TQUSER:$TQGROUP $LOGFILE
+		fi
+		CMD="su -ls /bin/bash $TQUSER -c \"$CMD\""
+	fi
+	$CMD
 	RETVAL=$?
 }
 

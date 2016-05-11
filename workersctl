@@ -38,14 +38,15 @@ start() {
 	HOST=$(hostname -s)
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE"
-	if [ "$TQUSER" != "$(whoami)" ]; then
+	if [ "$TQUSER" = "$(whoami)" ]; then
+		$CMD
+	else
 		if [ -f $LOGFILE ]; then
 			TQGROUP=$(id -gn $TQUSER)
 			chown $TQUSER:$TQGROUP $LOGFILE
 		fi
-		CMD="su -ls /bin/bash $TQUSER -c \"$CMD\""
+		su -ls /bin/bash $TQUSER -c "$CMD"
 	fi
-	$CMD
 	RETVAL=$?
 }
 

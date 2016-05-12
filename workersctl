@@ -37,7 +37,7 @@ RETVAL=0
 start() {
 	HOST=$(hostname -s)
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
-	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE"
+	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		$CMD
 	else

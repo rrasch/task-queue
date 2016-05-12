@@ -291,8 +291,8 @@ OptionParser.new do |opts|
 
   opts.banner = "Usage: workers.rb [options]"
 
-  opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |h|
-    config[:mqhost] = h
+  opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |m|
+    config[:mqhost] = m
   end
 
   opts.on('-t', '--timeout PORT', 'Worker timeout') do |t|
@@ -303,7 +303,7 @@ OptionParser.new do |opts|
     config[:logfile] = l
   end
 
-  opts.on('-p', '--pidfile PIDFILE', 'Pid file') do |l|
+  opts.on('-p', '--pidfile PIDFILE', 'Pid file') do |p|
     config[:pidfile] = p
   end
 

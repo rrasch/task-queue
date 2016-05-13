@@ -14,7 +14,9 @@ License:        NYU DLTS
 Vendor:         NYU DLTS (rasan@nyu.edu)
 Group:          System Environment/Daemons
 URL:            https://github.com/rrasch/%{name}
+%if %{!?_without_ruby:1}%{?_without_ruby:0}
 Source:         rvm-ruby-%{rubyver}.tar.bz2
+%endif
 BuildRoot:      %{_tmppath}/%{name}-root
 # BuildArch:      noarch
 %if 0%{?fedora} > 0 || 0%{?centos} > 0
@@ -39,10 +41,6 @@ find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -regextype posix-extended \
         -regex '.*\.(pl|rb)' | xargs chmod 0755
 
-chmod 0755 %{buildroot}%{dlibdir}/rubywrap
-find . -name '*.rb' | xargs perl -pi -e \
-        "s,#!/usr/bin/env ruby,#!%{dlibdir}/rubywrap,"
-
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
 ln -s %{dlibdir}/check-job-status.rb \
@@ -55,14 +53,19 @@ install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/taskqueue
 
-mkdir -m 0700 %{buildroot}%{_var}/lib/%{name}
+mkdir -p -m 0700 %{buildroot}%{_var}/lib/%{name}
 
+%if %{!?_without_ruby:1}%{?_without_ruby:0}
+chmod 0755 %{buildroot}%{dlibdir}/rubywrap
+find . -name '*.rb' | xargs perl -pi -e \
+        "s,#!/usr/bin/env ruby,#!%{dlibdir}/rubywrap,"
 mkdir -p %{buildroot}%{dlibdir}/ruby
-tar -jxf %{SOURCE0} --strip=2 -C %{buildroot}%{dlibdir}/ruby \
+tar -jvxf %{SOURCE0} --strip=2 -C %{buildroot}%{dlibdir}/ruby \
         --exclude=doc \
         --exclude=gem_make.out \
         --exclude='*.log' \
         --exclude=executable-hooks-uninstaller
+%endif
 
 %pre
 if [ "$1" = "2" ]; then
@@ -131,10 +134,10 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-, root, root)
-%{dlibdir}
+%attr(-,deploy,deploy) %{dlibdir}
 %{_bindir}/*
 %{_unitdir}/*
-%{_initrddir}
+%{_initrddir}/*
 /etc/cron.d/%{name}
 /etc/logrotate.d/taskqueue
 %attr(0700,deploy,deploy) %{_var}/lib/%{name}

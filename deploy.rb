@@ -1,7 +1,9 @@
 #!/usr/bin/env ruby
 
+require 'rubygems'
 require 'sshkit'
 require 'sshkit/dsl'
+include SSHKit::DSL
 
 hosts = %w{rasan@test}
 
@@ -11,6 +13,8 @@ repo = 'https://github.com/rrasch/task-queue.git'
 
 install_dir = '/usr/local/dlib/task-queue'
 
+tmp_dir = '/var/lib/task-queue'
+
 on hosts do |host|
   if test "[ -d #{install_dir} ]"
     within install_dir do
@@ -19,10 +23,9 @@ on hosts do |host|
   else
     execute :git, :clone, repo, install_dir
   end
-  within install_dir do
+  within tmp_dir do
     with mqhost: mqhost do
-      #execute './workersctl', 'restart'
-      puts capture('./workersctl', 'restart')
+      puts capture('touch', 'updated')
     end
   end
 end

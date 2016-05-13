@@ -10,7 +10,7 @@ exec 2>&1
 # set -x
 set -e
 
-CONFIG_FILE=/content/prod/rstar/etc/taskqueue.sysconfig
+CONFIG_FILE=/content/prod/rstar/etc/task-queue.sysconfig
 
 if [ -f "$CONFIG_FILE" ]; then
     . $CONFIG_FILE

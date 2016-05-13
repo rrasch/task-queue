@@ -33,7 +33,7 @@ rm -rf %{buildroot}
 
 git clone %{url}.git %{buildroot}%{dlibdir}
 cd  %{buildroot}%{dlibdir}
-rm -rf %{buildroot}%{dlibdir}/.git*
+# rm -rf %{buildroot}%{dlibdir}/.git*
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -regextype posix-extended \
@@ -55,8 +55,14 @@ install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/taskqueue
 
+mkdir -m 0700 %{buildroot}%{_var}/lib/%{name}
+
 mkdir -p %{buildroot}%{dlibdir}/ruby
-tar -jxf %{SOURCE0} --strip=2 -C %{buildroot}%{dlibdir}/ruby --exclude=doc
+tar -jxf %{SOURCE0} --strip=2 -C %{buildroot}%{dlibdir}/ruby \
+        --exclude=doc \
+        --exclude=gem_make.out \
+        --exclude='*.log' \
+        --exclude=executable-hooks-uninstaller
 
 %pre
 if [ "$1" = "2" ]; then
@@ -131,6 +137,7 @@ rm -rf %{buildroot}
 %{_initrddir}
 /etc/cron.d/%{name}
 /etc/logrotate.d/taskqueue
+%attr(0700,deploy,deploy) %{_var}/lib/%{name}
 
 %changelog
 

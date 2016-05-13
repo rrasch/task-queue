@@ -5,15 +5,21 @@ require 'sshkit'
 require 'sshkit/dsl'
 include SSHKit::DSL
 
-hosts = %w{rasan@test}
+if ENV.key?('DEPLOY_HOSTS')
+  hosts = ENV['DEPLOY_HOSTS'].split(/\s/)
+else
+  hosts = %w{rasan@test}
+end
 
-mqhost = "localhost"
+mqhost = ENV['MQHOST'] || "localhost"
 
 repo = 'https://github.com/rrasch/task-queue.git'
 
 install_dir = '/usr/local/dlib/task-queue'
 
 tmp_dir = '/var/lib/task-queue'
+
+SSHKit.config.umask = '0007'
 
 on hosts do |host|
   if test "[ -d #{install_dir} ]"
@@ -25,7 +31,7 @@ on hosts do |host|
   end
   within tmp_dir do
     with mqhost: mqhost do
-      puts capture('touch', 'updated')
+      puts capture(:touch, 'updated')
     end
   end
 end

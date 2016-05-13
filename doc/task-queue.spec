@@ -140,7 +140,7 @@ rm -rf %{buildroot}
 %{_initrddir}/*
 /etc/cron.d/%{name}
 /etc/logrotate.d/taskqueue
-%attr(0700,deploy,deploy) %{_var}/lib/%{name}
+%attr(0770,deploy,rstar) %{_var}/lib/%{name}
 
 %changelog
 

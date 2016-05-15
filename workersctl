@@ -6,8 +6,6 @@
 # description: Task Queue runs jobs in parallel.
 # pidfile: /content/prod/rstar/tmp/taskqueueserver.pid
 
-exec 2>&1
-# set -x
 set -e
 
 CONFIG_FILE=/content/prod/rstar/etc/task-queue.sysconfig
@@ -35,9 +33,9 @@ fi
 RETVAL=0
 
 start() {
-	PIDS=$(pgrep -f 'ruby.*workers.rb')
+	PIDS=$(pgrep -f 'ruby.*workers.rb' | paste -sd' ')
 	if [ -n "$PIDS" ]; then
-		echo "Task Queue already running with pids $PIDS" 1>&2
+		echo "Task Queue already running with pids '$PIDS'" 1>&2
 		exit 1
 	fi
 	HOST=$(hostname -s)

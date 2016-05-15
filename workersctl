@@ -35,6 +35,11 @@ fi
 RETVAL=0
 
 start() {
+	PIDS=$(pgrep -f 'ruby.*workers.rb')
+	if [ -n "$PIDS" ]; then
+		echo "Task Queue already running with pids $PIDS" 1>&2
+		exit 1
+	fi
 	HOST=$(hostname -s)
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"

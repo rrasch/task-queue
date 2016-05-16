@@ -6,6 +6,7 @@ This is a project to run a set of jobs in parallel using the RabbitMQ message br
 
 - bunny gem
 - chronic gem
+- mediainfo gem
 - mysql2 gem
 - servolux gem
 - Net::AMQP::RabbitMQ perl module

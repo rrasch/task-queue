@@ -1,20 +1,22 @@
 #!/bin/bash
 
 export RUBY_HOME=/usr/local/dlib/task-queue/ruby
-export GEM_HOME=$RUBY_HOME
-export GEM_PATH=$GEM_HOME:$RUBY_HOME/lib/ruby/gems/2.1.0
-export LD_LIBRARY_PATH=$RUBY_HOME/lib
 export PATH=$RUBY_HOME/bin:$PATH
-
-RUBYLIB=""
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby/2.1.0
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby/2.1.0/x86_64-linux
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby/2.1.0
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby/2.1.0/x86_64-linux
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/2.1.0
-RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/2.1.0/x86_64-linux
-export RUBYLIB
+# export GEM_HOME=$RUBY_HOME
+# export GEM_PATH=$GEM_HOME:$RUBY_HOME/lib/ruby/gems/2.1.0
+# export LD_LIBRARY_PATH=$RUBY_HOME/lib
+# RUBYLIB=""
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby/2.1.0
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby/2.1.0/x86_64-linux
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/site_ruby
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby/2.1.0
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby/2.1.0/x86_64-linux
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/vendor_ruby
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/2.1.0
+# RUBYLIB=$RUBYLIB:$RUBY_HOME/lib/ruby/2.1.0/x86_64-linux
+# export RUBYLIB
+unset GEM_HOME GEM_PATH LD_LIBRARY_PATH RUBYLIB
+unset IRBRC RUBY_VERSION
+unset rvm_bin_path rvm_path rvm_prefix rvm_version
 
 exec ruby "$@"

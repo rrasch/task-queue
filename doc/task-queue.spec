@@ -4,7 +4,6 @@
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 %define _unitdir /usr/lib/systemd/system
-%define rubyver  2.1.6
 
 Summary:        Run jobs in parallel using RabbitMQ.
 Name:           %{name}
@@ -15,7 +14,7 @@ Vendor:         NYU DLTS (rasan@nyu.edu)
 Group:          System Environment/Daemons
 URL:            https://github.com/rrasch/%{name}
 %if %{!?_without_ruby:1}%{?_without_ruby:0}
-Source:         rvm-ruby-%{rubyver}.tar.bz2
+Source:         task-queue-ruby.tar.bz2
 %endif
 BuildRoot:      %{_tmppath}/%{name}-root
 # BuildArch:      noarch
@@ -60,7 +59,7 @@ chmod 0755 %{buildroot}%{dlibdir}/rubywrap
 find . -name '*.rb' | xargs perl -pi -e \
         "s,#!/usr/bin/env ruby,#!%{dlibdir}/rubywrap,"
 mkdir -p %{buildroot}%{dlibdir}/ruby
-tar -jvxf %{SOURCE0} --strip=2 -C %{buildroot}%{dlibdir}/ruby \
+tar -jvxf %{SOURCE0} -C %{buildroot}%{dlibdir} \
         --exclude=doc \
         --exclude=gem_make.out \
         --exclude='*.log' \
@@ -91,9 +90,15 @@ if [ -f /etc/redhat-release ]; then
      systemctl daemon-reload
   fi
 fi
-echo "XXX"
-echo "Create Queues"
-echo "Create Database"
+echo <<EOF
+********************************************************************
+    Please read
+
+    %{dlibdir}/doc/INSTALL.md
+
+    for post-installation instructions.
+********************************************************************
+EOF
 
 %preun
 if [ "$1" = "0" ]; then

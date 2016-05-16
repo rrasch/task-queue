@@ -114,6 +114,7 @@ my $task = {
 	rstar_dir   => $rstar_dir,
 	input_dir   => $input_dir,
 	output_dir  => $output_dir,
+	extra_args  => $extra_args,
 	user_id     => $login,
 	batch_id    => $batch_id,
 };

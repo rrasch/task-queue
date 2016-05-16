@@ -9,7 +9,6 @@ class BookPublisher
   def initialize(args)
     @args = args.clone
     @args['bin_dir'] = BIN_DIR
-    @args['add_rstar'] = true
     @cmd = Cmd.new(@args)
   end
 

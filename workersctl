@@ -4,11 +4,17 @@
 #
 # chkconfig: 2345 99 01
 # description: Task Queue runs jobs in parallel.
-# pidfile: /content/prod/rstar/tmp/taskqueueserver.pid
 
 set -e
 
-CONFIG_FILE=/content/prod/rstar/etc/task-queue.sysconfig
+HOST=$(hostname -s)
+if [[ $HOST =~ ^dev ]]; then
+	ENV=dev
+else
+	ENV=prod
+fi
+
+CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
 
 if [ -f "$CONFIG_FILE" ]; then
     . $CONFIG_FILE
@@ -18,9 +24,9 @@ TQHOME=${TQHOME:-/usr/local/dlib/task-queue}
 
 TQUSER=${TQUSER:-rstar}
 
-PIDFILE=${PIDFILE:-/content/prod/rstar/tmp/taskqueueserver.pid}
+PIDFILE=${PIDFILE:-/content/$ENV/rstar/tmp/taskqueueserver.pid}
 
-LOGDIR=${LOGDIR:-/content/prod/rstar/tmp/mdi/task-queue/logs}
+LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
 
 MQHOST=${MQHOST:-localhost}
 
@@ -38,7 +44,6 @@ start() {
 		echo "Task Queue already running with pids '$PIDS'" 1>&2
 		exit 1
 	fi
-	HOST=$(hostname -s)
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
 	if [ "$TQUSER" = "$(whoami)" ]; then

@@ -9,6 +9,7 @@ This is a project to run a set of jobs in parallel using the RabbitMQ message br
 - mediainfo gem
 - mysql2 gem
 - servolux gem
+- sql-maker gem
 - Net::AMQP::RabbitMQ perl module
 
 ## Usage ##

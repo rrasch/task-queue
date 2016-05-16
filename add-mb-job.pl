@@ -40,14 +40,14 @@ my $rstar_dir  = $opt{r};
 my $input_dir  = $opt{i};
 my $output_dir = $opt{o};
 
-if ((exists($opt{i}) && !defined($opt{i}))
-	|| (defined($opt{i}) && !($opt{i} =~ /^\d+$/ && $opt{i} <= 10)))
+if ((exists($opt{p}) && !defined($opt{p}))
+	|| (defined($opt{p}) && !($opt{p} =~ /^\d+$/ && $opt{p} <= 10)))
 {
 	usage("Priority must be an integer in the range 0..10");
 	exit(1);
 }
 
-my $priority = $opt{i} || 0;
+my $priority = $opt{p} || 0;
 
 my $host = $opt{m} || "localhost";
 

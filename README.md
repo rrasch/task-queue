@@ -113,11 +113,11 @@ Method 1:
         -i /input/directory \
         -o /output/directory \
         -s  video:transcode_dir \
-        -e "--profile hidvl"
+        -e "--profiles_path profiles-hidvl.xml"
  
 Method 2:
 
-    echo '{"extra_args": "--profile hidvl"}' > config.json
+    echo '{"extra_args": "--profiles_path profiles-hidvl.xml"}' > config.json
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \

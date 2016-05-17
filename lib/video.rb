@@ -39,9 +39,13 @@ class Video
       output_base = "#{output_dir}/#{basename}"
       cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
-      cmds << "convert2mp4 -q #{@args['extra_args']} "\
+      cmds << "convert2mp4 -q "\
+              "--path_tmpdir /content/prod/rstar/tmp "\
+              "#{@args['extra_args']} "\
               "#{input_file} #{output_base}"
-      cmds << "vcs -q -Wc -o #{cs_file} #{input_file}"
+      if !File.file?(cs_file)
+        cmds << "vcs -q -Wc -o #{cs_file} #{input_file}"
+      end
     end
     return cmds
   end

@@ -3,7 +3,10 @@
 %define version  1.0
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
-%define _unitdir /usr/lib/systemd/system
+
+%if 0%{?fedora} >= 15 || 0%{?centos} > 7
+%define _with_systemd 1
+%endif
 
 Summary:        Run jobs in parallel using RabbitMQ.
 Name:           %{name}
@@ -13,11 +16,12 @@ License:        NYU DLTS
 Vendor:         NYU DLTS (rasan@nyu.edu)
 Group:          System Environment/Daemons
 URL:            https://github.com/rrasch/%{name}
-%if %{!?_without_ruby:1}%{?_without_ruby:0}
+%if 0%{!?_without_ruby:1}
 Source:         task-queue-ruby.tar.bz2
+%else
+BuildArch:      noarch
 %endif
 BuildRoot:      %{_tmppath}/%{name}-root
-# BuildArch:      noarch
 %if 0%{?fedora} > 0 || 0%{?centos} > 0
 BuildRequires:  git
 %endif
@@ -39,6 +43,7 @@ find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -regextype posix-extended \
         -regex '.*\.(pl|rb)' | xargs chmod 0755
+chmod 0755 %{buildroot}%{dlibdir}/workersctl
 
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
@@ -47,14 +52,17 @@ ln -s %{dlibdir}/check-job-status.rb \
 ln -s %{dlibdir}/log-job-status.rb \
 	%{buildroot}%{_bindir}/log-job-status
 
+%if 0%{?_with_systemd:1}
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
-install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
+%else
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
+%endif
+install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/taskqueue
 
 mkdir -p -m 0700 %{buildroot}%{_var}/lib/%{name}
 
-%if %{!?_without_ruby:1}%{?_without_ruby:0}
+%if 0%{!?_without_ruby:1}
 chmod 0755 %{buildroot}%{dlibdir}/rubywrap
 find . -name '*.rb' | xargs perl -pi -e \
         "s,#!/usr/bin/env ruby,#!%{dlibdir}/rubywrap,"
@@ -141,8 +149,11 @@ rm -rf %{buildroot}
 %defattr(-, root, root)
 %attr(-,deploy,deploy) %{dlibdir}
 %{_bindir}/*
+%if 0%{?_with_systemd:1}
 %{_unitdir}/*
+%else
 %{_initrddir}/*
+%endif
 /etc/cron.d/%{name}
 /etc/logrotate.d/taskqueue
 %attr(0770,deploy,rstar) %{_var}/lib/%{name}

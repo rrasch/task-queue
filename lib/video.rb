@@ -36,6 +36,7 @@ class Video
       @logger.debug "Input_file: #{input_file}"
       basename = File.basename(input_file, ".*")
       basename.sub!(/_d$/, '')
+      output_base = "#{output_dir}/#{basename}"
       cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
       cmds << "convert2mp4 -q #{@args['extra_args']} "\

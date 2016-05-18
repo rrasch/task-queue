@@ -41,15 +41,15 @@ class BookPublisher
                 'create-pdf.pl')
   end
 
-  def exec_cmd(script_name)
-    if @args.key?('rstar_dir')
-      @cmd.do_cmd(script_name)
+  def exec_cmd(*script_names)
+    if !@args['rstar_dir'].nil?
+      @cmd.do_cmd(*script_names)
     else
-      rstar_wrap(script_name)
+      rstar_wrap(*script_names)
     end
   end
 
-  def rstar_wrap(script_name)
+  def rstar_wrap(*script_names)
     mets_file = Dir.glob("#{@args['input_dir']}/*_mets.xml").first
     @logger.debug("METS file: #{mets_file}")
     id = File.basename(mets_file).sub(/_mets.xml$/, '')
@@ -61,9 +61,14 @@ class BookPublisher
       FileUtils.mkdir_p(rstar_dir)
       FileUtils.ln_s(@args['input_dir'], data_dir)
       FileUtils.ln_s(@args['output_dir'], aux_dir)
-      cmd = "#{BIN_DIR}/#{script_name} -q -r #{dir} #{id}"
-      @logger.debug("Executing #{cmd}")
-      @cmd.do_cmd(cmd)
+      cmds = Array.new
+      script_names.each do |script_name|
+        rstar_cmd = "#{BIN_DIR}/#{script_name} -q -r #{dir} "\
+                    "#{@args['extra_args']} #{id}"
+        @logger.debug("rstar_wrap cmd: #{rstar_cmd}")
+        cmds.push(rstar_cmd)
+      end
+      @cmd.do_cmd(*cmds)
     }
   end
 

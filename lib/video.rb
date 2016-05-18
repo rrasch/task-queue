@@ -11,6 +11,14 @@ class Video
     @cmd = Cmd.new(@args)
   end
 
+  def transcode
+    if !@args['rstar_dir'].nil?
+      transcode_wip
+    else
+      transcode_dir
+    end
+  end
+
   def transcode_dir
     cmds = get_transcode_cmds(@args['input_dir'], @args['output_dir'])
     @cmd.do_cmd(*cmds)

@@ -82,26 +82,26 @@ Possible service values for book publishing are:
 
 ## Audio/Video Encoding ##
 
-To transcode videos in a wip structure, you would use an invocation similar to above but would change the service to "video:transcode_wip".  For example:
+To transcode videos in a wip structure, you would use an invocation similar to above but would change the service to "video:transcode".  For example:
 
     add-mb-job -m localhost \
         -r /root/path/of/rstar/provider/collection \
-        -s  video:transcode_wip \
+        -s  video:transcode \
         wip_id
 
-To transcode videos from an input directory and place the newly encoded files in an output directory, change the service to "transcode_dir"
+To transcode videos from an input directory and place the newly encoded files in an output directory, set the -i and -o options:
 
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
-        -s  video:transcode_dir
+        -s  video:transcode
 
 To encode audio files:
 
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
-        -s  audio:transcode_dir
+        -s  audio:transcode
 
 ## Additional Options ##
 
@@ -112,7 +112,7 @@ Method 1:
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
-        -s  video:transcode_dir \
+        -s  video:transcode \
         -e "--profiles_path profiles-hidvl.xml"
  
 Method 2:
@@ -121,7 +121,7 @@ Method 2:
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
-        -s  video:transcode_dir \
+        -s  video:transcode \
         -j config.json
  
 ## JSON Configuration ##

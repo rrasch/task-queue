@@ -16,7 +16,7 @@ class Cmd
     total_output = ""
     success = true
     script_names.each do |script_name|
-      if @args.key?('rstar_dir') && script_name !~ / -r /
+      if !@args['rstar_dir'].nil? && script_name !~ / -r /
         cmd = "#{@bin_dir}/#{script_name} -q -r #{@args['rstar_dir']} "\
               "#{@args['extra_args']} "\
               "#{@args['identifiers'].join(' ')}"

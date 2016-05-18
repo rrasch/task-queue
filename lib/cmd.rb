@@ -16,13 +16,14 @@ class Cmd
     total_output = ""
     success = true
     script_names.each do |script_name|
-      if @args['class'] =~ /book.publisher/
+      if @args.key?('rstar_dir') && script_name !~ / -r /
         cmd = "#{@bin_dir}/#{script_name} -q -r #{@args['rstar_dir']} "\
               "#{@args['extra_args']} "\
               "#{@args['identifiers'].join(' ')}"
       else
         cmd = "#{script_name}"
       end
+      @logger.debug("Executing '#{cmd}'")
       output, status = Open3.capture2e(cmd)
       @logger.debug output
       total_output.concat(output)

@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+require 'securerandom'
 require 'tmpdir'
 require_relative './cmd'
 
@@ -51,8 +52,13 @@ class BookPublisher
 
   def rstar_wrap(*script_names)
     mets_file = Dir.glob("#{@args['input_dir']}/*_mets.xml").first
-    @logger.debug("METS file: #{mets_file}")
-    id = File.basename(mets_file).sub(/_mets.xml$/, '')
+    if mets_file.nil?
+      @logger.warn "Can't find METS file. Generating random id ..."
+      id = SecureRandom.uuid
+    else
+      @logger.debug("METS file: #{mets_file}")
+      id = File.basename(mets_file).sub(/_mets.xml$/, '')
+    end
     @logger.debug("wip id: #{id}")
     Dir.mktmpdir('task-queue') {|dir|
       rstar_dir = "#{dir}/wip/se/#{id}"

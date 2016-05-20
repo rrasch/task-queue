@@ -116,9 +116,9 @@ my $task = {
 	batch_id    => $batch_id,
 };
 
-$task{rstar_dir}  = $rstar_dir  if $rstar_dir;
-$task{input_dir}  = $input_dir  if $input_dir;
-$task{output_dir} = $output_dir if $output_dir;
+$task->{rstar_dir}  = $rstar_dir  if $rstar_dir;
+$task->{input_dir}  = $input_dir  if $input_dir;
+$task->{output_dir} = $output_dir if $output_dir;
 
 my $json = JSON->new;
 $json->pretty;

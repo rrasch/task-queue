@@ -24,14 +24,19 @@ SSHKit.config.umask = '0007'
 on hosts do |host|
   if test "[ -d #{install_dir} ]"
     within install_dir do
+      execute :git, :stash
       execute :git, :pull
+      execute :git, :stash, :clear
+      execute :perl, '-pi', '-e', '\'s,^#!/usr/bin/env ruby,'\
+              '#!/usr/local/dlib/task-queue/rubywrap,\'',
+              '*.rb', 'lib/*.rb'
     end
   else
     execute :git, :clone, repo, install_dir
   end
   within tmp_dir do
     with mqhost: mqhost do
-      puts capture(:touch, 'updated')
+      execute :touch, 'updated'
     end
   end
 end

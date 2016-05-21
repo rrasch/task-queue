@@ -1,0 +1,5 @@
+{
+  "input_dir": "/content/dev/rstar/content/dlts/hidvl/wip/HI2007_147/data",
+  "output_dir": "/content/dev/rstar/content/dlts/hidvl/wip/HI2007_147/aux",
+  "extra_args": "--profiles_path profiles-hidvl.xml --path_tmpdir /content/dev/rstar/tmp"
+}

@@ -98,6 +98,9 @@ if [ -f /etc/redhat-release ]; then
      systemctl daemon-reload
   fi
 fi
+if ! grep -qs `hostname -s` /etc/logrotate.d/taskqueue
+  perl -pi -e "s,{,/content/prod/rstar/tmp/mdi/task-queue/logs/`hostname -s`/*log {," /etc/logrotate.d/taskqueue
+fi
 echo <<EOF
 ********************************************************************
     Please read
@@ -155,7 +158,7 @@ rm -rf %{buildroot}
 %{_initrddir}/*
 %endif
 /etc/cron.d/%{name}
-/etc/logrotate.d/taskqueue
+%config(noreplace) /etc/logrotate.d/taskqueue
 %attr(0770,deploy,rstar) %{_var}/lib/%{name}
 
 %changelog

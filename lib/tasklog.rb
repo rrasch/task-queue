@@ -32,6 +32,7 @@ class TaskLog
     if results.count > 0
       collection_id = results.first['collection_id']
     elsif create
+      rstar_dir = "/content/prod/rstar/content/#{provider}/#{collection}"
       coll_type = find_coll_type(rstar_dir, wip_id)
       insert_col.execute(provider, collection, coll_type)
       collection_id = @client.last_id

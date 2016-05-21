@@ -58,7 +58,7 @@ install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 %endif
 install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
-install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/taskqueue
+install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/task-queue
 
 mkdir -p -m 0700 %{buildroot}%{_var}/lib/%{name}
 
@@ -75,6 +75,7 @@ tar -jvxf %{SOURCE0} -C %{buildroot}%{dlibdir} \
 %endif
 
 %pre
+rm -f /etc/logrotate.d/taskqueue*
 if [ "$1" = "2" ]; then
   if [ -f /etc/redhat-release ]; then
     if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
@@ -98,8 +99,8 @@ if [ -f /etc/redhat-release ]; then
      systemctl daemon-reload
   fi
 fi
-if ! grep -qs `hostname -s` /etc/logrotate.d/taskqueue
-  perl -pi -e "s,{,/content/prod/rstar/tmp/mdi/task-queue/logs/`hostname -s`/*log {," /etc/logrotate.d/taskqueue
+if ! grep -qs `hostname -s` /etc/logrotate.d/task-queue; then
+  perl -pi -e "s,{,/content/prod/rstar/tmp/mdi/task-queue/logs/`hostname -s`/*log {," /etc/logrotate.d/task-queue
 fi
 echo <<EOF
 ********************************************************************
@@ -158,7 +159,7 @@ rm -rf %{buildroot}
 %{_initrddir}/*
 %endif
 /etc/cron.d/%{name}
-%config(noreplace) /etc/logrotate.d/taskqueue
+%config(noreplace) /etc/logrotate.d/task-queue
 %attr(0770,deploy,rstar) %{_var}/lib/%{name}
 
 %changelog

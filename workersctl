@@ -71,20 +71,30 @@ restart() {
 	start
 }
 
+reload() {
+	if [ -f $PIDFILE ]; then
+		kill -HUP `cat $PIDFILE`
+		RETVAL=$?
+	fi
+}
+
 case "$1" in
-  start)
-	start
-	;;
-  stop)
-	stop
-	;;
-  restart|force-reload|reload)
-	restart
-	;;
-  *)
-	echo "Usage: $0 {start|stop|restart}" >&2
-	exit 3
-	;;
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        restart
+        ;;
+    reload)
+        reload
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|reload}" >&2
+        exit 3
+        ;;
 esac
 
 exit $RETVAL

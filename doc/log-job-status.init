@@ -41,7 +41,7 @@ start() {
 		exit 1
 	fi
 	LOGFILE=$LOGDIR/$HOST/log-job-status.$HOST.log
-	CMD="$TQHOME/log-job-status.rb -m $MQHOST -l $LOGFILE"
+	CMD="$TQHOME/log-job-status.rb -d -m $MQHOST -l $LOGFILE"
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		$CMD
 	else

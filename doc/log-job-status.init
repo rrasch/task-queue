@@ -1,0 +1,85 @@
+#!/bin/bash
+#
+# task-queue	Start up Task Queue job logger
+#
+# chkconfig: 2345 95 05
+# description: Log status of task queue jobs.
+
+set -e
+
+HOST=$(hostname -s)
+if [[ $HOST =~ ^dev ]]; then
+	ENV=dev
+else
+	ENV=prod
+fi
+
+CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
+
+if [ -f "$CONFIG_FILE" ]; then
+    . $CONFIG_FILE
+fi
+
+TQHOME=${TQHOME:-/usr/local/dlib/task-queue}
+
+TQUSER=${TQUSER:-rstar}
+
+LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
+
+MQHOST=${MQHOST:-localhost}
+
+RETVAL=0
+
+get_pid() {
+	pgrep -f 'ruby.*log-job-status.rb' || true
+}
+
+start() {
+	PID=$(get_pid)
+	if [ -n "$PID" ]; then
+		echo "log-job-status already running with pid '$PID'" 1>&2
+		exit 1
+	fi
+	LOGFILE=$LOGDIR/$HOST/log-job-status.$HOST.log
+	CMD="$TQHOME/log-job-status.rb -m $MQHOST -l $LOGFILE"
+	if [ "$TQUSER" = "$(whoami)" ]; then
+		$CMD
+	else
+		if [ -f $LOGFILE ]; then
+			TQGROUP=$(id -gn $TQUSER)
+			chown $TQUSER:$TQGROUP $LOGFILE
+		fi
+		su -ls /bin/bash $TQUSER -c "$CMD"
+	fi
+	RETVAL=$?
+}
+
+stop() {
+	PID=$(get_pid)
+	[ -n "$PID" ] && kill $PID 2>/dev/null
+	RETVAL=$?
+}
+
+restart() {
+	stop
+	start
+}
+
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        restart
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}" >&2
+        exit 3
+        ;;
+esac
+
+exit $RETVAL

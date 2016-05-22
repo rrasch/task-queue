@@ -1,4 +1,4 @@
 # Check if Jenkins has deployed a new version of task-queue
 # every 5 minutes
-*/5 * * * * rstar /usr/local/lib/task-queue/check-update.sh /dev/null 2>&1
+*/5 * * * * rstar /usr/local/dlib/task-queue/check-update.sh /dev/null 2>&1
 

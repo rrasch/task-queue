@@ -6,8 +6,8 @@ set -e
 
 UPDATED_FILE="/var/lib/task-queue/updated"
 
-if [ -f $UPDATED_FILE ] ; then
+if [ -f $UPDATED_FILE ]; then
 	rm -f $UPDATED_FILE
-	/etc/init.d/task-queue restart
+	/usr/local/dlib/task-queue/workersctl restart
 fi
 

@@ -42,7 +42,7 @@ cd  %{buildroot}%{dlibdir}
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -regextype posix-extended \
-        -regex '.*\.(pl|rb)' | xargs chmod 0755
+        -regex '.*\.(pl|rb|sh)' | xargs chmod 0755
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
 
 mkdir -p %{buildroot}%{_bindir}

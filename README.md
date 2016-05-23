@@ -126,7 +126,7 @@ Method 2:
  
 ## JSON Configuration ##
 
-In the above example, you saw how we set extra_args using a json file to change the default profile for video encoding.  You can use it to also set different parameters for the backend class.  You can find more examples in the doc directory.
+In the above example, you saw how we set extra_args using a json file to change the default profile for video encoding.  You can use it to also set different parameters for the backend class.  You can find more examples in the doc/samples directory.
 
 # Job Status ##
 

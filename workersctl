@@ -24,17 +24,11 @@ TQHOME=${TQHOME:-/usr/local/dlib/task-queue}
 
 TQUSER=${TQUSER:-rstar}
 
-PIDFILE=${PIDFILE:-/content/$ENV/rstar/tmp/taskqueueserver.pid}
+PIDFILE=${PIDFILE:-/var/lib/task-queue/taskqueueserver.pid}
 
 LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
 
 MQHOST=${MQHOST:-localhost}
-
-RVMRC=${RVMRC:-$TQHOME/.rvm/scripts/rvm}
-
-if [ -s $RVMRC ]; then
-	. $RVMRC
-fi
 
 RETVAL=0
 

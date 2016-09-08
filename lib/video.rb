@@ -52,7 +52,7 @@ class Video
               "#{@args['extra_args']} "\
               "#{input_file} #{output_base}"
       if !File.file?(cs_file)
-        cmds << "vcs -q -Wc -o #{cs_file} #{input_file}"
+        cmds << "vcs -q -Wc -n 8 -o #{cs_file} #{input_file}"
       end
     end
     return cmds

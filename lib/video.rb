@@ -14,8 +14,15 @@ class Video
   def transcode
     if !@args['rstar_dir'].nil?
       transcode_wip
+    elsif !@args['input_path'].nil?
+      if File.directory?(@args['input_path'])
+        transcode_dir
+      else
+        transcode_file
+      end
     else
-      transcode_dir
+      @logger.error "Video.transcode: Must specify rstar_dir or input_path."
+      { :status => false }
     end
   end
 

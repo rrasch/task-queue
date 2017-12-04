@@ -24,11 +24,20 @@ class Cmd
         cmd = "#{script_name}"
       end
       @logger.debug("Executing '#{cmd}'")
-      output, status = Open3.capture2e(cmd)
-      @logger.debug output
+      begin
+        output, status = Open3.capture2e(cmd)
+        success = status.exitstatus.zero?
+      rescue SystemCallError => e
+        output = "Failed to execute '#{cmd}': #{e.class} #{e.message}"
+        success = false
+      end
       total_output.concat(output)
-      success = status.exitstatus.zero?
-      break if !success
+      if success
+        @logger.debug output
+      else
+        @logger.error output
+        break
+      end
     end
     return {
       :success => success,

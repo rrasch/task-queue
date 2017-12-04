@@ -20,7 +20,7 @@ class Video
   end
 
   def transcode_dir
-    cmds = get_transcode_cmds(@args['input_dir'], @args['output_dir'])
+    cmds = get_transcode_cmds(@args['input_path'], @args['output_path'])
     @cmd.do_cmd(*cmds)
   end
 
@@ -37,14 +37,21 @@ class Video
     @cmd.do_cmd(*cmds)
   end
 
-  def get_transcode_cmds(input_dir, output_dir)
+  def transcode_file
+    @cmd.do_cmd("convert2mp4 -q "\
+            "--path_tmpdir /content/prod/rstar/tmp "\
+            "#{@args['extra_args']} "\
+            "#{@args['input_path']} #{@args['output_path']}")
+  end
+
+  def get_transcode_cmds(input_path, output_path)
     cmds = Array.new
-    input_files = Dir.glob("#{input_dir}/*_d.{avi,mkv,mov,mp4}")
+    input_files = Dir.glob("#{input_path}/*_d.{avi,mkv,mov,mp4}")
     input_files.each do |input_file|
       @logger.debug "Input_file: #{input_file}"
       basename = File.basename(input_file, ".*")
       basename.sub!(/_d$/, '')
-      output_base = "#{output_dir}/#{basename}"
+      output_base = "#{output_path}/#{basename}"
       cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
       cmds << "convert2mp4 -q "\

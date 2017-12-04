@@ -88,11 +88,26 @@ end
 options[:from] = sql_date(options[:from]) if options.key?(:from)
 options[:to] = sql_date(options[:to]) if options.key?(:to)
 
+joblog = JobLog.new(options[:my_cnf], logger)
+
+if !options[:batch_id].nil?
+  batch = joblog.select_batch(options[:batch_id])
+  if !batch.nil?
+    puts "\nBATCH ##{options[:batch_id]}"
+    puts '-' * 80
+    batch.each do |key, value|
+      puts key + ': ' + value.to_s
+    end
+    puts '-' * 80
+    puts
+  end
+end
+
 puts
 print_row('JOB ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED')
 puts '-' * 80
 
-JobLog.new(options[:my_cnf], logger).select_job(options).each do |row|
+joblog.select_job(options).each do |row|
   print_row(
     row['job_id'],
     row['state'],

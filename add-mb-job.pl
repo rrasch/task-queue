@@ -18,8 +18,8 @@ use Net::AMQP::RabbitMQ;
 # -v:  verbose
 # -m:  hostname for messaging server
 # -r:  rstar directory
-# -i:  input directory
-# -o:  output directory
+# -i:  input path (directory or file)
+# -o:  output path (directory or file prefix)
 # -c:  mysql config file
 # -p:  message priority
 # -s:  service
@@ -36,9 +36,9 @@ if ($opt{h}) {
 	exit(0);
 }
 
-my $rstar_dir  = $opt{r};
-my $input_dir  = $opt{i};
-my $output_dir = $opt{o};
+my $rstar_dir   = $opt{r};
+my $input_path  = $opt{i};
+my $output_path = $opt{o};
 
 if ((exists($opt{p}) && !defined($opt{p}))
 	|| (defined($opt{p}) && !($opt{p} =~ /^\d+$/ && $opt{p} <= 10)))
@@ -116,9 +116,9 @@ my $task = {
 	batch_id    => $batch_id,
 };
 
-$task->{rstar_dir}  = $rstar_dir  if $rstar_dir;
-$task->{input_dir}  = $input_dir  if $input_dir;
-$task->{output_dir} = $output_dir if $output_dir;
+$task->{rstar_dir}   = $rstar_dir   if $rstar_dir;
+$task->{input_path}  = $input_path  if $input_path;
+$task->{output_path} = $output_path if $output_path;
 
 my $json = JSON->new;
 $json->pretty;
@@ -180,9 +180,11 @@ sub usage
 		"           [wip_id] ...\n\n",
 		"        -m     <RabbitMQ host>\n",
 		"        -r     <R* directory>\n",
+		"        -i     <input directory or file>\n",
+		"        -o     <output directory or file prefix>\n",
 		"        -h     flag to print help message\n",
 		"        -v     verbose output\n",
-		"        -i     <message priority>\n",
+		"        -p     <message priority>\n",
 		"        -c     <path to mysql config file>\n",
 		"        -s     <service>\n",
 		"        -e     <extra command ling args>\n",

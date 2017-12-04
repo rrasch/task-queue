@@ -82,19 +82,26 @@ Possible service values for book publishing are:
 
 ## Audio/Video Encoding ##
 
-To transcode videos in a wip structure, you would use an invocation similar to above but would change the service to "video:transcode".  For example:
+To transcode videos in a wip structure, you would use an invocation similar to above but would change the service to "video:transcode_wip".  For example:
 
     add-mb-job -m localhost \
         -r /root/path/of/rstar/provider/collection \
-        -s  video:transcode \
+        -s  video:transcode_wip \
         wip_id
 
-To transcode videos from an input directory and place the newly encoded files in an output directory, set the -i and -o options:
+To transcode videos from an input directory and place the newly encoded files in an output directory, set the -i and -o options and set the service to "video:transcode_dir"
 
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
-        -s  video:transcode
+        -s  video:transcode_dir
+
+To transcode a single video file, set -i to the path of the source video file, set -o to the output prefix, and set the service to "video:transcode_file".  If the -o option is not set, the output prefix will be determined by the path of the source video file.
+
+    add-mb-job -m localhost \
+        -i /path/to/video/file \
+        -o /output/path/prefix \
+        -s  video:transcode_file
 
 To encode audio files:
 
@@ -102,6 +109,13 @@ To encode audio files:
         -i /input/directory \
         -o /output/directory \
         -s  audio:transcode
+
+Service values for video processing are:
+
+    video:transcode_wip
+    video:transcode_dir
+    video:transcode_file
+    audio:transcode
 
 ## Additional Options ##
 
@@ -112,7 +126,7 @@ Method 1:
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
-        -s  video:transcode \
+        -s  video:transcode_dir \
         -e "--profiles_path profiles-hidvl.xml"
  
 Method 2:
@@ -121,7 +135,7 @@ Method 2:
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
-        -s  video:transcode \
+        -s  video:transcode_dir \
         -j config.json
  
 ## JSON Configuration ##

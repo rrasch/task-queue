@@ -22,7 +22,7 @@ class Audio
   end
 
   def transcode_dir
-    cmds = get_transcode_cmds(@args['input_dir'], @args['output_dir'])
+    cmds = get_transcode_cmds(@args['input_path'], @args['output_path'])
     @cmd.do_cmd(*cmds)
   end
 
@@ -39,9 +39,9 @@ class Audio
     @cmd.do_cmd(*cmds)
   end
 
-  def get_transcode_cmds(input_dir, output_dir)
+  def get_transcode_cmds(input_path, output_path)
     cmds = Array.new
-    input_files = Dir.glob("#{input_dir}/*_m.{mp3,wav}")
+    input_files = Dir.glob("#{input_path}/*_m.{mp3,wav}")
     input_files.each do |input_file|
       @logger.debug "Input_file: #{input_file}"
       minfo = Mediainfo.new input_file
@@ -52,7 +52,7 @@ class Audio
       end
       basename = File.basename(input_file, ".*")
       basename.sub!(/_m$/, '')
-      output_file = "#{output_dir}/#{basename}_s.m4a"
+      output_file = "#{output_path}/#{basename}_s.m4a"
       @logger.debug "Output file: #{output_file}"
       cmds << "ffmpeg -y -nostats -loglevel warning "\
               "#{ch_layout_arg} -i #{input_file} -c:a libfdk_aac "\

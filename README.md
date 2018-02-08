@@ -89,11 +89,18 @@ To transcode videos in a wip structure, you would use an invocation similar to a
         -s  video:transcode \
         wip_id
 
-To transcode videos from an input directory and place the newly encoded files in an output directory, set the -i and -o options:
+To transcode videos from an input directory and place the newly encoded files in an output directory, set the -i and -o options for source and destination directories.
 
     add-mb-job -m localhost \
         -i /input/directory \
         -o /output/directory \
+        -s  video:transcode
+
+To transcode a single video file, set -i to the path of the source video file, set -o to the output prefix.  If the -o option is not set, the output prefix will be determined by the path of the source video file.
+
+    add-mb-job -m localhost \
+        -i /path/to/video/file \
+        -o /output/path/prefix \
         -s  video:transcode
 
 To encode audio files:
@@ -102,6 +109,11 @@ To encode audio files:
         -i /input/directory \
         -o /output/directory \
         -s  audio:transcode
+
+Service values for audio/video processing are:
+
+    video:transcode
+    audio:transcode
 
 ## Additional Options ##
 
@@ -126,7 +138,7 @@ Method 2:
  
 ## JSON Configuration ##
 
-In the above example, you saw how we set extra_args using a json file to change the default profile for video encoding.  You can use it to also set different parameters for the backend class.  You can find more examples in the doc directory.
+In the above example, you saw how we set extra_args using a json file to change the default profile for video encoding.  You can use it to also set different parameters for the backend class.  You can find more examples in the doc/samples directory.
 
 # Job Status ##
 

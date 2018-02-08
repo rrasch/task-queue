@@ -17,21 +17,31 @@ class JobLog
     @logger = logger
   end
 
+  def select_batch(batch_id)
+    stmt = SQL::Maker::Select.new(:auto_bind => true)
+                                  .add_select('*')
+                                  .add_from('batch')
+                                  .add_where('batch_id' => batch_id)
+    result = @client.query(stmt.as_sql)
+    result.first
+  end
+
   def select_job(args)
     stmt = SQL::Maker::Select.new(:auto_bind => true)
                                   .add_select('*')
                                   .add_from('job')
     if args.key?(:batch_id)
       stmt.add_where('batch_id' => args[:batch_id])
-    end
-    if args.key?(:from)
-      stmt.add_where('submitted' => {'>' => args[:from]})
-    end
-    if args.key?(:to)
-      stmt.add_where('submitted' => {'<' => args[:to]})
-    end
-    if args.key?(:limit)
-      stmt.limit(args[:limit])
+    else
+      if args.key?(:from)
+        stmt.add_where('submitted' => {'>' => args[:from]})
+      end
+      if args.key?(:to)
+        stmt.add_where('submitted' => {'<' => args[:to]})
+      end
+      if args.key?(:limit)
+        stmt.limit(args[:limit])
+      end
     end
     @logger.debug("Executing #{stmt.as_sql}")
     result = @client.query(stmt.as_sql)

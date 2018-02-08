@@ -14,13 +14,20 @@ class Video
   def transcode
     if !@args['rstar_dir'].nil?
       transcode_wip
+    elsif !@args['input_path'].nil?
+      if File.directory?(@args['input_path'])
+        transcode_dir
+      else
+        transcode_file
+      end
     else
-      transcode_dir
+      @logger.error "Video.transcode: Must specify rstar_dir or input_path."
+      { :status => false }
     end
   end
 
   def transcode_dir
-    cmds = get_transcode_cmds(@args['input_dir'], @args['output_dir'])
+    cmds = get_transcode_cmds(@args['input_path'], @args['output_path'])
     @cmd.do_cmd(*cmds)
   end
 
@@ -37,14 +44,21 @@ class Video
     @cmd.do_cmd(*cmds)
   end
 
-  def get_transcode_cmds(input_dir, output_dir)
+  def transcode_file
+    @cmd.do_cmd("convert2mp4 -q "\
+            "--path_tmpdir /content/prod/rstar/tmp "\
+            "#{@args['extra_args']} "\
+            "#{@args['input_path']} #{@args['output_path']}")
+  end
+
+  def get_transcode_cmds(input_path, output_path)
     cmds = Array.new
-    input_files = Dir.glob("#{input_dir}/*_d.{avi,mkv,mov,mp4}")
+    input_files = Dir.glob("#{input_path}/*_d.{avi,mkv,mov,mp4}")
     input_files.each do |input_file|
       @logger.debug "Input_file: #{input_file}"
       basename = File.basename(input_file, ".*")
       basename.sub!(/_d$/, '')
-      output_base = "#{output_dir}/#{basename}"
+      output_base = "#{output_path}/#{basename}"
       cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
       cmds << "convert2mp4 -q "\
@@ -52,7 +66,7 @@ class Video
               "#{@args['extra_args']} "\
               "#{input_file} #{output_base}"
       if !File.file?(cs_file)
-        cmds << "vcs -q -Wc -o #{cs_file} #{input_file}"
+        cmds << "vcs -q -Wc -n 8 -o #{cs_file} #{input_file}"
       end
     end
     return cmds

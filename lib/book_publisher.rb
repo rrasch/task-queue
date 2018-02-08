@@ -51,7 +51,7 @@ class BookPublisher
   end
 
   def rstar_wrap(*script_names)
-    mets_file = Dir.glob("#{@args['input_dir']}/*_mets.xml").first
+    mets_file = Dir.glob("#{@args['input_path']}/*_mets.xml").first
     if mets_file.nil?
       @logger.warn "Can't find METS file. Generating random id ..."
       id = SecureRandom.uuid
@@ -65,8 +65,8 @@ class BookPublisher
       data_dir  = "#{rstar_dir}/data"
       aux_dir   = "#{rstar_dir}/aux"
       FileUtils.mkdir_p(rstar_dir)
-      FileUtils.ln_s(@args['input_dir'], data_dir)
-      FileUtils.ln_s(@args['output_dir'], aux_dir)
+      FileUtils.ln_s(@args['input_path'], data_dir)
+      FileUtils.ln_s(@args['output_path'], aux_dir)
       cmds = Array.new
       script_names.each do |script_name|
         rstar_cmd = "#{BIN_DIR}/#{script_name} -q -r #{dir} "\

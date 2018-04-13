@@ -30,6 +30,10 @@ LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
 
 MQHOST=${MQHOST:-localhost}
 
+USE_CGROUP=${USE_CGROUP:-true}
+
+CGROUP_NAME=${CGROUP_NAME:-cpu:cpulimited}
+
 RETVAL=0
 
 start() {
@@ -39,7 +43,10 @@ start() {
 		exit 1
 	fi
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
-	CMD="cgexec -g cpu:cpulimited $TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
+	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
+	if [ "$USE_CGROUP" = true ]; then
+		CMD="cgexec -g $CGROUP_NAME $CMD"
+	fi
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		$CMD
 	else

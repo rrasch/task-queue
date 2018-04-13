@@ -39,7 +39,7 @@ start() {
 		exit 1
 	fi
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
-	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
+	CMD="cgexec -g cpu:cpulimited $TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		$CMD
 	else

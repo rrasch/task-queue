@@ -75,6 +75,7 @@ OR
 Possible service values for book publishing are:
 
     book_publisher:stitch_pages
+    book_publisher:create_derivatives
     book_publisher:create_pdf
     book_publisher:create_ocr
     book_publisher:create_map

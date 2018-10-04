@@ -1,7 +1,7 @@
 %define gitver   .git.%(date +"%Y%m%d")
 %define name     task-queue
 %define version  1.0
-%define release  1.dlts%{?gitver}%{?dist}
+%define release  2.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 
 %if 0%{?fedora} >= 15 || 0%{?centos} > 7
@@ -24,6 +24,7 @@ BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-root
 %if 0%{?fedora} > 0 || 0%{?centos} > 0
 BuildRequires:  git
+Requires:       /bin/cgexec
 %endif
 
 %description

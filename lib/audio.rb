@@ -16,8 +16,15 @@ class Audio
   def transcode
     if !@args['rstar_dir'].nil?
       transcode_wip
+    elsif !@args['input_path'].nil?
+      if File.directory?(@args['input_path'])
+        transcode_dir
+      else
+        transcode_file
+      end
     else
-      transcode_dir
+      @logger.error "Audio.transcode: Must specify rstar_dir or input_path."
+      { :status => false }
     end
   end
 
@@ -39,27 +46,35 @@ class Audio
     @cmd.do_cmd(*cmds)
   end
 
+  def transcode_file
+    @cmd.do_cmd(transcode_cmd(@args['input_path'], @args['output_path']))
+  end
+
   def get_transcode_cmds(input_path, output_path)
     cmds = Array.new
     input_files = Dir.glob("#{input_path}/*_m.{mp3,wav}")
     input_files.each do |input_file|
       @logger.debug "Input_file: #{input_file}"
-      minfo = Mediainfo.new input_file
-      num_channels = minfo.audio.channels
-      bitrate = "#{num_channels * 64}k"
-      if minfo.format == "Wave" && LAYOUT[num_channels] then
-        ch_layout_arg = "-channel_layout #{LAYOUT[num_channels]}"
-      end
       basename = File.basename(input_file, ".*")
       basename.sub!(/_m$/, '')
       output_file = "#{output_path}/#{basename}_s.m4a"
       @logger.debug "Output file: #{output_file}"
-      cmds << "ffmpeg -y -nostats -loglevel warning "\
-              "#{ch_layout_arg} -i #{input_file} -c:a libfdk_aac "\
-              "-b:a #{bitrate} -ac #{num_channels} "\
-              "-ar 44.1k -movflags +faststart #{output_file}"
+      cmds << transcode_cmd(input_file, output_file)
     end
     return cmds
+  end
+
+  def transcode_cmd(input_file, output_file)
+    minfo = Mediainfo.new input_file
+    num_channels = minfo.audio.channels
+    bitrate = "#{num_channels * 64}k"
+    if minfo.format == "Wave" && LAYOUT[num_channels] then
+      ch_layout_arg = "-channel_layout #{LAYOUT[num_channels]}"
+    end
+    return "ffmpeg -y -nostats -loglevel warning "\
+           "#{ch_layout_arg} -i #{input_file} -c:a libfdk_aac "\
+           "-b:a #{bitrate} -ac #{num_channels} "\
+           "-ar 44.1k -movflags +faststart #{output_file}"
   end
 
 end

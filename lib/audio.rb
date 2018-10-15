@@ -14,6 +14,14 @@ class Audio
   end
 
   def transcode
+    bin_version = `mediainfo --Version`[/v([\d.]+)/, 1]
+    gem_version = Gem.loaded_specs['mediainfo'].version
+    if bin_version > '0.7.99'
+      @logger.error "Version of MediaInfo tool, "\
+              "#{Mediainfo.version}, not compatible with version "\
+              "#{gem_version} of mediainfo gem."
+      return { :status => false }
+    end
     if !@args['rstar_dir'].nil?
       transcode_wip
     elsif !@args['input_path'].nil?

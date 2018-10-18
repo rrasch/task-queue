@@ -5,7 +5,7 @@ require_relative './cmd'
 
 class Audio
 
-  LAYOUT = { 2 => 'stereo', 6 => '5.1' }
+  LAYOUT = { 1 => 'mono', 2 => 'stereo', 6 => '5.1' }
 
   def initialize(args)
     @args = args.clone
@@ -80,9 +80,12 @@ class Audio
       ch_layout_arg = "-channel_layout #{LAYOUT[num_channels]}"
     end
     return "ffmpeg -y -nostats -loglevel warning "\
-           "#{ch_layout_arg} -i #{input_file} -c:a libfdk_aac "\
+           "#{ch_layout_arg} -i '#{input_file}' -c:a libfdk_aac "\
            "-b:a #{bitrate} -ac #{num_channels} "\
-           "-ar 44.1k -movflags +faststart #{output_file}"
+           "-ar 44.1k -movflags +faststart '#{output_file}'"
+  rescue Exception => ex
+    @logger.error "#{ex.class} => #{ex.message}"
+    return "false '#{input_file}' '#{output_file}'"
   end
 
 end

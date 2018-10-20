@@ -64,6 +64,13 @@ if (!$opt{s}) {
 
 my ($class, $op) = split(/:/, $opt{s});
 
+if (!$class || !$op)
+{
+	usage(  "You must set -s to define service in the format "
+		  . "<class>:<service>, e.g. audio:transcode");
+	exit(1);
+}
+
 my $queue_name = "task_queue";
 
 my $mq = Net::AMQP::RabbitMQ->new();

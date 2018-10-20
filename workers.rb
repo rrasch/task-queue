@@ -88,28 +88,44 @@ module JobProcessor
   # killed via SIGHUP or SIGTERM or halted by the parent.
   def execute
     @logger.debug "entering JobProcessor.execute()"
-    @q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
+    @q.subscribe(:manual_ack => true, :block => true) do |delivery_info,
+                                                          properties, body|
       begin
         @logger.debug " [x] Received '#{body}'"
-        task = JSON.parse(body)
-        @logger.debug task.inspect
+        parse_error = nil
+        task = {}
+        state = 'error'
+        begin
+          task = JSON.parse(body)
+          @logger.debug task.inspect
+        rescue JSON::JSONError => e
+          parse_error = "Can't parse '#{body}': #{e.class} #{e.message}."
+        end
         task['logger'] = @logger
         task['state'] = "processing"
-        #task['worker_host'] = Socket.gethostname[/^[^.]+/]
         task['worker_host'] = get_ip_addr
         task['started'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
         @x.publish(JSON.pretty_generate(task),
                    :routing_key => "task_queue.processing")
-        class_name = classify(task['class'])
-        @logger.debug "Creating new #{class_name} object"
-        obj = Object::const_get(class_name).new(task)
-        method_name = task['operation'].tr('-', '_')
-        @logger.debug "Executing #{method_name}"
-        status = obj.send(method_name)
-        if status[:success] then
-          state = "success"
+        class_name = classify(task['class'].to_s.strip)
+        if !parse_error.nil?
+          @logger.error parse_error
+        elsif class_name.empty?
+          @logger.error "Class name isn't defined."
+        elsif class_exists?(class_name)
+          @logger.debug "Creating new '#{class_name}' object"
+          obj = Object::const_get(class_name).new(task)
+          method_name = task['operation'].to_s.tr('-', '_')
+          if obj.respond_to?(method_name)
+            @logger.debug "Executing '#{method_name}'"
+            status = obj.send(method_name)
+            state = 'success' if status[:success]
+          else
+            @logger.error "Method '#{class_name}.#{method_name}' "\
+                          "does not exist."
+          end
         else
-          state = "error"
+          @logger.debug "Class '#{class_name}' doesn't exist."
         end
         @logger.debug "#{state.capitalize}!"
         @logger.debug " [x] Done"
@@ -121,12 +137,12 @@ module JobProcessor
         @logger.debug "Sending ack"
         @ch.ack(delivery_info.delivery_tag)
       rescue Exception => e
-        @logger.error e
+        @logger.error "#{e.class} => #{e.message}"
         @conn.close
       end
     end
   rescue Exception => e
-    @logger.error e
+    @logger.error "#{e.class} => #{e.message}"
     @conn.close
     raise e
   end
@@ -134,6 +150,13 @@ end
 
 def classify(str)
   str.split(/[_-]/).collect(&:capitalize).join
+end
+
+def class_exists?(class_name)
+  klass = Module.const_get(class_name)
+  return klass.is_a?(Class)
+rescue NameError
+  return false
 end
 
 def get_ip_addr

@@ -10,16 +10,20 @@ class Audio
   def initialize(args)
     @args = args.clone
     @logger = @args['logger']
-    @cmd    = Cmd.new(@args)
+    @cmd = Cmd.new(@args)
+    @minfo_bin_version = `mediainfo --Version`[/v([\d.]+)/, 1]
+    @minfo_gem_version = Gem.loaded_specs['mediainfo'].version
   end
 
   def transcode
-    bin_version = `mediainfo --Version`[/v([\d.]+)/, 1]
-    gem_version = Gem.loaded_specs['mediainfo'].version
-    if Gem::Version.new(bin_version) > Gem::Version.new('0.7.99')
+    # XXX: put this version check in initialize and throw exception
+    if  Gem::Version.new(@minfo_bin_version) <=
+        Gem::Version.new('0.7.99') &&
+        Gem::Version.new(@minfo_gem_version) >=
+        Gem::Version.new('1.0.0')
       @logger.error "Version of MediaInfo tool, "\
-              "#{Mediainfo.version}, not compatible with version "\
-              "#{gem_version} of mediainfo gem."
+                    "#{@minfo_bin_version}, not compatible with version "\
+                    "#{@minfo_gem_version} of mediainfo gem."
       return { :status => false }
     end
     if !@args['rstar_dir'].nil?
@@ -73,10 +77,15 @@ class Audio
   end
 
   def transcode_cmd(input_file, output_file)
-    minfo = Mediainfo.new input_file
+    ENV['MEDIAINFO_PATH'] = '/usr/bin/mediainfo'
+    if Gem::Version.new(@minfo_gem_version) >= Gem::Version.new('1.0.0')
+      minfo = MediaInfo.from(input_file)
+    else
+      minfo = Mediainfo.new input_file
+    end
     num_channels = minfo.audio.channels
     bitrate = "#{num_channels * 64}k"
-    if minfo.format == "Wave" && LAYOUT[num_channels] then
+    if minfo.general.format == "Wave" && LAYOUT[num_channels] then
       ch_layout_arg = "-channel_layout #{LAYOUT[num_channels]}"
     end
     return "ffmpeg -y -nostats -loglevel warning "\

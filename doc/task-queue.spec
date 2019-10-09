@@ -24,7 +24,13 @@ BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-root
 %if 0%{?fedora} > 0 || 0%{?centos} > 0
 BuildRequires:  git
-Requires:       /bin/cgexec
+%if 0%{?fedora} >= 28
+Requires:       libcgroup-tools
+%else
+Requires:       libcgroup
+%endif
+%else
+BuildRequires:  /bin/cgexec
 %endif
 
 %description

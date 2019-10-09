@@ -2,7 +2,8 @@
 Description=Task Queue as a system service
 
 [Service]
-Type=forking
+Environment="FOREGROUND=yes"
+Type=simple
 ExecStart=/usr/local/dlib/task-queue/workersctl start
 ExecStop=/usr/local/dlib/task-queue/workersctl stop
 PrivateTmp=yes

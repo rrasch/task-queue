@@ -300,11 +300,12 @@ end
 # Start
 
 config = {
-  :mqhost  => "localhost",
-  :timeout => nil,
-  :logfile => Dir.pwd + "/worker.log",
-  :pidfile => Dir.pwd + "/taskqueueserver.pid",
-  :quiet   => false,
+  :mqhost     => "localhost",
+  :timeout    => nil,
+  :logfile    => Dir.pwd + "/worker.log",
+  :pidfile    => Dir.pwd + "/taskqueueserver.pid",
+  :quiet      => false,
+  :foreground => false,
 }
 
 # puts config[:logfile]
@@ -330,6 +331,10 @@ OptionParser.new do |opts|
     config[:pidfile] = p
   end
 
+  opts.on('-f', '--foreground', 'Stay in the foreground') do
+    config[:foreground] = true
+  end
+
   opts.on('-q', '--quiet', 'Suppress debugging messages') do
     config[:quiet] = true
   end
@@ -344,7 +349,9 @@ end.parse!
 config[:logfh] = File.new(config[:logfile], 'a')
 config[:logfh].sync = true
 
-Process.daemon
+if !config[:foreground]
+  Process.daemon
+end
 
 $stdout = config[:logfh]
 $stderr = config[:logfh]

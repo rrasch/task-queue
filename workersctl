@@ -45,7 +45,7 @@ start() {
 	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
 	if [ "$FOREGROUND" = "yes" ]; then
-		CMD="$CMD -d"
+		CMD="$CMD -f"
 	fi
 	if [ "$USE_CGROUP" = true ]; then
 		CMD="cgexec -g $CGROUP_NAME $CMD"

@@ -107,7 +107,7 @@ if [ -f /etc/redhat-release ]; then
   fi
 fi
 if ! grep -qs `hostname -s` /etc/logrotate.d/task-queue; then
-  perl -pi -e "s,{,/content/prod/rstar/tmp/mdi/task-queue/logs/`hostname -s`/*log {," /etc/logrotate.d/task-queue
+  perl -pi -e "s,{,/content/prod/rstar/tmp/mdi/task-queue/logs/`hostname -s`/*.log {," /etc/logrotate.d/task-queue
 fi
 echo <<EOF
 ********************************************************************

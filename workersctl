@@ -6,6 +6,7 @@
 # description: Task Queue runs jobs in parallel.
 
 set -e
+set -u
 
 HOST=$(hostname -s)
 if [[ $HOST =~ ^dev ]]; then
@@ -34,6 +35,8 @@ USE_CGROUP=${USE_CGROUP:-true}
 
 CGROUP_NAME=${CGROUP_NAME:-cpu:cpulimited}
 
+FOREGROUND=${FOREGROUND:-false}
+
 RETVAL=0
 
 start() {
@@ -42,9 +45,14 @@ start() {
 		echo "Task Queue already running with pids '$PIDS'" 1>&2
 		exit 1
 	fi
-	LOGFILE=$LOGDIR/$HOST/worker.$HOST.log
+	HOST_LOGDIR="$LOGDIR/$HOST"
+	LOGFILE=$HOST_LOGDIR/worker.$HOST.log
+	if [ ! -e "$HOST_LOGDIR" ]; then
+		mkdir -m 0700 $HOST_LOGDIR
+		chown $TQUSER $HOST_LOGDIR
+	fi
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
-	if [ "$FOREGROUND" = "yes" ]; then
+	if [ "$FOREGROUND" = "true" ]; then
 		CMD="$CMD -f"
 	fi
 	if [ "$USE_CGROUP" = true ]; then

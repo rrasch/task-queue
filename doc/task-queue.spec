@@ -69,6 +69,8 @@ install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/task-queue
 
 mkdir -p -m 0700 %{buildroot}%{_var}/lib/%{name}
 
+mkdir -p -m 0700 %{buildroot}%{_var}/log/%{name}
+
 %if 0%{!?_without_ruby:1}
 chmod 0755 %{buildroot}%{dlibdir}/rubywrap
 find . -name '*.rb' | xargs perl -pi -e \
@@ -168,6 +170,7 @@ rm -rf %{buildroot}
 /etc/cron.d/%{name}
 %config(noreplace) /etc/logrotate.d/task-queue
 %attr(0770,deploy,rstar) %{_var}/lib/%{name}
+%attr(0700,rstar,rstar) %{_var}/log/%{name}
 
 %changelog
 

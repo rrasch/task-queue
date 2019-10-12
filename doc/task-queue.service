@@ -3,7 +3,7 @@ Description=Task Queue as a system service
 After=rabbitmq-server.service
 
 [Service]
-Environment="FOREGROUND=yes"
+Environment="FOREGROUND=true"
 Type=simple
 ExecStart=/usr/local/dlib/task-queue/workersctl start
 ExecStop=/usr/local/dlib/task-queue/workersctl stop

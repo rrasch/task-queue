@@ -6,6 +6,7 @@
 # description: Log status of task queue jobs.
 
 set -e
+set -u
 
 HOST=$(hostname -s)
 if [[ $HOST =~ ^dev ]]; then
@@ -28,6 +29,8 @@ LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
 
 MQHOST=${MQHOST:-localhost}
 
+FOREGROUND=${FOREGROUND:-false}
+
 RETVAL=0
 
 get_pid() {
@@ -41,7 +44,10 @@ start() {
 		exit 1
 	fi
 	LOGFILE=$LOGDIR/$HOST/log-job-status.$HOST.log
-	CMD="$TQHOME/log-job-status.rb -d -m $MQHOST -l $LOGFILE"
+	CMD="$TQHOME/log-job-status.rb -m $MQHOST -l $LOGFILE"
+	if [ "$FOREGROUND" != "true" ]; then
+		CMD="$CMD -d"
+	fi
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		$CMD
 	else

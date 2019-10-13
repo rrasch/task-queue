@@ -51,6 +51,7 @@ find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -regextype posix-extended \
         -regex '.*\.(pl|rb|sh)' | xargs chmod 0755
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
+chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
@@ -61,8 +62,12 @@ ln -s %{dlibdir}/log-job-status.rb \
 
 %if 0%{?_with_systemd:1}
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
+install -D -m 0644 doc/log-job-status.service \
+        %{buildroot}%{_unitdir}/log-job-status.service
 %else
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
+install -D -m 0755 log-job-status-ctl \
+        %{buildroot}%{_initrddir}/log-job-status-ctl
 %endif
 install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/task-queue
@@ -89,11 +94,14 @@ if [ "$1" = "2" ]; then
   if [ -f /etc/redhat-release ]; then
     if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
       service task-queue stop
+      service log-job-status stop
     else
       /etc/init.d/task-queue stop
+      /etc/init.d/log-job-status stop
     fi
   else
     /etc/init.d/task-queue stop
+    /etc/init.d/log-job-status stop
   fi
 fi
 exit 0
@@ -126,11 +134,14 @@ if [ "$1" = "0" ]; then
   if [ -f /etc/redhat-release ]; then
     if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
       service task-queue stop
+      service log-job-status stop
     else
       /etc/init.d/task-queue stop
+      /etc/init.d/log-job-status stop
     fi
   else
     /etc/init.d/task-queue stop
+    /etc/init.d/log-job-status stop
   fi
 fi
 
@@ -138,8 +149,10 @@ if [ "$1" = "0" ]; then
   if [ -f /etc/redhat-release ]; then
     if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 15 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 7 ]]; then
       chkconfig --del task-queue
+      chkconfig --del log-job-status
     else
       systemctl disable task-queue.service
+      systemctl disable log-job-status.service
       systemctl daemon-reload
     fi
   fi

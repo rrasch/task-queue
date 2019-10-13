@@ -1,0 +1,14 @@
+[Unit]
+Description=Task Queue Job Logger
+After=rabbitmq-server.service mariadb.service
+
+[Service]
+Environment="FOREGROUND=true"
+Type=simple
+ExecStart=/usr/local/dlib/task-queue/log-job-status-ctl start
+ExecStop=/usr/local/dlib/task-queue/log-job-status-ctl stop
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+

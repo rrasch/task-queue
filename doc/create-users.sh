@@ -8,3 +8,5 @@ getent group deploy >/dev/null || groupadd -g 451 -r deploy
 getent passwd deploy >/dev/null || \
   sudo useradd -r -u 451 -g deploy -s /sbin/nologin -c "deploy" deploy
 
+getent group dlib >/dev/null || groupadd dlib
+

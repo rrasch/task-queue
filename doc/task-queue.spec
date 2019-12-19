@@ -4,7 +4,7 @@
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 
-%if 0%{?fedora} >= 15 || 0%{?centos} > 7
+%if 0%{?fedora} >= 15 || 0%{?centos} >= 7
 %define _with_systemd 1
 %endif
 

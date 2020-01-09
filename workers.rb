@@ -95,6 +95,7 @@ module JobProcessor
         parse_error = nil
         task = {}
         state = 'error'
+        output = nil
         begin
           task = JSON.parse(body)
           @logger.debug task.inspect
@@ -120,6 +121,7 @@ module JobProcessor
             @logger.debug "Executing '#{method_name}'"
             status = obj.send(method_name)
             state = 'success' if status[:success]
+            output = status[:output]
           else
             @logger.error "Method '#{class_name}.#{method_name}' "\
                           "does not exist."
@@ -130,6 +132,7 @@ module JobProcessor
         @logger.debug "#{state.capitalize}!"
         @logger.debug " [x] Done"
         task['state'] = state
+        task['output'] = output
         task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
         @logger.debug "Publishing to task_queue.#{state}"
         @x.publish(JSON.pretty_generate(task),

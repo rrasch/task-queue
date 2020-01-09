@@ -18,6 +18,7 @@ CREATE TABLE job (
 	job_id int UNSIGNED AUTO_INCREMENT NOT NULL,
 	batch_id int UNSIGNED NOT NULL,
 	state ENUM ('pending', 'processing', 'success', 'error') NOT NULL,
+	output TEXT NULL,
 	request TEXT NOT NULL,
 	user_id VARCHAR(20) NOT NULL,
 	worker_host VARCHAR(20),

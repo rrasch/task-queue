@@ -30,6 +30,14 @@ class JobLog
     stmt = SQL::Maker::Select.new(:auto_bind => true)
                                   .add_select('*')
                                   .add_from('job')
+#                                   .add_select('job.*, output')
+#     stmt.add_join(
+#       :job => {
+#         :type => 'left',
+#         :table => 'output',
+#         :condition => {'job.job_id' => 'output.job_id'}
+#        }
+#     )
     if args.key?(:batch_id)
       stmt.add_where('batch_id' => args[:batch_id])
     else
@@ -49,15 +57,22 @@ class JobLog
 
   def update_job(task, create=true)
     result = nil
+    output = task['output']
+    if output.to_s.strip.empty?
+      output = nil
+    end
     if task['job_id'].nil? && create
       @logger.debug "Inserting job into batch_id=#{task['batch_id']}"
       insert_job = @client.prepare(
-       "INSERT INTO job
-        (batch_id, state, request, user_id, worker_host, started, completed)
-        VALUES (?, ?, ?, ?, ?, ?, ?)")
+       "INSERT INTO job (
+        batch_id, state,
+        output, request,
+        user_id, worker_host,
+        started, completed)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
       result = insert_job.execute(
-        task['batch_id'],
-        task['state'], JSON.generate(task),
+        task['batch_id'], task['state'],
+        output, JSON.generate(task),
         task['user_id'], task['worker_host'],
         task['started'], task['completed'])
       task['job_id'] = @client.last_id
@@ -66,11 +81,14 @@ class JobLog
       @logger.debug "Updating job_id=#{task['job_id']}"
       update_job = @client.prepare(
        "UPDATE job
-        SET state = ?, worker_host = ?, started = ?, completed = ?
+        SET state = ?, output = ?,
+        worker_host = ?, started = ?,
+        completed = ?
         WHERE job_id = ?")
       result = update_job.execute(
-        task['state'], task['worker_host'],
-        task['started'], task['completed'],
+        task['state'], output,
+        task['worker_host'], task['started'],
+        task['completed'],
         task['job_id'])
       @logger.debug "Updated job_id=#{task['job_id']}"
     end

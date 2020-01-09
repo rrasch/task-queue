@@ -38,6 +38,10 @@ OptionParser.new do |opts|
     options[:limit] = l
   end
 
+  opts.on('-o', '--output', 'Print output for jobs') do
+    options[:output] = true
+  end
+
   opts.on('-v', '--verbose', 'Enable debugging messages') do
     options[:verbose] = true
   end
@@ -115,6 +119,7 @@ joblog.select_job(options).each do |row|
     row['started'],
     row['completed']
   )
+  puts row['output'] if options[:output]
 end
 
 # vim: set et:

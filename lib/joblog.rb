@@ -18,39 +18,34 @@ class JobLog
   end
 
   def select_batch(batch_id)
-    stmt = SQL::Maker::Select.new(:auto_bind => true)
-                                  .add_select('*')
-                                  .add_from('batch')
-                                  .add_where('batch_id' => batch_id)
+    stmt = SQL::Maker::Select.new.add_select('*')
+                                 .add_from('batch')
+                                 .add_where('batch_id' => batch_id)
     result = @client.query(stmt.as_sql)
     result.first
   end
 
   def select_job(args)
-    stmt = SQL::Maker::Select.new(:auto_bind => true)
-                                  .add_select('*')
-                                  .add_from('job')
-#                                   .add_select('job.*, output')
-#     stmt.add_join(
-#       :job => {
-#         :type => 'left',
-#         :table => 'output',
-#         :condition => {'job.job_id' => 'output.job_id'}
-#        }
-#     )
+    subquery = SQL::Maker::Select.new.add_select('*').add_from('job')
     if args.key?(:batch_id)
-      stmt.add_where('batch_id' => args[:batch_id])
+      subquery.add_where('batch_id' => args[:batch_id])
     else
       if args.key?(:from)
-        stmt.add_where('submitted' => {'>' => args[:from]})
+        subquery.add_where('submitted' => {'>' => args[:from]})
       end
       if args.key?(:to)
-        stmt.add_where('submitted' => {'<' => args[:to]})
-      end
-      if args.key?(:limit)
-        stmt.limit(args[:limit])
+        subquery.add_where('submitted' => {'<' => args[:to]})
       end
     end
+    subquery.add_order_by('job_id' => 'DESC')
+    if args.key?(:limit)
+      subquery.limit(args[:limit])
+    end
+
+    stmt = SQL::Maker::Select.new.add_select('*')
+                                 .add_from(subquery => 'job_table')
+                                 .add_order_by('job_id' => 'ASC')
+
     @logger.debug("Executing #{stmt.as_sql}")
     result = @client.query(stmt.as_sql)
   end

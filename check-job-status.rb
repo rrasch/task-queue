@@ -10,8 +10,8 @@ require_relative './lib/joblog'
 options = {
   :my_cnf => "/content/prod/rstar/etc/my-taskqueue.cnf",
   :limit => 100,
-  :from => '3 days ago',
-  :to => 'now',
+#   :from => '3 days ago',
+#   :to => 'now',
 }
 
 OptionParser.new do |opts|

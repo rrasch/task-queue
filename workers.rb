@@ -30,6 +30,7 @@ require 'socket'
 require_relative './lib/audio'
 require_relative './lib/bagit'
 require_relative './lib/book_publisher'
+require_relative './lib/util'
 require_relative './lib/video'
 
 module JobProcessor

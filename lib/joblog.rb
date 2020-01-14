@@ -87,7 +87,9 @@ class JobLog
         task['job_id'])
       @logger.debug "Updated job_id=#{task['job_id']}"
     end
-    return result
+    num_rows = @client.affected_rows
+    @logger.debug "Query updated #{num_rows}."
+    return num_rows
   end
 
   def close

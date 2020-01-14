@@ -116,11 +116,12 @@ my $insert_job = $dbh->prepare("
   or die $dbh->errstr;
 
 my $task = {
-	class       => $class,
-	operation   => $op,
-	extra_args  => $extra_args,
-	user_id     => $login,
-	batch_id    => $batch_id,
+	'class'       => $class,
+	'operation'   => $op,
+	'extra_args'  => $extra_args,
+	'user_id'     => $login,
+	'batch_id'    => $batch_id,
+	'state'       => 'pending',
 };
 
 $task->{rstar_dir}   = $rstar_dir   if $rstar_dir;

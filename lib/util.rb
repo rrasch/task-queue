@@ -7,7 +7,7 @@ class Util
   end
 
   def ping
-    @cmd.do_cmd("ping -c1 -W1 wwww.google.com")
+    @cmd.do_cmd("ping -c1 -W1 www.google.com")
   end
 
   def fortune

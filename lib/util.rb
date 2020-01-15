@@ -10,7 +10,7 @@ class Util
     @cmd.do_cmd("ping -c1 -W1 wwww.google.com")
   end
 
-  def forture
+  def fortune
     @cmd.do_cmd("fortune")
   end
 

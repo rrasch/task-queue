@@ -93,7 +93,7 @@ module JobProcessor
                                                           properties, body|
       begin
         @logger.debug " [x] Received '#{body}'"
-        parse_error = nil
+        err_msg = nil
         task = {}
         state = 'error'
         output = nil
@@ -101,7 +101,7 @@ module JobProcessor
           task = JSON.parse(body)
           @logger.debug task.inspect
         rescue JSON::JSONError => e
-          parse_error = "Can't parse '#{body}': #{e.class} #{e.message}."
+          err_msg = "Can't parse '#{body}': #{e.class} #{e.message}."
         end
         task['logger'] = @logger
         task['state'] = "processing"
@@ -110,25 +110,29 @@ module JobProcessor
         @x.publish(JSON.pretty_generate(task),
                    :routing_key => "task_queue.processing")
         class_name = classify(task['class'].to_s.strip)
-        if !parse_error.nil?
-          @logger.error parse_error
-        elsif class_name.empty?
-          @logger.error "Class name isn't defined."
-        elsif class_exists?(class_name)
-          @logger.debug "Creating new '#{class_name}' object"
-          obj = Object::const_get(class_name).new(task)
-          method_name = task['operation'].to_s.tr('-', '_')
-          if obj.respond_to?(method_name)
-            @logger.debug "Executing '#{method_name}'"
-            status = obj.send(method_name)
-            state = 'success' if status[:success]
-            output = status[:output]
+        if err_msg.nil?
+          if class_name.empty?
+            err_msg = "Class name isn't defined."
+          elsif class_exists?(class_name)
+            @logger.debug "Creating new '#{class_name}' object"
+            obj = Object::const_get(class_name).new(task)
+            method_name = task['operation'].to_s.tr('-', '_')
+            if obj.respond_to?(method_name)
+              @logger.debug "Executing '#{method_name}'"
+              status = obj.send(method_name)
+              state = 'success' if status[:success]
+              output = status[:output]
+            else
+              err_msg = "Method '#{class_name}.#{method_name}' "\
+                        "does not exist."
+            end
           else
-            @logger.error "Method '#{class_name}.#{method_name}' "\
-                          "does not exist."
+            err_msg = "Class '#{class_name}' doesn't exist."
           end
-        else
-          @logger.debug "Class '#{class_name}' doesn't exist."
+        end
+        if err_msg
+          @logger.error err_msg
+          output = err_msg
         end
         @logger.debug "#{state.capitalize}!"
         @logger.debug " [x] Done"

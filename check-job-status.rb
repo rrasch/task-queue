@@ -94,22 +94,24 @@ options[:to] = sql_date(options[:to]) if options.key?(:to)
 
 joblog = JobLog.new(options[:my_cnf], logger)
 
+sep = '-' * 80
+
 if !options[:batch_id].nil?
   batch = joblog.select_batch(options[:batch_id])
   if !batch.nil?
     puts "\nBATCH ##{options[:batch_id]}"
-    puts '-' * 80
+    puts sep
     batch.each do |key, value|
       puts key + ': ' + value.to_s
     end
-    puts '-' * 80
+    puts sep
     puts
   end
 end
 
-puts
+puts sep
 print_row('JOB ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED')
-puts '-' * 80
+puts sep
 
 joblog.select_job(options).each do |row|
   print_row(
@@ -119,7 +121,13 @@ joblog.select_job(options).each do |row|
     row['started'],
     row['completed']
   )
-  puts row['output'] if options[:output]
+  if options[:output]
+    if row['output']
+      puts sep
+      puts row['output']
+    end
+    puts sep
+  end
 end
 
 # vim: set et:

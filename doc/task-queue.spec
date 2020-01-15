@@ -67,7 +67,7 @@ install -D -m 0644 doc/log-job-status.service \
 %else
 install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
 install -D -m 0755 log-job-status-ctl \
-        %{buildroot}%{_initrddir}/log-job-status-ctl
+        %{buildroot}%{_initrddir}/log-job-status
 %endif
 install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/task-queue
@@ -128,6 +128,7 @@ echo <<EOF
     for post-installation instructions.
 ********************************************************************
 EOF
+exit 0
 
 %preun
 if [ "$1" = "0" ]; then
@@ -164,6 +165,7 @@ else
     fi
   fi
 fi
+exit 0
 
 %postun
 

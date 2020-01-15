@@ -14,5 +14,9 @@ class Util
     @cmd.do_cmd("fortune")
   end
 
+  def nope
+    @cmd.do_cmd("false")
+  end
+
 end
 

@@ -88,7 +88,7 @@ class JobLog
       @logger.debug "Updated job_id=#{task['job_id']}"
     end
     num_rows = @client.affected_rows
-    @logger.debug "Query updated #{num_rows}."
+    @logger.debug "Query updated #{num_rows} rows."
     return num_rows
   end
 

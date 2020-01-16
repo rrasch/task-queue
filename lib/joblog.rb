@@ -18,36 +18,42 @@ class JobLog
   end
 
   def select_batch(batch_id)
-    stmt = SQL::Maker::Select.new.add_select('*')
-                                 .add_from('batch')
-                                 .add_where('batch_id' => batch_id)
-    result = @client.query(stmt.as_sql)
+    @logger.debug "batch id: #{batch_id}"
+    query = SQL::Maker::Select.new.add_select('*')
+                                  .add_from('batch')
+                                  .add_where('batch_id' => batch_id)
+    @logger.debug "sql: #{query.as_sql}"
+    @logger.debug "bind value: #{query.bind}"
+    stmt = @client.prepare(query.as_sql)
+    result = stmt.execute(*(query.bind))
     result.first
   end
 
   def select_job(args)
+    @logger.debug "entering select_job(#{args})"
     subquery = SQL::Maker::Select.new.add_select('*').add_from('job')
     if args.key?(:batch_id)
       subquery.add_where('batch_id' => args[:batch_id])
-    else
-      if args.key?(:from)
-        subquery.add_where('submitted' => {'>' => args[:from]})
-      end
-      if args.key?(:to)
-        subquery.add_where('submitted' => {'<' => args[:to]})
-      end
+    end
+    if args.key?(:from)
+      @logger.debug "starting date: #{args[:from]}"
+      subquery.add_where('submitted' => {'>=' => args[:from]})
+    end
+    if args.key?(:to)
+      @logger.debug "ending date: #{args[:to]}"
+      subquery.add_where('submitted' => {'<=' => args[:to]})
     end
     subquery.add_order_by('job_id' => 'DESC')
     if args.key?(:limit)
       subquery.limit(args[:limit])
     end
-
-    stmt = SQL::Maker::Select.new.add_select('*')
-                                 .add_from(subquery => 'job_table')
-                                 .add_order_by('job_id' => 'ASC')
-
-    @logger.debug("Executing #{stmt.as_sql}")
-    result = @client.query(stmt.as_sql)
+    query = SQL::Maker::Select.new.add_select('*')
+                                  .add_from(subquery => 'job_table')
+                                  .add_order_by('job_id' => 'ASC')
+    @logger.debug "sql: #{query.as_sql}"
+    @logger.debug "bind values: #{query.bind}"
+    stmt = @client.prepare(query.as_sql)
+    result = stmt.execute(*(query.bind))
   end
 
   def update_job(task, create=true)

@@ -92,6 +92,13 @@ end
 options[:from] = sql_date(options[:from]) if options.key?(:from)
 options[:to] = sql_date(options[:to]) if options.key?(:to)
 
+if options.key?(:from) && options.key?(:to) &&
+    options[:from] >= options[:to]
+  puts "Make sure start date '#{options[:from]}' occurs before "\
+       "end date '#{options[:to]}'."
+  exit 1
+end
+
 joblog = JobLog.new(options[:my_cnf], logger)
 
 sep = '-' * 80

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"io/ioutil"
 	"github.com/go-ini/ini"
+	"flag"
 )
 
 func InsertJob(req string) {
@@ -37,6 +38,15 @@ func InsertJob(req string) {
 
 func main() {
 
+	id := flag.Int("b", 0,  "Batch id (Required)")
+
+	flag.Parse()
+
+	if *id < 1 {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	myConfigFile := "/content/prod/rstar/etc/my-taskqueue.cnf"
 
 	cfg, err := ini.Load(myConfigFile)
@@ -58,14 +68,12 @@ func main() {
 		panic(err.Error())
 	}
 
-	id := 314
-
 	rows, err := db.Query(fmt.Sprintf(`
 			SELECT cmd_line, request
 			FROM batch b, job j
 			WHERE b.batch_id = j.batch_id
 			AND j.batch_id = %d
-			AND j.state = 'error'`, id))
+			AND j.state = 'error'`, *id))
 	if err != nil {
 		panic(err.Error())
 	}

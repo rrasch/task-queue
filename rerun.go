@@ -6,8 +6,34 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"fmt"
 	"os"
+	"os/exec"
+	"io/ioutil"
 	"github.com/go-ini/ini"
 )
+
+func InsertJob(req string) {
+	file, err := ioutil.TempFile("", "job.*.json")
+	if err != nil {
+		panic(err)
+	}
+	defer os.Remove(file.Name())
+
+	fmt.Println(file.Name())
+
+	_, err = file.WriteString(req)
+	if err != nil {
+		panic(err)
+	}
+
+	out, err := exec.Command("add-mb-job",
+		"-s", "job:rerun",
+		"-j", file.Name()).CombinedOutput()
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+	output := string(out[:])
+	fmt.Println(output)
+}
 
 func main() {
 
@@ -25,21 +51,32 @@ func main() {
 	dbhost := cfg.Section("client").Key("host").String()
 	dbname := cfg.Section("client").Key("database").String()
 
-	dsn := fmt.Sprintf("%s:%s@%s/%s", dbuser, dbpass, dbhost, dbname)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", dbuser, dbpass, dbhost, dbname)
 	fmt.Println("dsn: ", dsn)
-
 	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		panic(err.Error())
+	}
 
-	rows, err := db.Query("SELECT * FROM batch b, job j
-	                       WHERE b.batch_id = j.batch_id")
+	id := 314
 
+	rows, err := db.Query(fmt.Sprintf(`
+			SELECT cmd_line, request
+			FROM batch b, job j
+			WHERE b.batch_id = j.batch_id
+			AND j.batch_id = %d
+			AND j.state = 'error'`, id))
+	if err != nil {
+		panic(err.Error())
+	}
 
-	// Get column names
-	columns, err := rows.Columns()
-
-	// Make a slice for the values
-	values := make([]sql.RawBytes, len(columns))
-
+	for rows.Next() {
+		var cmdLine string
+		var req string
+		err = rows.Scan(&cmdLine, &req)
+		fmt.Println("request: ", req)
+		InsertJob(req)
+	}
 
 }
 

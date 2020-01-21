@@ -53,12 +53,18 @@ find %{buildroot}%{dlibdir} -regextype posix-extended \
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 
+export GOPATH=$HOME/go:/usr/share/gocode
+go build %{buildroot}%{dlibdir}/rerun.go
+chmod 0755 %{buildroot}%{dlibdir}/rerun
+
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
 ln -s %{dlibdir}/check-job-status.rb \
 	%{buildroot}%{_bindir}/check-job-status
 ln -s %{dlibdir}/log-job-status.rb \
 	%{buildroot}%{_bindir}/log-job-status
+ln -s %{dlibdir}/rerun \
+	%{buildroot}%{_bindir}/rerun-mb-job
 
 %if 0%{?_with_systemd:1}
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service

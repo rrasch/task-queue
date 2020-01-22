@@ -4,7 +4,7 @@ require 'uri'
 
 class Email
 
-  ADDR_FILE = "/content/prod/rstar/etc/email-map.txt"
+  ADDR_FILE = "/content/prod/rstar/etc/email.yaml"
 
   def initialize(logger)
     @logger = logger
@@ -53,10 +53,10 @@ EOM
         @logger.debug "response: #{res.string}" if res
       end
     else
-      @logger.debug "Can't find email address for #{ask['user_id']}"
+      @logger.debug "Can't find email address for #{task['user_id']}"
     end
   rescue Exception => ex
-    @logger.error "#{ex.class} #{ex.message} #{ex.backtrace}"
+    @logger.error %Q[#{ex.class} #{ex.message}\n#{ex.backtrace.join("\n")}]
   end
 
 end

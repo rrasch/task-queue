@@ -5,6 +5,7 @@ require 'bunny'
 require 'json'
 require 'mysql2'
 require 'optparse'
+require_relative './lib/email'
 require_relative './lib/joblog'
 
 # Set default options
@@ -73,6 +74,8 @@ end
 $stdout = logfile
 $stderr = logfile
 
+email = Email.new(logger)
+
 logger.debug "Lowering priority of process #{Process.pid}"
 Process.setpriority(Process::PRIO_PROCESS, 0, 19)
 
@@ -100,6 +103,9 @@ begin
       joblog.update_job(task)
       joblog.close
       ch.ack(delivery_info.delivery_tag)
+      if task['state'] =~ /success|error/
+        email.send(task)
+      end
     rescue Exception => e
       logger.error e
       consumer.cancel if consumer

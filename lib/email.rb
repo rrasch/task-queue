@@ -44,6 +44,9 @@ To: <#{mailto}>
 Subject: #{desc}
 
 #{desc}
+
+#{task['output'].to_s}
+
 EOM
       smtp = Net::SMTP.new('localhost')
       smtp.open_timeout = 5

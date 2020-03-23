@@ -10,9 +10,22 @@ import (
 	"io/ioutil"
 	"github.com/go-ini/ini"
 	"flag"
+	"regexp"
 )
 
-func InsertJob(req string) {
+
+func GetMsgBrokerHost(cmdLine string) string {
+	re := regexp.MustCompile(`\s+-m\s+(\w+(\.\w+)*)\s+`)
+	found := re.FindStringSubmatch(cmdLine)
+	if (found != nil) {
+		return found[1]
+	} else {
+		return "localhost"
+	}
+}
+
+
+func InsertJob(req string, host string) {
 	file, err := ioutil.TempFile("", "job.*.json")
 	if err != nil {
 		panic(err)
@@ -27,6 +40,7 @@ func InsertJob(req string) {
 	}
 
 	out, err := exec.Command("add-mb-job",
+		"-m", host,
 		"-s", "job:rerun",
 		"-j", file.Name()).CombinedOutput()
 	if err != nil {
@@ -35,6 +49,7 @@ func InsertJob(req string) {
 	output := string(out[:])
 	fmt.Println(output)
 }
+
 
 func main() {
 
@@ -62,7 +77,7 @@ func main() {
 	dbname := cfg.Section("client").Key("database").String()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", dbuser, dbpass, dbhost, dbname)
-	fmt.Println("dsn: ", dsn)
+	fmt.Println("dsn:", dsn)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		panic(err.Error())
@@ -82,8 +97,11 @@ func main() {
 		var cmdLine string
 		var req string
 		err = rows.Scan(&cmdLine, &req)
-		fmt.Println("request: ", req)
-		InsertJob(req)
+		host := GetMsgBrokerHost(cmdLine)
+		fmt.Println("cmdline:", cmdLine)
+		fmt.Println("request:", req)
+		fmt.Println("mbhost:", host)
+		InsertJob(req, host)
 	}
 
 }

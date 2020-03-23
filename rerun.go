@@ -52,9 +52,9 @@ func main() {
 	cfg, err := ini.Load(myConfigFile)
 
 	if err != nil {
-        fmt.Printf("Fail to read file: %v", err)
-        os.Exit(1)
-    }
+		fmt.Printf("Fail to read file: %v", err)
+		os.Exit(1)
+	}
 
 	dbuser := cfg.Section("client").Key("user").String()
 	dbpass := cfg.Section("client").Key("password").String()

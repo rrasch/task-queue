@@ -1,6 +1,6 @@
 %define gitver   .git.%(date +"%Y%m%d")
 %define name     task-queue
-%define version  1.2
+%define version  1.3
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 

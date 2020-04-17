@@ -2,6 +2,7 @@
 
 require 'rubygems'
 require 'chronic'
+require 'io/console'
 require 'logger'
 require 'optparse'
 require 'resolv'
@@ -60,6 +61,9 @@ if !File.file?(options[:my_cnf])
   abort "MySQL config file #{options[:my_cnf]} doesn't exist."
 end
  
+win_rows, win_cols = IO.console.winsize
+$is_large_win = win_cols > 120
+
 def fmt_date(date)
   date.nil? || date.is_a?(String) ? date : date.strftime('%D %T')
 end
@@ -77,7 +81,7 @@ def fmt(val, length=20, left_justify=true)
   end
 end
 
-def print_row(id, state, host, started, completed)
+def print_row(batch_id, id, state, host, started, completed, user_id)
   if /\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\Z/ =~ host
     begin
       host = Resolv.getname(host)[/^[^.]+/].downcase
@@ -85,8 +89,11 @@ def print_row(id, state, host, started, completed)
       # Do nothing
     end
   end
+  print fmt(batch_id.to_s, 8, false) if $is_large_win
   print fmt(id.to_s, 8, false), fmt('', 2), fmt(state, 11), fmt(host, 16),
-        fmt(fmt_date(started), 20), fmt_date(completed), "\n"
+        fmt(fmt_date(started), 20), fmt(fmt_date(completed), 20)
+  print fmt(user_id, 12) if $is_large_win
+  print "\n"
 end
 
 options[:from] = sql_date(options[:from]) if options.key?(:from)
@@ -101,7 +108,7 @@ end
 
 joblog = JobLog.new(options[:my_cnf], logger)
 
-sep = '-' * 80
+sep = '-' * win_cols
 
 if !options[:batch_id].nil?
   batch = joblog.select_batch(options[:batch_id])
@@ -117,16 +124,18 @@ if !options[:batch_id].nil?
 end
 
 puts sep
-print_row('JOB ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED')
+print_row('BATCH ID', 'JOB ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED', 'USER ID')
 puts sep
 
 joblog.select_job(options).each do |row|
   print_row(
+    row['batch_id'],
     row['job_id'],
     row['state'],
     row['worker_host'],
     row['started'],
-    row['completed']
+    row['completed'],
+    row['user_id']
   )
   if options[:output]
     if row['output']

@@ -4,6 +4,8 @@
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 
+#define __arch_install_post     %{nil}
+
 %if 0%{?fedora} >= 15 || 0%{?centos} >= 7
 %define _with_systemd 1
 %endif
@@ -37,6 +39,7 @@ BuildRequires:  /bin/cgexec
 %{summary}
 
 %prep
+%setup -c -T
 
 %build
 
@@ -53,9 +56,13 @@ find %{buildroot}%{dlibdir} -regextype posix-extended \
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 
+%define builddir %{_builddir}/%{name}-%{version}
 export GOPATH=$HOME/go:/usr/share/gocode
-go build %{buildroot}%{dlibdir}/rerun.go
-chmod 0755 %{buildroot}%{dlibdir}/rerun
+cp rerun.go %builddir
+pushd %builddir
+go build -ldflags="-s -w" rerun.go
+install -m 0755 rerun %{buildroot}%{dlibdir}/rerun
+popd
 
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job

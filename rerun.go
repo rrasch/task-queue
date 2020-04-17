@@ -11,6 +11,7 @@ import (
 	"github.com/go-ini/ini"
 	"flag"
 	"regexp"
+	"encoding/json"
 )
 
 
@@ -54,6 +55,7 @@ func InsertJob(req string, host string) {
 func main() {
 
 	id := flag.Int("b", 0,  "Batch id (Required)")
+	extraArgs := flag.String("e", "", "Extra arguments")
 
 	flag.Parse()
 
@@ -93,6 +95,8 @@ func main() {
 		panic(err.Error())
 	}
 
+	var request map[string]interface{}
+
 	for rows.Next() {
 		var cmdLine string
 		var req string
@@ -101,6 +105,19 @@ func main() {
 		fmt.Println("cmdline:", cmdLine)
 		fmt.Println("request:", req)
 		fmt.Println("mbhost:", host)
+		json.Unmarshal([]byte(req), &request)
+		if *extraArgs != "" {
+			tmp := ""
+			if request["extra_args"] != nil {
+				tmp += request["extra_args"].(string) + " "
+			}
+			tmp += *extraArgs
+			request["extra_args"] = tmp
+			newRequest, _ :=
+				json.MarshalIndent(request, "", "    ")
+			req = string(newRequest)
+		}
+		fmt.Println("New request:", req)
 		InsertJob(req, host)
 	}
 

@@ -72,6 +72,15 @@ def sql_date(human_date)
   Chronic.parse(human_date).strftime('%Y-%m-%d %H:%M:%S')
 end
 
+def duration(start_date, end_date)
+  return "" if end_date.nil?
+  secs = (end_date - start_date).to_i
+  min, secs = secs.divmod(60)
+  hours, min = min.divmod(60)
+  days, hours = hours.divmod(24)
+  "#{days}d #{hours}h #{min}m #{secs}s"
+end
+
 def fmt(val, length=20, left_justify=true)
   val = val || ""
   if left_justify
@@ -81,7 +90,8 @@ def fmt(val, length=20, left_justify=true)
   end
 end
 
-def print_row(batch_id, id, state, host, started, completed, user_id)
+def print_row(batch_id, id, state, host, started,
+              completed, duration, user_id)
   if /\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\Z/ =~ host
     begin
       host = Resolv.getname(host)[/^[^.]+/].downcase
@@ -92,7 +102,10 @@ def print_row(batch_id, id, state, host, started, completed, user_id)
   print fmt(batch_id.to_s, 8, false) if $is_large_win
   print fmt(id.to_s, 8, false), fmt('', 2), fmt(state, 11), fmt(host, 16),
         fmt(fmt_date(started), 20), fmt(fmt_date(completed), 20)
-  print fmt(user_id, 12) if $is_large_win
+  if $is_large_win
+    print fmt(duration, 20)
+    print fmt(user_id, 12)
+  end
   print "\n"
 end
 
@@ -124,7 +137,16 @@ if !options[:batch_id].nil?
 end
 
 puts sep
-print_row('BATCH ID', 'JOB ID', 'STATUS', 'HOST', 'STARTED', 'COMPLETED', 'USER ID')
+print_row(
+  'BATCH ID',
+  'JOB ID',
+  'STATUS',
+  'HOST',
+  'STARTED',
+  'COMPLETED',
+  'DURATION',
+  'USER ID'
+)
 puts sep
 
 joblog.select_job(options).each do |row|
@@ -135,7 +157,8 @@ joblog.select_job(options).each do |row|
     row['worker_host'],
     row['started'],
     row['completed'],
-    row['user_id']
+    duration(row['started'], row['completed']),
+    row['user_id'],
   )
   if options[:output]
     if row['output']

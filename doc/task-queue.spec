@@ -34,6 +34,14 @@ Requires:       libcgroup
 %else
 BuildRequires:  /bin/cgexec
 %endif
+BuildRequires:  golang-bin
+%if 0%{?fedora} > 31
+BuildRequires:  golang-github-sql-driver-mysql-devel
+BuildRequires:  golang-gopkg-ini-1-devel
+%endif
+%if 0%{?centos} > 0
+BuildRequires:  golang-github-go-ini-ini-devel
+%endif
 
 %description
 %{summary}

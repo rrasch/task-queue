@@ -368,6 +368,7 @@ if config[:quiet]
   config[:logger].level = Logger::INFO
 end
 
+ENV["TQ_SERVER_PID"] = Process.pid.to_s
 
 tqs = TaskQueueServer.new(3, 10, config)
 tqs.startup

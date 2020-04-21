@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"io/ioutil"
-	"github.com/go-ini/ini"
+	"gopkg.in/ini.v1"
 	"flag"
 	"regexp"
 	"encoding/json"

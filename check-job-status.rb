@@ -73,12 +73,17 @@ def sql_date(human_date)
 end
 
 def duration(start_date, end_date)
-  return "" if end_date.nil?
+  return "" if start_date.nil? || end_date.nil?
   secs = (end_date - start_date).to_i
   min, secs = secs.divmod(60)
   hours, min = min.divmod(60)
   days, hours = hours.divmod(24)
-  "#{days}d #{hours}h #{min}m #{secs}s"
+  tm = []
+  tm << "#{days}d "  if days.nonzero?
+  tm << "#{hours}h " if hours.nonzero?
+  tm << "#{min}m "   if min.nonzero?
+  tm << "#{secs}s "  if secs.nonzero? || tm.empty?
+  tm.join(", ")
 end
 
 def fmt(val, length=20, left_justify=true)

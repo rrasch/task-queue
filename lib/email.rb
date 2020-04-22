@@ -24,7 +24,7 @@ class Email
         end
       end
     else
-      @logger.debug "email map file #{@@ADDR_FILE} doesn't exist"
+      @logger.debug "email map file #{ADDR_FILE} doesn't exist"
     end
     @logger.debug "email map: #{@addr}"
   end
@@ -38,6 +38,8 @@ class Email
       desc  = "Job #{task['job_id']} completed "
       desc += "un" if task['state'] == 'error'
       desc += "successfully at #{task['completed']}"
+      job = task.clone
+      job.delete('output')
       msg = <<EOM
 From: Task Queue <#{mailto}>
 To: <#{mailto}>
@@ -45,6 +47,8 @@ Subject: #{desc}
 
 #{desc}
 
+#{job.sort.map {|k,v| "#{k}:#{v}"}.join("\n")}
+output:
 #{task['output'].to_s}
 
 EOM

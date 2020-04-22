@@ -48,7 +48,7 @@ Subject: #{desc}
 
 #{desc}
 
-#{job.sort.map {|k,v| "#{k}:  #{v}"}.join("\n")}
+#{job.sort.map {|k,v| "#{k}: #{v}"}.join("\n")}
 
 output:
 #{task['output'].to_s}

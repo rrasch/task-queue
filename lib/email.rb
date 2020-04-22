@@ -39,6 +39,7 @@ class Email
       desc += "un" if task['state'] == 'error'
       desc += "successfully at #{task['completed']}"
       job = task.clone
+      job.delete('logger')
       job.delete('output')
       msg = <<EOM
 From: Task Queue <#{mailto}>
@@ -47,7 +48,8 @@ Subject: #{desc}
 
 #{desc}
 
-#{job.sort.map {|k,v| "#{k}:#{v}"}.join("\n")}
+#{job.sort.map {|k,v| "#{k}:  #{v}"}.join("\n")}
+
 output:
 #{task['output'].to_s}
 

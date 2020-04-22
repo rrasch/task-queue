@@ -79,10 +79,10 @@ def duration(start_date, end_date)
   hours, min = min.divmod(60)
   days, hours = hours.divmod(24)
   tm = []
-  tm << "#{days}d "  if days.nonzero?
-  tm << "#{hours}h " if hours.nonzero?
-  tm << "#{min}m "   if min.nonzero?
-  tm << "#{secs}s "  if secs.nonzero? || tm.empty?
+  tm << "#{days}d"  if days.nonzero?
+  tm << "#{hours}h" if hours.nonzero?
+  tm << "#{min}m"   if min.nonzero?
+  tm << "#{secs}s"  if secs.nonzero? || tm.empty?
   tm.join(", ")
 end
 

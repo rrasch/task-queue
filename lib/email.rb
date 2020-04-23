@@ -40,7 +40,8 @@ class Email
       desc += "successfully at #{task['completed']}"
       job = task.clone
       job.delete('logger')
-      job.delete('output')
+      out = job.delete('output').to_s.strip
+      out = "output:\n#{out}" unless out.empty?
       msg = <<EOM
 From: Task Queue <#{mailto}>
 To: <#{mailto}>
@@ -50,8 +51,7 @@ Subject: #{desc}
 
 #{job.sort.map {|k,v| "#{k}: #{v}"}.join("\n")}
 
-output:
-#{task['output'].to_s}
+#{out}
 
 EOM
       smtp = Net::SMTP.new('localhost')

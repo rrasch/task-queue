@@ -1,10 +1,10 @@
+%define __brp_mangle_shebangs_exclude_from .rb$
+
 %define gitver   .git.%(date +"%Y%m%d")
 %define name     task-queue
-%define version  1.3
+%define version  1.4.0
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
-
-#define __arch_install_post     %{nil}
 
 %if 0%{?fedora} >= 15 || 0%{?centos} >= 7
 %define _with_systemd 1
@@ -20,8 +20,6 @@ Group:          System Environment/Daemons
 URL:            https://github.com/rrasch/%{name}
 %if 0%{!?_without_ruby:1}
 Source:         task-queue-ruby.tar.bz2
-%else
-BuildArch:      noarch
 %endif
 BuildRoot:      %{_tmppath}/%{name}-root
 %if 0%{?fedora} > 0 || 0%{?centos} > 0
@@ -35,7 +33,7 @@ Requires:       libcgroup
 BuildRequires:  /bin/cgexec
 %endif
 BuildRequires:  golang-bin
-%if 0%{?fedora} > 31
+%if 0%{?fedora} >= 31
 BuildRequires:  golang-github-sql-driver-mysql-devel
 BuildRequires:  golang-gopkg-ini-1-devel
 %endif
@@ -59,7 +57,7 @@ cd  %{buildroot}%{dlibdir}
 # rm -rf %{buildroot}%{dlibdir}/.git*
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
-find %{buildroot}%{dlibdir} -regextype posix-extended \
+find %{buildroot}%{dlibdir} -maxdepth 1 -regextype posix-extended \
         -regex '.*\.(pl|rb|sh)' | xargs chmod 0755
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl

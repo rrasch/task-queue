@@ -257,9 +257,11 @@ class TaskQueueServer < ::Servolux::Server
 
   # this is run once before the Server's run loop
   def before_starting
-    # Start up child processes to handle jobs
-    # Number of initial workers is based on number of cpus
-    num_workers = Etc.nprocessors.clamp(@pool.min_workers, @pool.max_workers)
+    # Start up child processes to handle jobs.
+    # Number of initial workers is based on number of cpus.
+    # Get value using equivalent of clamp().
+    num_workers =
+      [@pool.min_workers, Etc.nprocessors, @pool.max_workers].sort[1]
     log "Starting up the pool of #{num_workers} workers"
     @pool.start(num_workers)
     log "Send a USR1 to add a worker                        (kill -usr1 #{Process.pid})"

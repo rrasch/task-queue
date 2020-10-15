@@ -1,5 +1,6 @@
 [Unit]
 Description=Task Queue as a system service
+Wants=cgconfig.service
 After=rabbitmq-server.service
 
 [Service]

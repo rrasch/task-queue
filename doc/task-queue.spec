@@ -6,7 +6,7 @@
 %define release  1.dlts%{?gitver}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 
-%if 0%{?fedora} >= 15 || 0%{?centos} >= 7
+%if 0%{?fedora} >= 15 || 0%{?rhel} >= 7
 %define _with_systemd 1
 %endif
 
@@ -22,15 +22,15 @@ URL:            https://github.com/rrasch/%{name}
 Source:         task-queue-ruby.tar.bz2
 %endif
 BuildRoot:      %{_tmppath}/%{name}-root
-%if 0%{?fedora} > 0 || 0%{?centos} > 0
+%if 0%{?fedora} > 0 || 0%{?rhel} > 0
 BuildRequires:  git
-%if 0%{?fedora} >= 28
+%if 0%{?fedora} >= 28 || 0%{?rhel} >= 7
 Requires:       libcgroup-tools
 %else
 Requires:       libcgroup
 %endif
 %else
-BuildRequires:  /bin/cgexec
+Requires:       /bin/cgexec
 %endif
 BuildRequires:  golang-bin
 %if 0%{?fedora} >= 31
@@ -95,6 +95,9 @@ mkdir -p -m 0700 %{buildroot}%{_var}/lib/%{name}
 
 mkdir -p -m 0700 %{buildroot}%{_var}/log/%{name}
 
+install -p -m 0644 conf/cpulimited.conf \
+        %{buildroot}%{_sysconfdir}/cgconfig.d/cpulimited.conf
+
 %if 0%{!?_without_ruby:1}
 chmod 0755 %{buildroot}%{dlibdir}/rubywrap
 find . -name '*.rb' | xargs perl -pi -e \
@@ -105,6 +108,9 @@ tar -jvxf %{SOURCE0} -C %{buildroot}%{dlibdir} \
         --exclude=gem_make.out \
         --exclude='*.log' \
         --exclude=executable-hooks-uninstaller
+find %{buildroot}%{dlibdir}/ruby -name racc2y -o -name y2racc \
+        | xargs perl -pi -e \
+        "s,#!/usr/local/bin/ruby,#!%{dlibdir}/ruby/bin/ruby,"
 %endif
 
 %pre
@@ -203,6 +209,7 @@ rm -rf %{buildroot}
 %endif
 /etc/cron.d/%{name}
 %config(noreplace) /etc/logrotate.d/task-queue
+%config(noreplace) /etc/cgconfig.d/cpulimited.conf
 %attr(0770,deploy,rstar) %{_var}/lib/%{name}
 %attr(0700,rstar,rstar) %{_var}/log/%{name}
 

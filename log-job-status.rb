@@ -84,7 +84,7 @@ conn = Bunny.new(:host   => options[:mqhost],
 conn.start
 
 ch = conn.create_channel
-x = ch.topic("tq_logging", :auto_delete => false)
+x = ch.topic("tq_logging", :durable => true, :auto_delete => false)
 q = ch.queue("tq_log_reader", :durable => true)
 q.bind(x, :routing_key => "task_queue.*")
 

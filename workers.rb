@@ -56,7 +56,7 @@ module JobProcessor
         :arguments => {"x-max-priority" => 10}
       )
       @ch.prefetch(1)
-      @x = @ch.topic("tq_logging", :auto_delete => false)
+      @x = @ch.topic("tq_logging", :durable => true, :auto_delete => false)
       @logger.debug "Connected."
     rescue Bunny::TCPConnectionFailed => e
       @logger.error "Connection to #{config[:mqhost]} failed - #{e}"

@@ -95,7 +95,7 @@ mkdir -p -m 0700 %{buildroot}%{_var}/lib/%{name}
 
 mkdir -p -m 0700 %{buildroot}%{_var}/log/%{name}
 
-install -p -m 0644 conf/cpulimited.conf \
+install -D -m 0644 conf/cpulimited.conf \
         %{buildroot}%{_sysconfdir}/cgconfig.d/cpulimited.conf
 
 %if 0%{!?_without_ruby:1}

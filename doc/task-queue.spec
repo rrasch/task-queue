@@ -63,6 +63,7 @@ chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 
 %define builddir %{_builddir}/%{name}-%{version}
+export GO111MODULE=off
 export GOPATH=$HOME/go:/usr/share/gocode
 cp rerun.go %builddir
 pushd %builddir

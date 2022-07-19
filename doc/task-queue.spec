@@ -219,8 +219,8 @@ rm -rf %{buildroot}
 /etc/cron.d/%{name}
 %config(noreplace) /etc/logrotate.d/task-queue
 %config(noreplace) /etc/cgconfig.d/cpulimited.conf
-%attr(0770,deploy,rstar) %{_var}/lib/%{name}
-%attr(0700,rstar,rstar) %{_var}/log/%{name}
+%attr(0770,rstar,dlib) %{_var}/lib/%{name}
+%attr(0770,rstar,dlib) %{_var}/log/%{name}
 
 %changelog
 

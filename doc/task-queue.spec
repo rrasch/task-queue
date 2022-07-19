@@ -20,6 +20,13 @@ Group:          System Environment/Daemons
 URL:            https://github.com/rrasch/%{name}
 %if 0%{!?_without_ruby:1}
 Source:         task-queue-ruby.tar.bz2
+%else
+Requires:       rubygem-amq-protocol
+Requires:       rubygem-bunny
+Requires:       rubygem-chronic
+Requires:       rubygem-mediainfo
+Requires:       rubygem-mysql2
+Requires:       rubygem-servolux
 %endif
 BuildRoot:      %{_tmppath}/%{name}-root
 %if 0%{?fedora} > 0 || 0%{?rhel} > 0
@@ -40,6 +47,7 @@ BuildRequires:  golang-gopkg-ini-1-devel
 %if 0%{?centos} > 0
 BuildRequires:  golang-github-go-ini-ini-devel
 %endif
+BuildRequires:  perl-generators
 
 %description
 %{summary}
@@ -159,7 +167,7 @@ exit 0
 %preun
 if [ "$1" = "0" ]; then
   if [ -f /etc/redhat-release ]; then
-    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
+    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
       service task-queue stop
       service log-job-status stop
     else
@@ -174,7 +182,7 @@ fi
 
 if [ "$1" = "0" ]; then
   if [ -f /etc/redhat-release ]; then
-    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 15 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 7 ]]; then
+    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 15 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 7 ]]; then
       chkconfig --del task-queue
       chkconfig --del log-job-status
     else
@@ -185,7 +193,7 @@ if [ "$1" = "0" ]; then
   fi
 else
   if [ -f /etc/redhat-release ]; then
-    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
+    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
       systemctl enable task-queue
       systemctl daemon-reload
     fi

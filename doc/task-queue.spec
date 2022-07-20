@@ -50,6 +50,7 @@ BuildRequires:  golang-github-go-ini-ini-devel
 BuildRequires:  perl-generators
 Requires:       fortune-mod
 Requires:       iputils
+Requires:       perl-DBD-MySQL
 
 %description
 %{summary}

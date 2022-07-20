@@ -116,6 +116,19 @@ Service values for audio/video processing are:
     video:transcode
     audio:transcode
 
+## Testing ##
+
+The following service values allow you to test the system by running
+simple command line utilities.
+
+The values are
+
+    util:ping
+    util:fortune
+    util:nope
+
+which execute the ping, fortune, and false commands respectively.
+
 ## Additional Options ##
 
 Sending jobs to the task-queue causes the backends scripts to run with their default options.  For example, transcoding runs with the "Movie Scenes" encoding profile.  At present, there are two ways to change this behavior.  You can set the -e flag to pass in extra arguments or you create a text file containing a json hash which sets the key "extra_args".  Let's say we want to change the encoding profile to "HIDVL"

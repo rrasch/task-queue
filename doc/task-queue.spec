@@ -154,8 +154,8 @@ if [ -f /etc/redhat-release ]; then
      if ! grep -qs 'group cpulimited' /etc/cgconfig.conf; then
        echo >> /etc/cgconfig.conf
        cat /etc/cgconfig.d/cpulimited.conf >> /etc/cgconfig.conf
-       systemctl restart cgconfig
      fi
+     systemctl restart cgconfig
   fi
 fi
 if ! grep -qs `hostname -s` /etc/logrotate.d/task-queue; then

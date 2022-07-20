@@ -48,6 +48,8 @@ BuildRequires:  golang-gopkg-ini-1-devel
 BuildRequires:  golang-github-go-ini-ini-devel
 %endif
 BuildRequires:  perl-generators
+Requires:       fortune-mod
+Requires:       iptuils
 
 %description
 %{summary}
@@ -145,9 +147,15 @@ exit 0
 if [ -f /etc/redhat-release ]; then
   if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 15 ]] || [[ -n `grep -i CentOS /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 7 ]]; then
      chkconfig --add task-queue
+     service cgconfig restart
   else
      systemctl enable task-queue.service
      systemctl daemon-reload
+     if ! grep -qs 'group cpulimited' /etc/cgconfig.conf; then
+       echo >> /etc/cgconfig.conf
+       cat /etc/cgconfig.d/cpulimited.conf >> /etc/cgconfig.conf
+       systemctl restart cgconfig
+     fi
   fi
 fi
 if ! grep -qs `hostname -s` /etc/logrotate.d/task-queue; then

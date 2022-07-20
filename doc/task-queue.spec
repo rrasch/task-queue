@@ -49,7 +49,7 @@ BuildRequires:  golang-github-go-ini-ini-devel
 %endif
 BuildRequires:  perl-generators
 Requires:       fortune-mod
-Requires:       iptuils
+Requires:       iputils
 
 %description
 %{summary}

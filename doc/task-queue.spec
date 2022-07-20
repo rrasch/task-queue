@@ -218,7 +218,8 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-, root, root)
-%attr(-,deploy,deploy) %{dlibdir}
+#attr(-,deploy,deploy) %{dlibdir}
+%{dlibdir}
 %{_bindir}/*
 %if 0%{?_with_systemd:1}
 %{_unitdir}/*

@@ -128,6 +128,13 @@ The values are
     util:nope
 
 which execute the ping, fortune, and false commands respectively.
+You will only need to set the -m and -s options for add-mb-job
+to run these utilities.  For example,
+
+    add-mb-job -m 192.168.32 -s util:nope
+
+We should expect the example above to result in a failed job since
+we are running /bin/false which returns a non-zero exit value.
 
 ## Additional Options ##
 

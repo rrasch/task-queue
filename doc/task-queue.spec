@@ -50,7 +50,9 @@ BuildRequires:  golang-github-go-ini-ini-devel
 BuildRequires:  perl-generators
 Requires:       fortune-mod
 Requires:       iputils
+Requires:       jq
 Requires:       perl-DBD-MySQL
+#Requires:      python3-pika
 
 %description
 %{summary}

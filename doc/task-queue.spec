@@ -27,6 +27,7 @@ Requires:       rubygem-chronic
 Requires:       rubygem-mediainfo
 Requires:       rubygem-mysql2
 Requires:       rubygem-servolux
+Requires:       rubygem-sql-maker
 %endif
 BuildRoot:      %{_tmppath}/%{name}-root
 %if 0%{?fedora} > 0 || 0%{?rhel} > 0

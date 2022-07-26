@@ -1,4 +1,5 @@
-# Check if Jenkins has deployed a new version of task-queue
-# every 5 minutes
-*/5 * * * * rstar /usr/local/dlib/task-queue/check-update.sh /dev/null 2>&1
+# /etc/cron.d/task-queue
+
+# Shutdown server if shutdown file exists
+*/5 * * * * rstar /usr/local/dlib/task-queue/shutdown.sh > /dev/null 2>&1
 

@@ -52,7 +52,9 @@ Requires:       fortune-mod
 Requires:       iputils
 Requires:       jq
 Requires:       perl-DBD-MySQL
-#Requires:      python3-pika
+%if 0%{?fedora} >= 28 || 0%{?rhel} >= 8
+Requires:       python3-pika
+%endif
 
 %description
 %{summary}
@@ -231,8 +233,8 @@ rm -rf %{buildroot}
 /etc/cron.d/%{name}
 %config(noreplace) /etc/logrotate.d/task-queue
 %config(noreplace) /etc/cgconfig.d/cpulimited.conf
-%attr(0770,rstar,dlib) %{_var}/lib/%{name}
-%attr(0770,rstar,dlib) %{_var}/log/%{name}
+%attr(0750,rstar,dlib) %{_var}/lib/%{name}
+%attr(0750,rstar,dlib) %{_var}/log/%{name}
 
 %changelog
 

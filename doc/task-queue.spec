@@ -1,4 +1,6 @@
+%if 0%{!?_without_ruby:1}
 %define __brp_mangle_shebangs_exclude_from .rb$
+%endif
 
 %define gitver   .git.%(date +"%Y%m%d")
 %define name     task-queue
@@ -223,7 +225,7 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-, root, root)
-#attr(-,deploy,deploy) %{dlibdir}
+#attr(-,deploy,deploy) {dlibdir}
 %{dlibdir}
 %{_bindir}/*
 %if 0%{?_with_systemd:1}

@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 
 import argparse
-import requests
 import json
+import requests
+import socket
 
 
 def call_rabbitmq_api(host, port, user, passwd):
@@ -36,4 +37,9 @@ if __name__ == "__main__":
             connections.add(peer_host)
 
     for conn in connections:
-        print(conn)
+        try:
+            hostname = socket.gethostbyaddr(conn)[0]
+        except socket.herror as e:
+            hostname = conn
+        print(hostname)
+

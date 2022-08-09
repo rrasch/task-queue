@@ -1,6 +1,4 @@
-%if 0%{!?_without_ruby:1}
 %define __brp_mangle_shebangs_exclude_from .rb$
-%endif
 
 %define gitver   .git.%(date +"%Y%m%d")
 %define name     task-queue
@@ -130,6 +128,10 @@ tar -jvxf %{SOURCE0} -C %{buildroot}%{dlibdir} \
 find %{buildroot}%{dlibdir}/ruby -name racc2y -o -name y2racc \
         | xargs perl -pi -e \
         "s,#!/usr/local/bin/ruby,#!%{dlibdir}/ruby/bin/ruby,"
+%else
+chmod 0755 %{buildroot}%{dlibdir}/system-ruby
+find . -name '*.rb' | xargs perl -pi -e \
+        "s,#!/usr/bin/env ruby,#!%{dlibdir}/system-ruby,"
 %endif
 
 %pre

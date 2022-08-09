@@ -33,7 +33,7 @@ end
 OptionParser.new do |opts|
 
   opts.banner = "Usage: #{$0} [options]"
-  
+
   opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |m|
     options[:mqhost] = m
   end

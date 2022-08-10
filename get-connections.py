@@ -8,7 +8,10 @@ import socket
 
 def call_rabbitmq_api(host, port, user, passwd):
     url = f"http://{host}:{port}/api/queues/%2f/task_queue"
-    r = requests.get(url, auth=(user, passwd))
+    try:
+        r = requests.get(url, auth=(user, passwd))
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
     return r
 
 

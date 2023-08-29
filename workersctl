@@ -56,7 +56,7 @@ start() {
 		CMD="$CMD -f"
 	fi
 	if [ "$USE_CGROUP" = "true" ]; then
-		CMD="cgexec -g $CGROUP_NAME $CMD"
+		CMD="cgexec -g $CGROUP_NAME --sticky $CMD"
 	fi
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		$CMD

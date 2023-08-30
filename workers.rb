@@ -261,7 +261,7 @@ class TaskQueueServer < ::Servolux::Server
     # Number of initial workers is based on number of cpus.
     # Get value using equivalent of clamp().
     num_workers =
-      [@pool.min_workers, Etc.nprocessors, @pool.max_workers].sort[1]
+      [@pool.min_workers, Etc.nprocessors - 1, @pool.max_workers].sort[1]
     log "Starting up the pool of #{num_workers} workers"
     @pool.start(num_workers)
     log "Send a USR1 to add a worker                        (kill -usr1 #{Process.pid})"
@@ -312,12 +312,13 @@ end
 # Start
 
 config = {
-  :mqhost     => "localhost",
-  :timeout    => nil,
-  :logfile    => Dir.pwd + "/worker.log",
-  :pidfile    => Dir.pwd + "/taskqueueserver.pid",
-  :quiet      => false,
-  :foreground => false,
+  :mqhost      => "localhost",
+  :timeout     => nil,
+  :logfile     => Dir.pwd + "/worker.log",
+  :pidfile     => Dir.pwd + "/taskqueueserver.pid",
+  :quiet       => false,
+  :foreground  => false,
+  :max_workers => Etc.nprocessors,
 }
 
 # puts config[:logfile]
@@ -331,7 +332,7 @@ OptionParser.new do |opts|
     config[:mqhost] = m
   end
 
-  opts.on('-t', '--timeout PORT', 'Worker timeout') do |t|
+  opts.on('-t', '--timeout TIMEOUT', 'Worker timeout') do |t|
     config[:timeout] = t
   end
 
@@ -349,6 +350,10 @@ OptionParser.new do |opts|
 
   opts.on('-q', '--quiet', 'Suppress debugging messages') do
     config[:quiet] = true
+  end
+
+  opts.on('-x', '--max-workers MAX_WORKERS', 'Max number of workers') do |x|
+    config[:max_workers] = x
   end
 
   opts.on('-h', '--help', 'Print help message') do
@@ -374,7 +379,5 @@ end
 
 ENV["TQ_SERVER_PID"] = Process.pid.to_s
 
-tqs = TaskQueueServer.new(3, 10, config)
+tqs = TaskQueueServer.new(1, config[:max_workers], config)
 tqs.startup
-
-# vim: et:

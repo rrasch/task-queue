@@ -45,6 +45,7 @@ class Video
   def transcode_file
     @cmd.do_cmd("convert2mp4 -q "\
             "--path_tmpdir /content/prod/rstar/tmp "\
+            "--video_threads 1 "\
             "#{@args['extra_args']} "\
             "#{@args['input_path']} #{@args['output_path']}")
   end
@@ -61,6 +62,7 @@ class Video
       @logger.debug "Output base: #{output_base}"
       cmds << "convert2mp4 -q "\
               "--path_tmpdir /content/prod/rstar/tmp "\
+              "--video_threads 1 "\
               "#{@args['extra_args']} "\
               "#{input_file} #{output_base}"
       if !File.file?(cs_file)

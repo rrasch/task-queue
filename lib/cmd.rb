@@ -21,9 +21,10 @@ class Cmd
       else
         cmd = "#{script_name}"
       end
-      @logger.debug("Executing '#{cmd}'")
+      env = @args.fetch('env', {})
+      @logger.debug("Executing '#{cmd}' with env #{env}")
       begin
-        output, status = Open3.capture2e(cmd)
+        output, status = Open3.capture2e(env, cmd)
         success = status.exitstatus.zero?
       rescue SystemCallError => e
         output = "Failed to execute '#{cmd}': #{e.class} #{e.message}"

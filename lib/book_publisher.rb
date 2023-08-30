@@ -7,10 +7,16 @@ class BookPublisher
 
   BIN_DIR = "/usr/local/dlib/book-publisher/bin"
 
+  ENVIRON = {
+    "MAGICK_THREAD_LIMIT" => 1,
+    "OMP_THREAD_LIMIT" => 1,
+  }
+
   def initialize(args)
     @args = args.clone
     @logger = args['logger']
     @args['bin_dir'] = BIN_DIR
+    @args['env'] = ENVIRON
     @cmd = Cmd.new(@args)
   end
 

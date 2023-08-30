@@ -3,6 +3,7 @@
 require 'rubygems'
 require 'chronic'
 require 'io/console'
+require 'json'
 require 'logger'
 require 'optparse'
 require 'resolv'
@@ -10,7 +11,7 @@ require_relative './lib/joblog'
 
 options = {
   :my_cnf => "/content/prod/rstar/etc/my-taskqueue.cnf",
-  :limit => 100,
+  :limit => "100",
 #   :from => '3 days ago',
 #   :to => 'now',
 }
@@ -96,7 +97,7 @@ def fmt(val, length=20, left_justify=true)
 end
 
 def print_row(batch_id, id, state, host, started,
-              completed, duration, user_id)
+              completed, duration, objid, op, user_id)
   if /\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\Z/ =~ host
     begin
       host = Resolv.getname(host)[/^[^.]+/].downcase
@@ -108,7 +109,9 @@ def print_row(batch_id, id, state, host, started,
   print fmt(id.to_s, 8, false), fmt('', 2), fmt(state, 11), fmt(host, 16),
         fmt(fmt_date(started), 20), fmt(fmt_date(completed), 20)
   if $is_large_win
-    print fmt(duration, 20)
+    print fmt(duration, 16)
+    print fmt(objid, 30)
+    print fmt(op, 20)
     print fmt(user_id, 12)
   end
   print "\n"
@@ -150,11 +153,26 @@ print_row(
   'STARTED',
   'COMPLETED',
   'DURATION',
+  'ID',
+  'SERVICE',
   'USER ID'
 )
 puts sep
 
 joblog.select_job(options).each do |row|
+  req = JSON.parse(row['request'])
+  ids = req['identifiers']
+  input = req['input_path']
+
+  if ids
+    id = ids[0]
+  elsif input
+    id = File.basename(input, ".*")
+    id = id.gsub(/(_\d{6})?_[dm]$/, '')
+  else
+    id = "N/A"
+  end
+
   print_row(
     row['batch_id'],
     row['job_id'],
@@ -163,6 +181,8 @@ joblog.select_job(options).each do |row|
     row['started'],
     row['completed'],
     duration(row['started'], row['completed']),
+    id,
+    req['operation'],
     row['user_id'],
   )
   if options[:output]

@@ -167,7 +167,7 @@ if [ -f /etc/redhat-release ]; then
        echo >> /etc/cgconfig.conf
        cat /etc/cgconfig.d/cpulimited.conf >> /etc/cgconfig.conf
      else
-       perl -pi -e 's/(cpu.cfs_quota_us\s+=\s+)\d+;/${1}2000000;/g' /etc/cgconfig.conf
+       perl -pi.bak -e 's/(cpu.cfs_quota_us\s+=\s+)\d+;/${1}2000000;/g' /etc/cgconfig.conf
      fi
      systemctl restart cgconfig
   fi

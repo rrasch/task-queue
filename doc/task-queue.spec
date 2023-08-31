@@ -1,9 +1,11 @@
 %define __brp_mangle_shebangs_exclude_from .rb$
 
-%define gitver   .git.%(date +"%Y%m%d")
 %define name     task-queue
-%define version  1.4.0
-%define release  1.dlts%{?gitver}%{?dist}
+%define version  1.4.1
+%define repourl  https://github.com/rrasch/%{name}
+%define gitdate  %(date +"%Y%m%d")
+%define commit   %(get-commit-id.sh %{repourl})
+%define release  1.dlts.git.%{gitdate}.%{commit}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 
 %if 0%{?fedora} >= 15 || 0%{?rhel} >= 7
@@ -164,6 +166,8 @@ if [ -f /etc/redhat-release ]; then
      if ! grep -qs 'group cpulimited' /etc/cgconfig.conf; then
        echo >> /etc/cgconfig.conf
        cat /etc/cgconfig.d/cpulimited.conf >> /etc/cgconfig.conf
+     else
+       perl -pi -e 's/(cpu.cfs_quota_us\s+=\s+)\d+;/${1}2000000;/g' /etc/cgconfig.conf
      fi
      systemctl restart cgconfig
   fi

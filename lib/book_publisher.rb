@@ -8,8 +8,8 @@ class BookPublisher
   BIN_DIR = "/usr/local/dlib/book-publisher/bin"
 
   ENVIRON = {
-    "MAGICK_THREAD_LIMIT" => 1,
-    "OMP_THREAD_LIMIT" => 1,
+    "MAGICK_THREAD_LIMIT" => "1",
+    "OMP_THREAD_LIMIT" => "1",
   }
 
   def initialize(args)

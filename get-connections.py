@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from tabulate import tabulate
 import argparse
 import json
 import requests
@@ -15,8 +16,7 @@ def call_rabbitmq_api(host, port, user, passwd):
     return r
 
 
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser(description="Get connections")
     parser.add_argument("--host", default="localhost", help="Host")
     parser.add_argument("--port", type=int, default=15672, help="Port")
@@ -24,25 +24,27 @@ if __name__ == "__main__":
     parser.add_argument("--password", default="guest", help="Password")
     args = parser.parse_args()
 
-    connections = set()
-
     res = call_rabbitmq_api(args.host, args.port, args.user, args.password)
-
-    #   print("--- dump json ---")
-    #   print(json.dumps(res.json(), indent=4))
-    #   print("--- get queue name ---")
-
     qdata = res.json()
 
-    if "consumer_details" in qdata:
+    # print("--- dump json ---")
+    # print(json.dumps(qdata, indent=4))
+    # print("--- get queue name ---")
+
+    if qdata.get("consumer_details", []):
+        headers = ["Host", "Port", "Queue"]
+        connections = []
+        # print("{:20}{:10}{:20}".format(*headers))
+        # print("-" * 50)
         for consumer in qdata["consumer_details"]:
-            peer_host = consumer["channel_details"]["peer_host"]
-            connections.add(peer_host)
+            host = consumer["channel_details"]["peer_host"]
+            host = socket.gethostbyaddr(host)[0]
+            port = consumer["channel_details"]["peer_port"]
+            queue = consumer["queue"]["name"]
+            connections.append([host, port, queue])
+            # print(f"{host:20}{port!s:10}{queue:20}")
 
-    for conn in connections:
-        try:
-            hostname = socket.gethostbyaddr(conn)[0]
-        except socket.herror as e:
-            hostname = conn
-        print(hostname)
+        print(tabulate(connections, headers=headers, tablefmt="pretty"))
 
+if __name__ == "__main__":
+    main()

@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
-from tabulate import tabulate
 import argparse
 import json
+import logging
 import requests
 import socket
 
@@ -22,29 +22,46 @@ def main():
     parser.add_argument("--port", type=int, default=15672, help="Port")
     parser.add_argument("--user", default="guest", help="User")
     parser.add_argument("--password", default="guest", help="Password")
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debugging"
+    )
     args = parser.parse_args()
+
+    level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+
+    try:
+        from tabulate import tabulate
+        tab_loaded = True
+    except ImportError as e:
+        logging.warning("Can't load tabulate module")
+        tab_loaded = False
 
     res = call_rabbitmq_api(args.host, args.port, args.user, args.password)
     qdata = res.json()
 
-    # print("--- dump json ---")
-    # print(json.dumps(qdata, indent=4))
-    # print("--- get queue name ---")
+    logging.debug("--- dump json ---")
+    logging.debug(json.dumps(qdata, indent=4))
+    logging.debug("--- get queue name ---")
 
     if qdata.get("consumer_details", []):
         headers = ["Host", "Port", "Queue"]
         connections = []
-        # print("{:20}{:10}{:20}".format(*headers))
-        # print("-" * 50)
+        if not tab_loaded:
+            print("{:20}{:10}{:20}".format(*headers))
+            print("-" * 50)
         for consumer in qdata["consumer_details"]:
             host = consumer["channel_details"]["peer_host"]
             host = socket.gethostbyaddr(host)[0]
             port = consumer["channel_details"]["peer_port"]
             queue = consumer["queue"]["name"]
             connections.append([host, port, queue])
-            # print(f"{host:20}{port!s:10}{queue:20}")
+            if not tab_loaded:
+                print(f"{host:20}{port!s:10}{queue:20}")
 
-        print(tabulate(connections, headers=headers, tablefmt="pretty"))
+        if tab_loaded:
+            print(tabulate(connections, headers=headers, tablefmt="pretty"))
+
 
 if __name__ == "__main__":
     main()

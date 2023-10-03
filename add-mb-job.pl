@@ -13,6 +13,8 @@ use Getopt::Std;
 use JSON;
 use Net::AMQP::RabbitMQ;
 
+our $CHANNEL_MAX = 32;
+
 # Command line options
 # -h:  help message
 # -v:  verbose
@@ -29,12 +31,14 @@ use Net::AMQP::RabbitMQ;
 my $cmd_line = join(" ", abs_path($0), @ARGV);
 
 my %opt;
-getopts('hvm:r:i:o:c:p:s:e:j:', \%opt);
+getopts('hvtm:r:i:o:c:p:s:e:j:', \%opt);
 
 if ($opt{h}) {
 	usage();
 	exit(0);
 }
+
+print "Running in test mode.\n" if $opt{t};
 
 my $rstar_dir   = $opt{r};
 my $input_path  = $opt{i};
@@ -57,18 +61,25 @@ my $extra_args = $opt{e} || '';
 
 my $json_config = $opt{j} || '';
 
-if (!$opt{s}) {
-	usage("You must set -s to define the service.");
-	exit(1);
-}
+my $class;
+my $op;
 
-my ($class, $op) = split(/:/, $opt{s});
-
-if (!$class || !$op)
+if (!$opt{t})
 {
-	usage(  "You must set -s to define service in the format "
-		  . "<class>:<service>, e.g. audio:transcode");
-	exit(1);
+	if (!$opt{s})
+	{
+		usage("You must set -s to define the service.");
+		exit(1);
+	}
+
+	($class, $op) = split(/:/, $opt{s});
+
+	if (!$class || !$op)
+	{
+		usage(  "You must set -s to define service in the format "
+			  . "<class>:<service>, e.g. audio:transcode");
+		exit(1);
+	}
 }
 
 my $queue_name = "task_queue";
@@ -76,7 +87,7 @@ my $queue_name = "task_queue";
 my $mq = Net::AMQP::RabbitMQ->new();
 
 # connect to RabbitMQ
-$mq->connect($host, {timeout => 3});
+$mq->connect($host, {timeout => 3, channel_max => $CHANNEL_MAX});
 
 my $prop;
 $prop = $mq->get_server_properties() if $Net::AMQP::RabbitMQ::VERSION >= 1.3;
@@ -101,6 +112,8 @@ $mq->queue_declare(
 my $login = getpwuid($<);
 
 my $dbh = DBI->connect("DBI:mysql:;mysql_read_default_file=$my_cnf");
+
+exit(0) if $opt{t};
 
 $dbh->do("
 	INSERT into batch (user_id, cmd_line)
@@ -192,6 +205,7 @@ sub usage
 		"        -o     <output directory or file prefix>\n",
 		"        -h     flag to print help message\n",
 		"        -v     verbose output\n",
+		"        -t     test connection to rabbitmq and mysql\n",
 		"        -p     <message priority>\n",
 		"        -c     <path to mysql config file>\n",
 		"        -s     <service>\n",

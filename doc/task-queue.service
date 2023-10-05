@@ -1,7 +1,10 @@
 [Unit]
 Description=Task Queue as a system service
 Wants=cgconfig.service
+After=cgconfig.service
+After=network-online.target network.target NetworkManager-wait-online.service
 After=rabbitmq-server.service
+After=content-prod-rstar.mount
 
 [Service]
 Environment="FOREGROUND=true"

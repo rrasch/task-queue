@@ -9,7 +9,7 @@ set -e
 set -u
 
 HOST=$(hostname -s)
-if [[ $HOST =~ ^dev ]]; then
+if [[ $HOST =~ ^d ]]; then
 	ENV=dev
 else
 	ENV=prod

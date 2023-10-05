@@ -172,9 +172,17 @@ if [ -f /etc/redhat-release ]; then
      systemctl restart cgconfig
   fi
 fi
+
+LOGDIR="/content/prod/rstar/tmp/mdi/task-queue/logs"
+
 if ! grep -qs `hostname -s` /etc/logrotate.d/task-queue; then
-  perl -pi -e "s,{,/content/prod/rstar/tmp/mdi/task-queue/logs/`hostname -s`/*.log {," /etc/logrotate.d/task-queue
+  perl -pi -e "s,{,${LOGDIR}/`hostname -s`/*.log {," /etc/logrotate.d/task-queue
 fi
+
+semanage fcontext -d "${LOGDIR}(/.*)?" 2>/dev/null
+semanage fcontext -a -t var_log_t "${LOGDIR}(/.*)?"
+restorecon -R $LOGDIR
+
 echo <<EOF
 ********************************************************************
     Please read

@@ -34,18 +34,22 @@ EMAIL_FILE="/content/prod/rstar/etc/email.yaml"
 # name of queue on rabbitmq server
 QUEUE_NAME="task_queue"
 
+RUNUSER="runuser -u nobody --"
+
 function get_admin_email
 {
-	admin_email=$(python3 -c \
+	admin_email=$($RUNUSER python3 -c \
 		"import yaml;print(yaml.safe_load(open('$EMAIL_FILE'))['rstar'])")
 }
 
 function get_msg_count()
 {
-	msg_count=$(curl -s -u guest:guest \
-		http://${MQHOST}:15672/api/queues/%2f/${QUEUE_NAME} | \
+	msg_count=$($RUNUSER curl -s -u guest:guest \
+		"http://${MQHOST}:15672/api/queues/%2f/${QUEUE_NAME}" | \
 		jq -r .messages)
 }
+
+unset MQHOST
 
 . $TQ_CONFIG_FILE
 

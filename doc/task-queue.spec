@@ -97,6 +97,8 @@ ln -s %{dlibdir}/log-job-status.rb \
 	%{buildroot}%{_bindir}/log-job-status
 ln -s %{dlibdir}/rerun \
 	%{buildroot}%{_bindir}/rerun-mb-job
+ln -s %{dlibdir}/restart.sh \
+	%{buildroot}%{_bindir}/stop.sh
 
 %if 0%{?_with_systemd:1}
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service

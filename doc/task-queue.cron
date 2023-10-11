@@ -1,5 +1,7 @@
 # /etc/cron.d/task-queue
 
-# Shutdown server if shutdown file exists
-*/5 * * * * rstar /usr/local/dlib/task-queue/shutdown.sh > /dev/null 2>&1
+# Restart server if restart trigger file exists
+*/5 * * * * rstar /usr/local/dlib/task-queue/restart.sh > /dev/null 2>&1
 
+# Shutdown server if stop trigger file exists
+*/5 * * * * rstar /usr/local/dlib/task-queue/stop.sh > /dev/null 2>&1

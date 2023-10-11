@@ -57,6 +57,7 @@ Requires:       jq
 Requires:       perl-DBD-MySQL
 %if 0%{?fedora} >= 28 || 0%{?rhel} >= 8
 Requires:       python3-pika
+Requires:       python3-tabulate
 %endif
 
 %description

@@ -11,6 +11,7 @@ Environment="FOREGROUND=true"
 Type=simple
 ExecStart=/usr/local/dlib/task-queue/workersctl start
 ExecStop=/usr/local/dlib/task-queue/workersctl stop
+ExecStopPost=/bin/sleep 5
 PrivateTmp=yes
 
 [Install]

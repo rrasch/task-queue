@@ -15,6 +15,13 @@ else
 	ENV=prod
 fi
 
+MY_CNF=/content/$ENV/rstar/etc/my-taskqueue.cnf
+
+if [ ! -f "$MY_CNF" ]; then
+	echo "MySQL confile '$MY_CNF' doesn't exist." 1>&2
+	exit 1
+fi
+
 CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -44,7 +51,7 @@ start() {
 		exit 1
 	fi
 	LOGFILE=$LOGDIR/$HOST/log-job-status.$HOST.log
-	CMD="$TQHOME/log-job-status.rb -m $MQHOST -l $LOGFILE"
+	CMD="$TQHOME/log-job-status.rb -m $MQHOST -c $MY_CNF -l $LOGFILE"
 	if [ "$FOREGROUND" != "true" ]; then
 		CMD="$CMD -d"
 	fi

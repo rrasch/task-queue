@@ -1,7 +1,7 @@
 %define __brp_mangle_shebangs_exclude_from .rb$
 
 %define name     task-queue
-%define version  1.4.3
+%define version  1.4.4
 %define repourl  https://github.com/rrasch/%{name}
 %define gitdate  %(date +"%Y%m%d")
 %define commit   %(get-commit-id.sh %{repourl})

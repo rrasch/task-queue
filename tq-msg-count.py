@@ -10,7 +10,7 @@ def main():
 
     if os.path.exists(conf_file):
         process = subprocess.run(
-            f"source {conf_file}; echo $MQHOST",
+            f"unset MQHOST && source {conf_file} && echo $MQHOST",
             stdout=subprocess.PIPE,
             shell=True,
             text=True,

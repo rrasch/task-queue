@@ -1,7 +1,7 @@
 %define __brp_mangle_shebangs_exclude_from .rb$
 
 %define name     task-queue
-%define version  1.4.2
+%define version  1.4.3
 %define repourl  https://github.com/rrasch/%{name}
 %define gitdate  %(date +"%Y%m%d")
 %define commit   %(get-commit-id.sh %{repourl})
@@ -56,6 +56,7 @@ Requires:       iputils
 Requires:       jq
 Requires:       perl-DBD-MySQL
 %if 0%{?fedora} >= 28 || 0%{?rhel} >= 8
+Requires:       python3-mysqlclient
 Requires:       python3-pika
 Requires:       python3-tabulate
 %endif

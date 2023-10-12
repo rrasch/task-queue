@@ -2,7 +2,7 @@
 
 from tabulate import tabulate
 import configparser
-import mysql.connector
+import MySQLdb
 
 
 def main():
@@ -13,12 +13,12 @@ def main():
     config.read(conf_file)
 
     # Create a connection object
-    cnx = mysql.connector.connect(
+    cnx = MySQLdb.connect(
         host=config.get("client", "host"),
         database=config.get("client", "database"),
         user=config.get("client", "user"),
         password=config.get("client", "password"),
-        connection_timeout=10,
+        connect_timeout=10,
     )
 
     # Create a cursor and execute a query

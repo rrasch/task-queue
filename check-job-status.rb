@@ -7,10 +7,13 @@ require 'json'
 require 'logger'
 require 'optparse'
 require 'resolv'
+require 'socket'
 require_relative './lib/joblog'
 
+env = /^d/ =~ Socket.gethostname ? "dev" : "prod"
+
 options = {
-  :my_cnf => "/content/prod/rstar/etc/my-taskqueue.cnf",
+  :my_cnf => "/content/#{env}/rstar/etc/my-taskqueue.cnf",
   :limit => "100",
 #   :from => '3 days ago',
 #   :to => 'now',

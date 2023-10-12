@@ -12,6 +12,7 @@ use DBI;
 use Getopt::Std;
 use JSON;
 use Net::AMQP::RabbitMQ;
+use Sys::Hostname;
 
 our $CHANNEL_MAX = 32;
 
@@ -51,11 +52,13 @@ if ((exists($opt{p}) && !defined($opt{p}))
 	exit(1);
 }
 
+my $env = hostname() =~ /^d/ ? "dev" : "prod";
+
 my $priority = $opt{p} || 0;
 
 my $host = $opt{m} || "localhost";
 
-my $my_cnf = $opt{c} || "/content/prod/rstar/etc/my-taskqueue.cnf";
+my $my_cnf = $opt{c} || "/content/$env/rstar/etc/my-taskqueue.cnf";
 
 my $extra_args = $opt{e} || '';
 
@@ -234,4 +237,3 @@ sub get_dir_contents
 	closedir($dirh);
 	return @files;
 }
-

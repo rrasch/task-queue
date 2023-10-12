@@ -16,8 +16,14 @@ esac
 
 HOST=$(hostname -s)
 
+if [[ $HOST =~ ^d ]]; then
+	ENV=dev
+else
+	ENV=prod
+fi
+
 # temp directory
-RSTAR_TMPDIR="/content/prod/rstar/tmp"
+RSTAR_TMPDIR="/content/$ENV/rstar/tmp"
 
 # execuite command if this file exists
 TRIGGER_FILE="$RSTAR_TMPDIR/tq-$CMD.txt"
@@ -26,10 +32,10 @@ TRIGGER_FILE="$RSTAR_TMPDIR/tq-$CMD.txt"
 DATE_FILE="$RSTAR_TMPDIR/tq-$CMD-date-$HOST.txt"
 
 # task queue config file
-TQ_CONFIG_FILE="/content/prod/rstar/etc/task-queue.sysconfig"
+TQ_CONFIG_FILE="/content/$ENV/rstar/etc/task-queue.sysconfig"
 
 # userid to email address mapping file
-EMAIL_FILE="/content/prod/rstar/etc/email.yaml"
+EMAIL_FILE="/content/$ENV/rstar/etc/email.yaml"
 
 # name of queue on rabbitmq server
 QUEUE_NAME="task_queue"

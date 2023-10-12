@@ -64,7 +64,7 @@ logger.level = options[:verbose] ? Logger::DEBUG : Logger::INFO
 if !File.file?(options[:my_cnf])
   abort "MySQL config file #{options[:my_cnf]} doesn't exist."
 end
- 
+
 win_rows, win_cols = IO.console.winsize
 $is_large_win = win_cols > 120
 

@@ -3,10 +3,12 @@
 from tabulate import tabulate
 import configparser
 import MySQLdb
+import tqcommon
 
 
 def main():
-    conf_file = "/content/prod/rstar/etc/my-taskqueue.cnf"
+    env = tqcommon.get_env()
+    conf_file = f"/content/{env}/rstar/etc/my-taskqueue.cnf"
 
     # Read the config file
     config = configparser.ConfigParser()

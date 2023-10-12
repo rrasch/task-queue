@@ -1,7 +1,7 @@
 %define __brp_mangle_shebangs_exclude_from .rb$
 
 %define name     task-queue
-%define version  1.4.5
+%define version  1.4.6
 %define repourl  https://github.com/rrasch/%{name}
 %define gitdate  %(date +"%Y%m%d")
 %define commit   %(get-commit-id.sh %{repourl})
@@ -81,6 +81,7 @@ find %{buildroot}%{dlibdir} -maxdepth 1 -regextype posix-extended \
         -regex '.*\.(pl|py|rb|sh)' | xargs chmod 0755
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
+chmod 0644 %{buildroot}%{dlibdir}/tqcommon.py
 
 %define builddir %{_builddir}/%{name}-%{version}
 export GO111MODULE=off

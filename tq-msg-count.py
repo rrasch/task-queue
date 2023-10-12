@@ -3,10 +3,12 @@
 import os.path
 import pika
 import subprocess
+import tqcommon
 
 
 def main():
-    conf_file = "/content/prod/rstar/etc/task-queue.sysconfig"
+    env = tqcommon.get_env()
+    conf_file = f"/content/{env}/rstar/etc/task-queue.sysconfig"
 
     if os.path.exists(conf_file):
         process = subprocess.run(

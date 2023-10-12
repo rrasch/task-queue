@@ -5,13 +5,17 @@ require 'bunny'
 require 'json'
 require 'mysql2'
 require 'optparse'
+require 'socket'
 require_relative './lib/email'
 require_relative './lib/joblog'
+
+
+env = /^d/ =~ Socket.gethostname ? "dev" : "prod"
 
 # Set default options
 options = {
   :mqhost    => "localhost",
-  :my_cnf    => "/content/prod/rstar/etc/my-taskqueue.cnf",
+  :my_cnf    => "/content/#{env}/rstar/etc/my-taskqueue.cnf",
   :logfile   => Dir.pwd + "/log-job-status.log",
   :daemonize => false,
   :verbose   => false,

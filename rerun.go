@@ -12,6 +12,7 @@ import (
 	"flag"
 	"regexp"
 	"encoding/json"
+	"strings"
 )
 
 
@@ -64,7 +65,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	myConfigFile := "/content/prod/rstar/etc/my-taskqueue.cnf"
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	env := "prod"
+	if strings.HasPrefix(hostname, "d") {
+		env = "dev"
+	}
+	myConfigFile := fmt.Sprintf("/content/%s/rstar/etc/my-taskqueue.cnf", env)
 
 	cfg, err := ini.Load(myConfigFile)
 

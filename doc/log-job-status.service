@@ -1,14 +1,17 @@
 [Unit]
 Description=Task Queue Job Logger
-After=rabbitmq-server.service mariadb.service
+After=network-online.target network.target NetworkManager-wait-online.service
+After=rabbitmq-server.service
+After=mariadb.service
+After=content-dev.mount content-prod-rstar.mount
 
 [Service]
 Environment="FOREGROUND=true"
 Type=simple
 ExecStart=/usr/local/dlib/task-queue/log-job-status-ctl start
 ExecStop=/usr/local/dlib/task-queue/log-job-status-ctl stop
+ExecStopPost=/bin/sleep 5
 PrivateTmp=yes
 
 [Install]
 WantedBy=multi-user.target
-

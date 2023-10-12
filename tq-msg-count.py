@@ -13,7 +13,7 @@ def main():
             f"unset MQHOST && source {conf_file} && echo $MQHOST",
             stdout=subprocess.PIPE,
             shell=True,
-            text=True,
+            universal_newlines=True,
             check=True,
         )
         mqhost = process.stdout.strip()

@@ -6,17 +6,23 @@ require 'io/console'
 require 'json'
 require 'logger'
 require 'optparse'
+require 'pp'
 require 'resolv'
 require 'socket'
+require 'yaml'
 require_relative './lib/joblog'
 
 env = /^d/ =~ Socket.gethostname ? "dev" : "prod"
 
+etcdir = "/content/#{env}/rstar/etc"
+
+alias_file = "#{etcdir}/host_aliases.yaml"
+
 options = {
-  :my_cnf => "/content/#{env}/rstar/etc/my-taskqueue.cnf",
+  :my_cnf => "#{etcdir}/my-taskqueue.cnf",
   :limit => "100",
-#   :from => '3 days ago',
-#   :to => 'now',
+# :from => '3 days ago',
+# :to => 'now',
 }
 
 OptionParser.new do |opts|
@@ -68,6 +74,17 @@ end
 win_rows, win_cols = IO.console.winsize
 $is_large_win = win_cols > 120
 
+$host_aliases = get_host_aliases(alias_file)
+
+def get_host_aliases(alias_file)
+  aliases = {}
+  if File.exist?(alias_file)
+    aliases = YAML.load_file(alias_file)["aliases"]
+    aliases = aliases.map { |name, nick| [name[/^[^.]+/], nick] }.to_h
+  end
+  return aliases
+end
+
 def fmt_date(date)
   date.nil? || date.is_a?(String) ? date : date.strftime('%D %T')
 end
@@ -108,6 +125,7 @@ def print_row(batch_id, id, state, host, started,
       # Do nothing
     end
   end
+  host = $host_aliases.fetch(host, host)
   print fmt(batch_id.to_s, 8, false) if $is_large_win
   print fmt(id.to_s, 8, false), fmt('', 2), fmt(state, 11), fmt(host, 16),
         fmt(fmt_date(started), 20), fmt(fmt_date(completed), 20)

@@ -5,3 +5,6 @@
 
 # Shutdown server if stop trigger file exists
 */5 * * * * root /usr/local/dlib/task-queue/stop.sh > /dev/null 2>&1
+
+# Update task-queue rpm package every Sunday at 3am
+0 3 * * Sun root LOG_LEVEL=DEBUG /usr/bin/python3 /usr/local/dlib/task-queue/update-rpm.py > /dev/null 2>&1

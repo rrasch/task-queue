@@ -7,6 +7,7 @@ import os
 import rpm
 import socket
 import subprocess
+import tempfile
 import time
 import tqcommon
 
@@ -37,7 +38,7 @@ def is_newer(version1, version2):
     return version1 > version2
 
 
-def can_upgrade(rpm_file):
+def can_update(rpm_file):
     trans_set = rpm.TransactionSet()
     local_header = readRpmHeader(trans_set, rpm_file)
     local_dep_set = local_header.dsOfHeader()
@@ -46,7 +47,7 @@ def can_upgrade(rpm_file):
         hdr.dsOfHeader() for hdr in trans_set.dbMatch("name", name)
     ]
     if not installed_dep_sets:
-        logging.info(f"{name} is not installed, OK to upgrade.")
+        logging.info(f"{name} is not installed, OK to update.")
         return True
     elif all(
         [
@@ -54,7 +55,7 @@ def can_upgrade(rpm_file):
             for installed_dep_set in installed_dep_sets
         ]
     ):
-        logging.info(f"Package file {rpm_file} is newer, OK to upgrade.")
+        logging.info(f"Package file {rpm_file} is newer, OK to update.")
         return True
     else:
         logging.info(
@@ -64,10 +65,20 @@ def can_upgrade(rpm_file):
 
 
 def main():
-    level = logging.getLevelName(os.environ.get("LOG_LEVEL", "WARNING"))
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
-
     rstar_dir = tqcommon.get_rstar_dir()
+
+    hostname = socket.gethostname().split(".")[0]
+    logfile = os.path.join(
+        tempfile.gettempdir(), f"tq-update-{hostname}.log.txt"
+    )
+    level = logging.getLevelName(os.environ.get("LOG_LEVEL", "WARNING"))
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%m/%d/%Y %I:%M:%S %p",
+        level=level,
+        handlers=[logging.StreamHandler(), logging.FileHandler(logfile)],
+    )
+
     repodir = os.path.join(rstar_dir, "repo", "publishing")
     logging.debug(f"{repodir=}")
 
@@ -86,15 +97,22 @@ def main():
         return
     latest_rpm = rpms[-1]
 
-    if can_upgrade(latest_rpm):
-        upgrade_cmd = ["bash"]
+    if can_update(latest_rpm):
+        update_cmd = ["bash"]
         if logging.getLogger().isEnabledFor(logging.DEBUG):
-            upgrade_cmd.append("-x")
-        upgrade_cmd.append(
+            update_cmd.append("-x")
+        update_cmd.append(
             os.path.join(rstar_dir, "tmp", "update-task-queue.sh")
         )
-        logging.debug(f"{upgrade_cmd=}")
-        subprocess.run(upgrade_cmd, check=True)
+        logging.debug(f"{update_cmd=}")
+        result = subprocess.run(
+            update_cmd,
+            check=True,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        logging.debug(f"output: {result.stdout}")
 
 
 if __name__ == "__main__":

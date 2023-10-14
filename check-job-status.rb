@@ -12,6 +12,70 @@ require 'socket'
 require 'yaml'
 require_relative './lib/joblog'
 
+
+def get_host_aliases(alias_file)
+  aliases = {}
+  if File.exist?(alias_file)
+    aliases = YAML.load_file(alias_file)["aliases"]
+    aliases = aliases.map { |name, nick| [name[/^[^.]+/], nick] }.to_h
+  end
+  return aliases
+end
+
+def fmt_date(date)
+  date.nil? || date.is_a?(String) ? date : date.strftime('%D %T')
+end
+
+def sql_date(human_date)
+  Chronic.parse(human_date).strftime('%Y-%m-%d %H:%M:%S')
+end
+
+def duration(start_date, end_date)
+  return "" if start_date.nil? || end_date.nil?
+  secs = (end_date - start_date).to_i
+  min, secs = secs.divmod(60)
+  hours, min = min.divmod(60)
+  days, hours = hours.divmod(24)
+  tm = []
+  tm << "#{days}d"  if days.nonzero?
+  tm << "#{hours}h" if hours.nonzero?
+  tm << "#{min}m"   if min.nonzero?
+  tm << "#{secs}s"  if secs.nonzero? || tm.empty?
+  tm.join(", ")
+end
+
+def fmt(val, length=20, left_justify=true)
+  val = val || ""
+  if left_justify
+    val.ljust(length)
+  else
+    val.rjust(length)
+  end
+end
+
+def print_row(batch_id, id, state, host, started,
+              completed, duration, objid, op, user_id)
+  if /\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\Z/ =~ host
+    begin
+      host = Resolv.getname(host)[/^[^.]+/].downcase
+    rescue Resolv::ResolvError => e
+      # Do nothing
+    end
+  end
+  host = $host_aliases.fetch(host, host)
+  print fmt(batch_id.to_s, 8, false) if $is_large_win
+  print fmt(id.to_s, 8, false), fmt('', 2), fmt(state, 11), fmt(host, 16),
+        fmt(fmt_date(started), 20), fmt(fmt_date(completed), 20)
+  if $is_large_win
+    print fmt(duration, 16)
+    print fmt(objid, 30)
+    print fmt(op, 20)
+    print fmt(user_id, 12)
+  end
+  print "\n"
+end
+
+
 env = /^d/ =~ Socket.gethostname ? "dev" : "prod"
 
 etcdir = "/content/#{env}/rstar/etc"
@@ -75,68 +139,6 @@ win_rows, win_cols = IO.console.winsize
 $is_large_win = win_cols > 120
 
 $host_aliases = get_host_aliases(alias_file)
-
-def get_host_aliases(alias_file)
-  aliases = {}
-  if File.exist?(alias_file)
-    aliases = YAML.load_file(alias_file)["aliases"]
-    aliases = aliases.map { |name, nick| [name[/^[^.]+/], nick] }.to_h
-  end
-  return aliases
-end
-
-def fmt_date(date)
-  date.nil? || date.is_a?(String) ? date : date.strftime('%D %T')
-end
-
-def sql_date(human_date)
-  Chronic.parse(human_date).strftime('%Y-%m-%d %H:%M:%S')
-end
-
-def duration(start_date, end_date)
-  return "" if start_date.nil? || end_date.nil?
-  secs = (end_date - start_date).to_i
-  min, secs = secs.divmod(60)
-  hours, min = min.divmod(60)
-  days, hours = hours.divmod(24)
-  tm = []
-  tm << "#{days}d"  if days.nonzero?
-  tm << "#{hours}h" if hours.nonzero?
-  tm << "#{min}m"   if min.nonzero?
-  tm << "#{secs}s"  if secs.nonzero? || tm.empty?
-  tm.join(", ")
-end
-
-def fmt(val, length=20, left_justify=true)
-  val = val || ""
-  if left_justify
-    val.ljust(length)
-  else
-    val.rjust(length)
-  end
-end
-
-def print_row(batch_id, id, state, host, started,
-              completed, duration, objid, op, user_id)
-  if /\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\Z/ =~ host
-    begin
-      host = Resolv.getname(host)[/^[^.]+/].downcase
-    rescue Resolv::ResolvError => e
-      # Do nothing
-    end
-  end
-  host = $host_aliases.fetch(host, host)
-  print fmt(batch_id.to_s, 8, false) if $is_large_win
-  print fmt(id.to_s, 8, false), fmt('', 2), fmt(state, 11), fmt(host, 16),
-        fmt(fmt_date(started), 20), fmt(fmt_date(completed), 20)
-  if $is_large_win
-    print fmt(duration, 16)
-    print fmt(objid, 30)
-    print fmt(op, 20)
-    print fmt(user_id, 12)
-  end
-  print "\n"
-end
 
 options[:from] = sql_date(options[:from]) if options.key?(:from)
 options[:to] = sql_date(options[:to]) if options.key?(:to)

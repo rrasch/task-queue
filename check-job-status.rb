@@ -80,7 +80,7 @@ env = /^d/ =~ Socket.gethostname ? "dev" : "prod"
 
 etcdir = "/content/#{env}/rstar/etc"
 
-alias_file = "#{etcdir}/host_aliases.yaml"
+alias_file = "#{etcdir}/host-aliases.yaml"
 
 options = {
   :my_cnf => "#{etcdir}/my-taskqueue.cnf",

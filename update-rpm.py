@@ -80,12 +80,12 @@ def main():
     )
 
     repodir = os.path.join(rstar_dir, "repo", "publishing")
-    logging.debug(f"{repodir=}")
+    logging.debug(f"repo dir: {repodir}")
 
     redhat_version = get_redhat_version()
-    logging.debug(f"{redhat_version=}")
+    logging.debug(f"redhat version: {redhat_version}")
     rpmdir = os.path.join(repodir, redhat_version, "RPMS")
-    logging.debug(f"{rpmdir=}")
+    logging.debug(f"rpm dir: {rpmdir}")
     rpms = sorted(
         glob.glob(
             f"{rpmdir}{os.sep}**{os.sep}task-queue-*.rpm", recursive=True
@@ -104,7 +104,7 @@ def main():
         update_cmd.append(
             os.path.join(rstar_dir, "tmp", "update-task-queue.sh")
         )
-        logging.debug(f"{update_cmd=}")
+        logging.debug(f"update cmd: {update_cmd}")
         result = subprocess.run(
             update_cmd,
             check=True,

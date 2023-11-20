@@ -59,6 +59,9 @@ class JobLog
     output = task['output']
     if output.to_s.strip.empty?
       output = nil
+    else
+      max_field_size_in_bytes = 65_535
+      output = output[0, max_field_size_in_bytes]
     end
     if task['job_id'].nil? && create
       @logger.debug "Inserting job into batch_id=#{task['batch_id']}"

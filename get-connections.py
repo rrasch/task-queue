@@ -1,10 +1,13 @@
 #!/usr/bin/python3
 
+from pprint import pformat
 import argparse
 import json
 import logging
+import os
 import requests
 import socket
+import tqcommon
 
 
 def call_rabbitmq_api(host, port, user, passwd):
@@ -17,8 +20,22 @@ def call_rabbitmq_api(host, port, user, passwd):
 
 
 def main():
+    env = tqcommon.get_env()
+    conf_file = f"/content/{env}/rstar/etc/task-queue.sysconfig"
+
+    config = {}
+    if os.path.isfile(conf_file):
+        with open(conf_file) as fh:
+            for line in fh:
+                line = line.partition("#")[0].strip()
+                if line:
+                    k, v = line.split("=")
+                    config[k] = v
+
     parser = argparse.ArgumentParser(description="Get connections")
-    parser.add_argument("--host", default="localhost", help="Host")
+    parser.add_argument(
+        "--host", default=config.get("MQHOST", "localhost"), help="Host"
+    )
     parser.add_argument("--port", type=int, default=15672, help="Port")
     parser.add_argument("--user", default="guest", help="User")
     parser.add_argument("--password", default="guest", help="Password")
@@ -29,6 +46,8 @@ def main():
 
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+
+    logging.debug("config=%s", pformat(config))
 
     try:
         from tabulate import tabulate

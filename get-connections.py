@@ -66,20 +66,23 @@ def main():
     if qdata.get("consumer_details", []):
         headers = ["Host", "Port", "Queue"]
         connections = []
-        if not tab_loaded:
-            print("{:20}{:10}{:20}".format(*headers))
-            print("-" * 50)
         for consumer in qdata["consumer_details"]:
             host = consumer["channel_details"]["peer_host"]
             host = socket.gethostbyaddr(host)[0]
             port = consumer["channel_details"]["peer_port"]
             queue = consumer["queue"]["name"]
             connections.append([host, port, queue])
-            if not tab_loaded:
-                print(f"{host:20}{port!s:10}{queue:20}")
+
+        connections.sort(key=lambda x: (x[0], x[1]))
 
         if tab_loaded:
             print(tabulate(connections, headers=headers, tablefmt="pretty"))
+        else:
+            if connections:
+                print("{:40}{:10}{:20}".format(*headers))
+                print("-" * 70)
+                for host, port, queue in connections:
+                    print(f"{host:40}{port!s:10}{queue:20}")
 
 
 if __name__ == "__main__":

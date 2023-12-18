@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from pprint import pformat
+from pprint import pformat, pprint
 import argparse
 import json
 import logging
@@ -8,6 +8,7 @@ import os
 import requests
 import socket
 import tqcommon
+import yaml
 
 
 def call_rabbitmq_api(host, port, user, passwd):
@@ -19,9 +20,19 @@ def call_rabbitmq_api(host, port, user, passwd):
     return r
 
 
+def get_host_aliases(alias_file):
+    aliases = {}
+    if os.path.exists(alias_file):
+        with open(alias_file) as fh:
+            aliases = yaml.safe_load(fh)["aliases"]
+    return aliases
+
+
 def main():
     env = tqcommon.get_env()
-    conf_file = f"/content/{env}/rstar/etc/task-queue.sysconfig"
+    etcdir = f"/content/{env}/rstar/etc"
+    conf_file =  f"{etcdir}/task-queue.sysconfig"
+    alias_file = f"{etcdir}/host-aliases.yaml"
 
     config = {}
     if os.path.isfile(conf_file):
@@ -31,6 +42,8 @@ def main():
                 if line:
                     k, v = line.split("=")
                     config[k] = v
+
+    aliases = get_host_aliases(alias_file)
 
     parser = argparse.ArgumentParser(description="Get connections")
     parser.add_argument(
@@ -48,6 +61,7 @@ def main():
     logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
 
     logging.debug("config=%s", pformat(config))
+    logging.debug("aliases=%s", pformat(aliases))
 
     try:
         from tabulate import tabulate
@@ -69,6 +83,7 @@ def main():
         for consumer in qdata["consumer_details"]:
             host = consumer["channel_details"]["peer_host"]
             host = socket.gethostbyaddr(host)[0]
+            host = aliases.get(host, host)
             port = consumer["channel_details"]["peer_port"]
             queue = consumer["queue"]["name"]
             connections.append([host, port, queue])

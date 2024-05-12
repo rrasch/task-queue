@@ -44,7 +44,7 @@ def get_uptime():
 
 
 def log(msg):
-    """ Write to systemd journal.
+    """Write to systemd journal.
 
     Args:
         msg: String message sent to journal
@@ -59,6 +59,9 @@ def main():
     parser.add_argument(
         "--mysql", action="store_true", help="Test connection to mysql"
     )
+    parser.add_argument(
+        "--smtp", action="store_true", help="Test connection to mail server"
+    )
     args = parser.parse_args()
 
     uptime = get_uptime()
@@ -71,6 +74,9 @@ def main():
     if args.mysql:
         myconfig = tqcommon.get_myconfig()
         sock_addrs.append((myconfig["host"], socket.getservbyname("mysql")))
+
+    if args.smtp:
+        sock_addrs.append(("localhost", socket.getservbyname("smtp")))
 
     with ThreadPoolExecutor() as executor:
         futures = {

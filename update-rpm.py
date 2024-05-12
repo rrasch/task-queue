@@ -33,12 +33,19 @@ def readRpmHeader(ts, filename):
     return h
 
 
-def is_newer(version1, version2):
+def _is_newer(version1, version2):
     logging.debug(f"comparing {version1} to {version2}")
     return version1 > version2
 
 
-def can_update(rpm_file):
+def is_newer(version1, version2):
+    logging.debug(f"comparing {version1} to {version2}")
+    rc = rpm.labelCompare(version1, version2)
+    logging.debug(f"{rc=}")
+    return rc > 0
+
+
+def _can_update(rpm_file):
     trans_set = rpm.TransactionSet()
     local_header = readRpmHeader(trans_set, rpm_file)
     local_dep_set = local_header.dsOfHeader()
@@ -50,16 +57,51 @@ def can_update(rpm_file):
         logging.info(f"{name} is not installed, OK to update.")
         return True
     elif all(
-        [
-            is_newer(local_dep_set.EVR(), installed_dep_set.EVR())
-            for installed_dep_set in installed_dep_sets
-        ]
+        is_newer(local_dep_set.EVR(), installed_dep_set.EVR())
+        for installed_dep_set in installed_dep_sets
     ):
         logging.info(f"Package file {rpm_file} is newer, OK to update.")
         return True
     else:
         logging.info(
             f"Package file {rpm_file} is same or older than installed version."
+        )
+        return False
+
+
+def can_update(rpm_file):
+    trans_set = rpm.TransactionSet()
+    header = readRpmHeader(trans_set, rpm_file)
+
+    name = header[rpm.RPMTAG_NAME]
+    epoch = header[rpm.RPMTAG_EPOCH]
+    version = header[rpm.RPMTAG_VERSION]
+    release = header[rpm.RPMTAG_RELEASE]
+
+    local_evr = (epoch, version, release)
+    logging.debug(f"{local_evr=}")
+
+    installed_evrs = [
+        (
+            hdr[rpm.RPMTAG_EPOCH],
+            hdr[rpm.RPMTAG_VERSION],
+            hdr[rpm.RPMTAG_RELEASE],
+        )
+        for hdr in trans_set.dbMatch("name", name)
+    ]
+    logging.debug(f"{installed_evrs=}")
+
+    if not installed_evrs:
+        logging.info(f"Package '{name}' is not installed, OK to upgrade.")
+        return True
+    elif all(
+        is_newer(local_evr, installed_evr) for installed_evr in installed_evrs
+    ):
+        logging.info(f"Package '{name}' is newer, OK to upgrade.")
+        return True
+    else:
+        logging.info(
+            f"Package '{name}' is same or older than installed version."
         )
         return False
 

@@ -41,7 +41,7 @@ def _is_newer(version1, version2):
 def is_newer(version1, version2):
     logging.debug(f"comparing {version1} to {version2}")
     rc = rpm.labelCompare(version1, version2)
-    logging.debug(f"{rc=}")
+    logging.debug(f"rc={rc}")
     return rc > 0
 
 
@@ -79,7 +79,7 @@ def can_update(rpm_file):
     release = header[rpm.RPMTAG_RELEASE]
 
     local_evr = (epoch, version, release)
-    logging.debug(f"{local_evr=}")
+    logging.debug(f"local_evr={local_evr}")
 
     installed_evrs = [
         (
@@ -89,7 +89,7 @@ def can_update(rpm_file):
         )
         for hdr in trans_set.dbMatch("name", name)
     ]
-    logging.debug(f"{installed_evrs=}")
+    logging.debug(f"installed_evrs={installed_evrs}")
 
     if not installed_evrs:
         logging.info(f"Package '{name}' is not installed, OK to upgrade.")

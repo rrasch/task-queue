@@ -6,9 +6,12 @@ EXPECTED=18
 
 WORKDIR=$HOME/work/task-queue
 
-MAILTO="$USER"
-
 MY_CNF="/content/prod/rstar/etc/my-taskqueue.cnf"
+
+EMAIL_CNF="/content/prod/rstar/etc/email.yaml"
+
+# MAILTO="$USER"
+MAILTO=$(awk '{print $2'} $EMAIL_CNF | sort | uniq | grep -v '-')
 
 OUTPUT=$($WORKDIR/get-connections.py)
  

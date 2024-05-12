@@ -28,6 +28,13 @@ def get_host_aliases(alias_file):
     return aliases
 
 
+def reverse_lookup(addr):
+    try:
+        return socket.gethostbyaddr(addr)[0]
+    except socket.herror:
+        return addr
+
+
 def main():
     env = tqcommon.get_env()
     etcdir = f"/content/{env}/rstar/etc"
@@ -82,7 +89,7 @@ def main():
         connections = []
         for consumer in qdata["consumer_details"]:
             host = consumer["channel_details"]["peer_host"]
-            host = socket.gethostbyaddr(host)[0]
+            host = reverse_lookup(host)
             host = aliases.get(host, host)
             port = consumer["channel_details"]["peer_port"]
             queue = consumer["queue"]["name"]

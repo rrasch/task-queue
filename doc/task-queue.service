@@ -9,6 +9,7 @@ After=content-dev.mount content-prod-rstar.mount
 [Service]
 Environment="FOREGROUND=true"
 Type=simple
+ExecStartPre=/usr/local/dlib/task-queue/service-precheck.py
 ExecStart=/usr/local/dlib/task-queue/workersctl start
 ExecStop=/usr/local/dlib/task-queue/workersctl stop
 ExecStopPost=/bin/sleep 5

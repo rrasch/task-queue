@@ -10,8 +10,8 @@ MY_CNF="/content/prod/rstar/etc/my-taskqueue.cnf"
 
 EMAIL_CNF="/content/prod/rstar/etc/email.yaml"
 
-# MAILTO="$USER"
-MAILTO=$(awk '{print $2'} $EMAIL_CNF | sort | uniq | grep -v '-')
+MAILTO=$(awk '{print $2'} $EMAIL_CNF | sort | uniq \
+    | grep -v '-' | paste -sd ',' - | sed 's/,/, /g')
 
 if [ -x /bin/s-nail ]; then
     MAIL="/bin/s-nail -M text/html"
@@ -48,12 +48,17 @@ if [ -n "$ERR" ]; then
     tmpdir=$(mktemp -d --tmpdir "$SCRIPT_NAME.XXXXXXXXXX")
     trap "rm -rf $tmpdir; exit" 0 1 2 3 15
     TMPFILE=$tmpdir/err.html
-    echo "$ERR" | vim -N --cmd "set loadplugins" -u NORC \
+    echo "$ERR" | vim --cmd "set loadplugins" -u DEFAULTS \
         -c "set ft=text" \
         -c TOhtml \
         -c ":saveas $TMPFILE" \
         -c ":q" \
         -c ":q!" \
-        -
-    $MAIL -s "task queue problem" $MAILTO < $TMPFILE
+        - >/dev/null 2>&1
+    cat <<EOF - $TMPFILE | /usr/sbin/sendmail -t
+To: $MAILTO
+Subject: task queue problem
+Content-Type: text/html
+
+EOF
 fi

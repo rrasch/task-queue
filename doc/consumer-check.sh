@@ -45,20 +45,17 @@ if ! [[ "$JOB_ID" =~ ^[0-9]+$ ]]; then
 fi
 
 if [ -n "$ERR" ]; then
-    tmpdir=$(mktemp -d --tmpdir "$SCRIPT_NAME.XXXXXXXXXX")
-    trap "rm -rf $tmpdir; exit" 0 1 2 3 15
-    TMPFILE=$tmpdir/err.html
-    echo "$ERR" | vim --cmd "set loadplugins" -u DEFAULTS \
-        -c "set ft=text" \
-        -c TOhtml \
-        -c ":saveas $TMPFILE" \
-        -c ":q" \
-        -c ":q!" \
-        - >/dev/null 2>&1
-    cat <<EOF - $TMPFILE | /usr/sbin/sendmail -t
+    cat <<EOF - | /usr/sbin/sendmail -t
 To: $MAILTO
 Subject: task queue problem
 Content-Type: text/html
 
+<html>
+<body>
+<pre>
+$ERR
+</pre>
+</body>
+</html>
 EOF
 fi

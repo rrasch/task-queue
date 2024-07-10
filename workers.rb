@@ -178,7 +178,7 @@ class TaskQueueServer < ::Servolux::Server
   # Create a preforking server that has the given minimum and
   # maximum boundaries
   #
-  def initialize(min_workers, max_workers, config)
+  def initialize(config)
 
     @config = config
     @logger = config[:logger]
@@ -205,8 +205,8 @@ class TaskQueueServer < ::Servolux::Server
       :module => JobProcessor,
       :timeout => config[:timeout],
       :config => config,
-      :min_workers => min_workers,
-      :max_workers => max_workers
+      :min_workers => config[:min_workers],
+      :max_workers => config[:max_workers]
     )
   end
 
@@ -258,12 +258,8 @@ class TaskQueueServer < ::Servolux::Server
   # this is run once before the Server's run loop
   def before_starting
     # Start up child processes to handle jobs.
-    # Number of initial workers is based on number of cpus.
-    # Get value using equivalent of clamp().
-    num_workers =
-      [@pool.min_workers, Etc.nprocessors - 1, @pool.max_workers].sort[1]
-    log "Starting up the pool of #{num_workers} workers"
-    @pool.start(num_workers)
+    log "Starting up the pool of #{@pool.max_workers} workers"
+    @pool.start(@pool.max_workers)
     log "Send a USR1 to add a worker                        (kill -usr1 #{Process.pid})"
     log "Send a USR2 to kill all the workers                (kill -usr2 #{Process.pid})"
     log "Send a INT (Ctrl-C) or TERM to shutdown the server (kill -term #{Process.pid})"
@@ -311,6 +307,10 @@ end
 
 # Start
 
+# Max number of workers is number of cpus - 1
+# or 1 if there is only 1 cpu
+max_workers = [1, Etc.nprocessors - 1].max
+
 config = {
   :mqhost      => "localhost",
   :timeout     => nil,
@@ -318,7 +318,8 @@ config = {
   :pidfile     => Dir.pwd + "/taskqueueserver.pid",
   :quiet       => false,
   :foreground  => false,
-  :max_workers => Etc.nprocessors,
+  :min_workers => max_workers,
+  :max_workers => max_workers,
 }
 
 # puts config[:logfile]
@@ -352,6 +353,10 @@ OptionParser.new do |opts|
     config[:quiet] = true
   end
 
+  opts.on('-n', '--min-workers MIN_WORKERS', 'Min number of workers') do |n|
+    config[:min_workers] = n
+  end
+
   opts.on('-x', '--max-workers MAX_WORKERS', 'Max number of workers') do |x|
     config[:max_workers] = x
   end
@@ -379,5 +384,5 @@ end
 
 ENV["TQ_SERVER_PID"] = Process.pid.to_s
 
-tqs = TaskQueueServer.new(1, config[:max_workers], config)
+tqs = TaskQueueServer.new(config)
 tqs.startup

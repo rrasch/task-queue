@@ -368,6 +368,11 @@ OptionParser.new do |opts|
 
 end.parse!
 
+if config[:max_workers] < config[:min_workers]
+  abort("Max workers (#{config[:max_workers]}) must "\
+        "be greater than min workers (#{config[:min_workers]})")
+end
+
 config[:logfh] = File.new(config[:logfile], 'a')
 config[:logfh].sync = true
 

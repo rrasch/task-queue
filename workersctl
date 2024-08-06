@@ -37,6 +37,10 @@ CGROUP_NAME=${CGROUP_NAME:-cpu:cpulimited}
 
 FOREGROUND=${FOREGROUND:-false}
 
+MIN_WORKERS=${MIN_WORKERS:-}
+
+MAX_WORKERS=${MAX_WORKERS:-}
+
 RETVAL=0
 
 start() {
@@ -54,6 +58,12 @@ start() {
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
 	if [ "$FOREGROUND" = "true" ]; then
 		CMD="$CMD -f"
+	fi
+	if [ -n "$MIN_WORKERS" ]; then
+		CMD="$CMD -n $MIN_WORKERS"
+	fi
+	if [ -n "$MAX_WORKERS" ]; then
+		CMD="$CMD -x $MAX_WORKERS"
 	fi
 	if [ "$USE_CGROUP" = "true" ]; then
 		CMD="cgexec -g $CGROUP_NAME --sticky $CMD"

@@ -353,11 +353,11 @@ OptionParser.new do |opts|
     config[:quiet] = true
   end
 
-  opts.on('-n', '--min-workers MIN_WORKERS', 'Min number of workers') do |n|
+  opts.on('-n', '--min-workers MIN_WORKERS', Integer, 'Min number of workers') do |n|
     config[:min_workers] = n
   end
 
-  opts.on('-x', '--max-workers MAX_WORKERS', 'Max number of workers') do |x|
+  opts.on('-x', '--max-workers MAX_WORKERS', Integer, 'Max number of workers') do |x|
     config[:max_workers] = x
   end
 

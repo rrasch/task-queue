@@ -55,7 +55,7 @@ func InsertJob(req string, host string) {
 
 func main() {
 
-	id := flag.Int("b", 0,  "Batch id (Required)")
+	id := flag.Int("b", 0, "Batch id (Required)")
 	extraArgs := flag.String("e", "", "Extra arguments")
 
 	flag.Parse()
@@ -99,8 +99,7 @@ func main() {
 			SELECT cmd_line, request
 			FROM batch b, job j
 			WHERE b.batch_id = j.batch_id
-			AND j.batch_id = %d
-			AND j.state = 'error'`, *id))
+			AND j.batch_id = %d`, *id))
 	if err != nil {
 		panic(err.Error())
 	}
@@ -132,5 +131,3 @@ func main() {
 	}
 
 }
-
-

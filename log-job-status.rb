@@ -83,8 +83,10 @@ email = Email.new(logger)
 logger.debug "Lowering priority of process #{Process.pid}"
 Process.setpriority(Process::PRIO_PROCESS, 0, 19)
 
-conn = Bunny.new(:host   => options[:mqhost],
-                 :logger => logger)
+conn = Bunny.new(:host => options[:mqhost],
+                 :logger => logger,
+                 :recover_from_connection_close => false,
+                )
 conn.start
 
 ch = conn.create_channel
@@ -93,31 +95,39 @@ q = ch.queue("tq_log_reader", :durable => true)
 q.bind(x, :routing_key => "task_queue.*")
 
 consumer = nil
+error = nil
 
 begin
   q.subscribe(:block => true,
               :manual_ack => true) do |delivery_info, properties, payload|
-    begin
-      consumer = delivery_info[:consumer]
-      logger.debug "Received #{payload}, "\
-                   "message proprties are #{properties.inspect}, and "\
-                   "delivery info is #{delivery_info.inspect}"
-      task = JSON.parse(payload)
-      joblog = JobLog.new(options[:my_cnf], logger)
-      joblog.update_job(task)
-      joblog.close
-      ch.ack(delivery_info.delivery_tag)
-      if task['state'] =~ /success|error/
-        email.send(task)
-      end
-    rescue Exception => e
-      logger.error e
-      consumer.cancel if consumer
+    consumer = delivery_info[:consumer]
+    logger.debug "Received #{payload}, "\
+                 "message proprties are #{properties.inspect}, and "\
+                 "delivery info is #{delivery_info.inspect}"
+    task = JSON.parse(payload)
+    joblog = JobLog.new(options[:my_cnf], logger)
+    joblog.update_job(task)
+    joblog.close
+    ch.ack(delivery_info.delivery_tag)
+    if task['state'] =~ /success|error/
+      email.send(task)
     end
   end
 rescue SignalException => e
   logger.info "Process #{Process.pid} received signal #{e} (#{e.signo})"
-rescue Exception => e
-  logger.error e
+rescue Bunny::ConnectionForced => e
+  error = e
+rescue StandardError => e
+  error = e
+ensure
+  consumer.cancel if consumer
+  conn.close
 end
 
+if error
+  logger.error "Process #{Process.pid} exiting with error: #{error}"
+  abort(error)
+else
+  logger.info "Process #{Process.pid} exiting successfully"
+  exit 0
+end

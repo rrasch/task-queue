@@ -12,6 +12,7 @@ use DBI;
 use Getopt::Std;
 use JSON;
 use Net::AMQP::RabbitMQ;
+use String::ShellQuote;
 use Sys::Hostname;
 
 our $CHANNEL_MAX = 32;
@@ -29,7 +30,7 @@ our $CHANNEL_MAX = 32;
 # -e:  extra command line args
 # -j:  json config to pass to job
 
-my $cmd_line = join(" ", abs_path($0), @ARGV);
+my $cmd_line = String::ShellQuote::shell_quote(abs_path($0), @ARGV);
 
 my %opt;
 getopts('hvtm:r:i:o:c:p:s:e:j:', \%opt);

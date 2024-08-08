@@ -75,6 +75,7 @@ def print_row(batch_id, id, state, host, started,
   print "\n"
 end
 
+Signal.trap("SIGPIPE", "SYSTEM_DEFAULT")
 
 env = /^d/ =~ Socket.gethostname ? "dev" : "prod"
 

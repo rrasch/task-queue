@@ -86,8 +86,7 @@ if (!$opt{t})
 	}
 }
 
-my $main_qname = "task_queue";
-my $hpc_qname = "hpc_transcode";
+my $queue_name = "task_queue";
 
 my $mq = Net::AMQP::RabbitMQ->new();
 
@@ -104,18 +103,15 @@ if ($prop && !$prop->{capabilities}{consumer_priorities} && $priority)
 
 $mq->channel_open(1);
 
-for my $qname ($main_qname, $hpc_qname)
-{
-	$mq->queue_declare(
-		1,
-		$qname,
-		{
-			auto_delete => 0,
-			durable     => 1,
-		},
-		{'x-max-priority' => 10}
-	);
-}
+$mq->queue_declare(
+	1,
+	$queue_name,
+	{
+		auto_delete => 0,
+		durable     => 1,
+	},
+	{'x-max-priority' => 10}
+);
 
 my $login = getpwuid($<);
 
@@ -190,14 +186,10 @@ sub publish
 	$body = $json->encode($task);
 	delete $task->{job_id};
 	print STDERR "Sending $body\n" if $opt{v};
-	$mq->publish(1, "$main_qname.pending", $body,
+	$mq->publish(1, "$queue_name.pending", $body,
 		{exchange => 'tq_logging'});
-	$mq->publish(1, $main_qname, $body, {},
+	$mq->publish(1, $queue_name, $body, {},
 		{priority => $priority});
-	if ($class eq "video" && $op eq "transcode")
-	{
-		$mq->publish(1, $hpc_qname, $body, {}, {});
-	}
 }
 
 

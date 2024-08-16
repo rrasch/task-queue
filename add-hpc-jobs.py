@@ -11,6 +11,7 @@ import json
 import os
 import pika
 import re
+import sqlite3
 import tqcommon
 
 
@@ -32,6 +33,7 @@ def gen_vid_requests(req):
                     "input": file,
                     "output": output_base,
                     "args": req["extra_args"],
+                    "job_id": req["job_id"],
                 }
             )
     else:
@@ -41,6 +43,7 @@ def gen_vid_requests(req):
                 "input": req["input_path"],
                 "output": req["output_path"],
                 "args": req["extra_args"],
+                "job_id": req["job_id"],
             }
         ]
     return requests
@@ -72,7 +75,7 @@ def main():
 
     cursor = dbconn.cursor()
     query = (
-        "SELECT cmd_line, request "
+        "SELECT j.batch_id, j.job_id, b.cmd_line, j.request "
         "FROM batch b, job j "
         "WHERE b.batch_id = j.batch_id "
         "AND j.state = 'pending' "
@@ -83,8 +86,9 @@ def main():
     requests = []
 
     # Fetch the results
-    for cmd_line, request in cursor:
+    for batch_id, job_id, cmd_line, request in cursor:
         req = json.loads(request)
+        req["job_id"] = job_id
         if not (req["class"] == "video" and req["operation"] == "transcode"):
             continue
         requests.extend(gen_vid_requests(req))
@@ -92,10 +96,23 @@ def main():
     cursor.close()
     dbconn.close()
 
+    dbconn = sqlite3.connect("jobs.db")
+    cursor = dbconn.cursor()
+    cursor.execute(
+        "CREATE TABLE IF NOT EXISTS jobs (job_id INTEGER PRIMARY KEY)"
+    )
+
     # delivery_mode=pika.DeliveryMode.Persistent
     delivery_mode = 2
 
     for request in requests:
+        result = cursor.execute(
+            f"SELECT job_id FROM jobs WHERE job_id = {request['job_id']}"
+        )
+        row = result.fetchone()
+        if row:
+            continue
+
         body = json.dumps(request, indent=4)
         print(body)
         channel.basic_publish(
@@ -105,7 +122,11 @@ def main():
             properties=pika.BasicProperties(delivery_mode=delivery_mode),
         )
 
+        cursor.execute(f"INSERT INTO jobs VALUES ({request['job_id']})")
+
     mqconn.close()
+    dbconn.commit()
+    dbconn.close()
 
 
 if __name__ == "__main__":

@@ -15,6 +15,10 @@ import sqlite3
 import tqcommon
 
 
+# DBFILE = "/content/prod/rstar/tmp/hpc/jobs.db"
+DBFILE = "jobs.db"
+
+
 def gen_vid_requests(req):
     requests = []
     if not os.path.exists(req["input_path"]):
@@ -96,10 +100,19 @@ def main():
     cursor.close()
     dbconn.close()
 
-    dbconn = sqlite3.connect("jobs.db")
+    if not os.path.isfile(DBFILE):
+        print(f"dbfile {DBFILE} doesn't exist.")
+    dbconn = sqlite3.connect(DBFILE)
     cursor = dbconn.cursor()
     cursor.execute(
-        "CREATE TABLE IF NOT EXISTS jobs (job_id INTEGER PRIMARY KEY)"
+        """
+        CREATE TABLE IF NOT EXISTS jobs (
+            job_id INTEGER PRIMARY KEY NOT NULL UNIQUE,
+            slurm_id INTEGER,
+            output TEXT NOT NULL,
+            state TEXT NOT NULL CHECK (state IN ('pending', 'running', 'done'))
+        )
+    """
     )
 
     # delivery_mode=pika.DeliveryMode.Persistent
@@ -122,7 +135,12 @@ def main():
             properties=pika.BasicProperties(delivery_mode=delivery_mode),
         )
 
-        cursor.execute(f"INSERT INTO jobs VALUES ({request['job_id']})")
+        cursor.execute(
+            f"""
+            INSERT INTO jobs (job_id, output, state)
+            VALUES ({request['job_id']}, '{request['job_id']}', 'pending')
+            """
+        )
 
     mqconn.close()
     dbconn.commit()

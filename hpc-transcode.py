@@ -16,10 +16,20 @@ import os
 import paramiko
 import pika
 import psutil
+import re
 import shlex
 import socket
+import sqlite3
 import sys
 import tqcommon
+
+
+SACCT_FORMAT = (
+    "JobID,JobName%-90,Partition,Account,"
+    "AllocCPUS,State,ExitCode,MaxVMSize,NodeList"
+)
+
+SQUEUE_FORMAT = "%.15i %.25j %.8u %.10M %.2t %.9P"
 
 
 class BooleanAction(argparse.Action):
@@ -130,20 +140,61 @@ def get_profiles(args_str):
     return args.profiles_path
 
 
+def add_slurm_id(job_id, slurm_id):
+    dbconn = sqlite3.connect("jobs.db")
+    cursor = dbconn.cursor()
+    cursor.execute(
+        f"""UPDATE jobs
+        SET slurm_id = {slurm_id}, state = 'running'
+        WHERE job_id = {job_id}
+        """
+    )
+    dbconn.commit()
+    dbconn.close()
+
+
+def do_cmd(cmdlist, **kwargs):
+    logging.debug("Running command: %s", shlex_join(cmdlist))
+    try:
+        process = run(
+            cmdlist,
+            check=True,
+            stdout=PIPE,
+            stderr=STDOUT,
+            universal_newlines=True,
+            **kwargs,
+        )
+        logging.debug("rsync output: %s", process.stdout)
+    except CalledProcessError as e:
+        logging.error("%s\n%s", e, e.output)
+        sys.exit(1)
+    return process
+
+
 def transcode(req, host, email):
-    max_duration = max_time(req["input"])
-    logging.debug(f"Max transcode duration: {max_duration}")
-
-    rounded_duration = int(round_down_min(duration(req["input"])))
-    logging.debug(f"rounded duration: {rounded_duration} minutes")
-    memory = "8GB" if rounded_duration >= 120 else "8GB"
-
     ssh_dir = os.path.join(os.path.expanduser("~"), ".ssh")
     config_file = os.path.join(ssh_dir, "config")
     keyfile = os.path.join(ssh_dir, "id_rsa")
 
     config = paramiko.SSHConfig.from_path(config_file).lookup(host)
     logging.debug("config: %s", pformat(config))
+
+    basename = Path(req["input"]).stem
+    fmt = (
+        "JobID,JobName%-90,Partition,Account,"
+        "AllocCPUS,State,ExitCode,MaxVMSize,NodeList"
+    )
+    sacct = do_cmd(["ssh", host, f"sacct -o {SACCT_FORMAT}"])
+    if basename in sacct.stdout:
+        logging.info(f"{basename} already running")
+        return
+
+    max_duration = max_time(req["input"])
+    logging.debug(f"Max transcode duration: {max_duration}")
+
+    rounded_duration = int(round_down_min(duration(req["input"])))
+    logging.debug(f"rounded duration: {rounded_duration} minutes")
+    memory = "8GB" if rounded_duration >= 120 else "8GB"
 
     logdir = root_join("scratch", config["user"], "logs")
     remote_script = root_join(
@@ -161,6 +212,9 @@ def transcode(req, host, email):
         for arg in ("--profiles_path", abs_join(remote_dir, path))
     ]
 
+    # XXX Remove this
+    job_id = req.get("job_id", "0")
+
     remote_cmd_list = [
         "sbatch",
         f"--output={logdir}/transcode-%j.out",
@@ -170,6 +224,7 @@ def transcode(req, host, email):
         remote_script,
         remote_input,
         remote_output,
+        job_id,
         *args_list,
     ]
 
@@ -211,12 +266,18 @@ def transcode(req, host, email):
     stdin, stdout, stderr = ssh.exec_command(remote_cmd)
     stdout.channel.set_combine_stderr(True)
     status = stdout.channel.recv_exit_status()
-    for line in stdout.read().splitlines():
+    output = stdout.read().decode()
+    for line in output.splitlines():
         logging.debug(f"output: {line}")
     ssh.close()
     logging.debug(f"Remote exit status={status}")
     if status:
-        sys.exit(f"Transcribing on host {host} failed")
+        sys.exit(f"Transcoding on host {host} failed")
+    match = re.search(r"Submitted batch job (\d+)", output)
+    if match:
+        slurm_id = match.group(1)
+        logging.debug(f"Slurm ID = {slurm_id}")
+        add_slurm_id(job_id, slurm_id)
 
 
 def get_email():

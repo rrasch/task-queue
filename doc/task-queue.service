@@ -5,6 +5,8 @@ After=cgconfig.service
 After=network-online.target network.target NetworkManager-wait-online.service
 After=rabbitmq-server.service
 After=content-dev.mount content-prod-rstar.mount
+StartLimitIntervalSec=500
+StartLimitBurst=5
 
 [Service]
 Environment="FOREGROUND=true"
@@ -14,6 +16,8 @@ ExecStart=/usr/local/dlib/task-queue/workersctl start
 ExecStop=/usr/local/dlib/task-queue/workersctl stop
 ExecStopPost=/bin/sleep 5
 PrivateTmp=yes
+Restart=on-failure
+RestartSec=60
 
 [Install]
 WantedBy=multi-user.target

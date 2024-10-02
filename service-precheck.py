@@ -3,7 +3,9 @@
 from concurrent.futures import ThreadPoolExecutor
 from systemd import journal
 import argparse
+import os
 import socket
+import subprocess as sp
 import time
 import tqcommon
 import sys
@@ -50,6 +52,40 @@ def log(msg):
         msg: String message sent to journal
     """
     journal.send(msg, SYSLOG_IDENTIFIER="task-queue")
+
+
+def can_list_files(mountpoint, timeout=5):
+    try:
+        sp.run(
+            ["ls", mountpoint],
+            stdout=sp.PIPE,
+            stderr=sp.STDOUT,
+            universal_newlines=True,
+            timeout=timeout,
+        )
+    except (sp.CalledProcessError, sp.TimeoutExpired) as e:
+        return False
+    else:
+        return True
+
+
+def is_nfs_mount(mount_point):
+    with open("/proc/mounts", "r") as f:
+        mounts = f.readlines()
+        for mount in mounts:
+            if mount_point in mount and "nfs" in mount:
+                return True
+    return False
+
+
+def check_nfs_mount(mount_point):
+    if not os.path.ismount(mount_point):
+        return False
+    if not is_nfs_mount(mount_point):
+        return False
+    if not can_list_files(mount_point):
+        return False
+    return True
 
 
 def main():

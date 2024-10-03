@@ -2,21 +2,18 @@
 
 from glob import glob
 from pathlib import Path
-from pprint import pprint
+from pprint import pformat, pprint
 import MySQLdb
 import argparse
 import configparser
 import errno
 import json
+import logging
 import os
 import pika
 import re
 import sqlite3
 import tqcommon
-
-
-# DBFILE = "/content/prod/rstar/tmp/hpc/jobs.db"
-DBFILE = "jobs.db"
 
 
 def gen_vid_requests(req):
@@ -54,8 +51,12 @@ def gen_vid_requests(req):
 
 
 def main():
+    level = logging.DEBUG
+    logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+
     myconfig = tqcommon.get_myconfig()
     sysconfig = tqcommon.get_sysconfig()
+    hpc_config = tqcommon.get_hpc_config()
 
     queue_name = "hpc_transcode"
 
@@ -72,10 +73,15 @@ def main():
     channel = mqconn.channel()
 
     queue = channel.queue_declare(
-        queue=queue_name, durable=True, arguments={"x-max-priority": 10}
+        queue=hpc_config["queue_name"],
+        durable=True,
+        arguments={"x-max-priority": 10},
     )
 
-    print(f"Queue {queue_name} message count: {queue.method.message_count}")
+    logging.debug(
+        f"Queue {hpc_config['queue_name']} message count: "
+        f"{queue.method.message_count}"
+    )
 
     cursor = dbconn.cursor()
     query = (
@@ -83,7 +89,7 @@ def main():
         "FROM batch b, job j "
         "WHERE b.batch_id = j.batch_id "
         "AND j.state = 'pending' "
-        "ORDER BY b.batch_id DESC "
+        "ORDER BY j.job_id DESC "
     )
     cursor.execute(query)
 
@@ -100,9 +106,9 @@ def main():
     cursor.close()
     dbconn.close()
 
-    if not os.path.isfile(DBFILE):
-        print(f"dbfile {DBFILE} doesn't exist.")
-    dbconn = sqlite3.connect(DBFILE)
+    if not os.path.isfile(hpc_config["dbfile"]):
+        print(f"dbfile {hpc_config['dbfile']} doesn't exist.")
+    dbconn = sqlite3.connect(hpc_config["dbfile"])
     cursor = dbconn.cursor()
     cursor.execute(
         """
@@ -127,10 +133,10 @@ def main():
             continue
 
         body = json.dumps(request, indent=4)
-        print(body)
+        logging.debug("body: %s", pformat(body))
         channel.basic_publish(
             exchange="",
-            routing_key=queue_name,
+            routing_key=hpc_config["queue_name"],
             body=body,
             properties=pika.BasicProperties(delivery_mode=delivery_mode),
         )

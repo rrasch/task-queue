@@ -1,6 +1,7 @@
 from configparser import ConfigParser
 import os
 import socket
+import tomli
 
 
 def get_env() -> str:
@@ -33,3 +34,10 @@ def get_myconfig():
     config = ConfigParser()
     config.read(conf_file)
     return dict(config["client"])
+
+
+def get_hpc_config():
+    conf_file = os.path.join(get_rstar_dir(), "etc", "hpc-taskqueue.toml")
+    with open(conf_file, "rb") as f:
+        config = tomli.load(f)
+    return config["main"]

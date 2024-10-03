@@ -140,8 +140,8 @@ def get_profiles(args_str):
     return args.profiles_path
 
 
-def add_slurm_id(job_id, slurm_id):
-    dbconn = sqlite3.connect("jobs.db")
+def add_slurm_id(job_id, slurm_id, dbfile):
+    dbconn = sqlite3.connect(dbfile)
     cursor = dbconn.cursor()
     cursor.execute(
         f"""UPDATE jobs
@@ -171,7 +171,7 @@ def do_cmd(cmdlist, **kwargs):
     return process
 
 
-def transcode(req, host, email):
+def transcode(req, host, email, hpc_config):
     ssh_dir = os.path.join(os.path.expanduser("~"), ".ssh")
     config_file = os.path.join(ssh_dir, "config")
     keyfile = os.path.join(ssh_dir, "id_rsa")
@@ -180,11 +180,7 @@ def transcode(req, host, email):
     logging.debug("config: %s", pformat(config))
 
     basename = Path(req["input"]).stem
-    fmt = (
-        "JobID,JobName%-90,Partition,Account,"
-        "AllocCPUS,State,ExitCode,MaxVMSize,NodeList"
-    )
-    sacct = do_cmd(["ssh", host, f"sacct -o {SACCT_FORMAT}"])
+    sacct = do_cmd(["ssh", host, "~/bin/sacct.sh"])
     if basename in sacct.stdout:
         logging.info(f"{basename} already running")
         return
@@ -212,9 +208,6 @@ def transcode(req, host, email):
         for arg in ("--profiles_path", abs_join(remote_dir, path))
     ]
 
-    # XXX Remove this
-    job_id = req.get("job_id", "0")
-
     remote_cmd_list = [
         "sbatch",
         f"--output={logdir}/transcode-%j.out",
@@ -224,7 +217,7 @@ def transcode(req, host, email):
         remote_script,
         remote_input,
         remote_output,
-        job_id,
+        req["job_id"],
         *args_list,
     ]
 
@@ -277,7 +270,7 @@ def transcode(req, host, email):
     if match:
         slurm_id = match.group(1)
         logging.debug(f"Slurm ID = {slurm_id}")
-        add_slurm_id(job_id, slurm_id)
+        add_slurm_id(job_id, slurm_id, hpc_config["dbfile"])
 
 
 def get_email():
@@ -338,6 +331,7 @@ def main():
     clear_rsync_env()
 
     sysconfig = tqcommon.get_sysconfig()
+    hpc_config = tqcommon.get_hpc_config()
 
     params = pika.ConnectionParameters(
         host=sysconfig["mqhost"], heartbeat=600, blocked_connection_timeout=600
@@ -363,7 +357,7 @@ def main():
         if not os.path.isfile(req["input"]):
             with open(missing_file, "a") as out:
                 out.write(req["input"] + "\n")
-        transcode(req, args.host, args.email)
+        transcode(req, args.host, args.email, hpc_config)
 
         channel.basic_ack(method_frame.delivery_tag)
         logging.debug("Sent ack")

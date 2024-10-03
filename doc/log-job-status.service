@@ -10,7 +10,7 @@ StartLimitBurst=5
 [Service]
 Environment="FOREGROUND=true"
 Type=simple
-ExecStartPre=/usr/local/dlib/task-queue/service-precheck.py --mysql --smtp
+ExecStartPre=/usr/local/dlib/task-queue/service-precheck.py --mysql --smtp --nfs
 ExecStart=/usr/local/dlib/task-queue/log-job-status-ctl start
 ExecStop=/usr/local/dlib/task-queue/log-job-status-ctl stop
 ExecStopPost=/bin/sleep 5

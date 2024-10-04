@@ -212,7 +212,7 @@ def transcode(req, host, email, hpc_config):
         for arg in ("--profiles_path", abs_join(remote_dir, path))
     ]
 
-    job_id = req.get("job_id", "0")
+    job_id = req["job_id"]
 
     remote_cmd_list = [
         "sbatch",

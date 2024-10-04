@@ -2,7 +2,13 @@
 
 set -eu
 
-EXPECTED=18
+EXPECTED=${1:-18}
+
+if ! [[ "$EXPECTED" =~ ^[0-9]+$ ]]; then
+    echo "Input '$EXPECTED' is not a number" >&2
+    echo "Must supply an integer for expected number of consumers." >&2
+    exit 1
+fi
 
 WORKDIR=$HOME/work/task-queue
 

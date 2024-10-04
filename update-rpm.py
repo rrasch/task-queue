@@ -4,11 +4,12 @@ import functools
 import glob
 import logging
 import os
+import pika
 import rpm
 import socket
 import subprocess
+import sys
 import tempfile
-import time
 import tqcommon
 
 
@@ -106,6 +107,21 @@ def can_update(rpm_file):
         return False
 
 
+def is_queue_empty():
+    host = tqcommon.get_sysconfig()["mqhost"]
+    conn = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+    channel = conn.channel()
+    queue = channel.queue_declare(
+        queue="task_queue",
+        durable=True,
+        arguments={"x-max-priority": 10},
+    )
+    num_messages = queue.method.message_count
+    conn.close()
+    logging.debug(f"message count: {num_messages}")
+    return num_messages == 0
+
+
 def main():
     rstar_dir = tqcommon.get_rstar_dir()
 
@@ -120,6 +136,7 @@ def main():
         level=level,
         handlers=[logging.StreamHandler(), logging.FileHandler(logfile)],
     )
+    logging.getLogger("pika").setLevel(logging.WARNING)
 
     repodir = os.path.join(rstar_dir, "repo", "publishing")
     logging.debug(f"repo dir: {repodir}")
@@ -138,8 +155,9 @@ def main():
         print("No rpms found")
         return
     latest_rpm = rpms[-1]
+    logging.debug(f"Latest rpm: {latest_rpm}")
 
-    if can_update(latest_rpm):
+    if can_update(latest_rpm) and is_queue_empty():
         update_cmd = ["bash"]
         if logging.getLogger().isEnabledFor(logging.DEBUG):
             update_cmd.append("-x")
@@ -149,12 +167,12 @@ def main():
         logging.debug(f"update cmd: {update_cmd}")
         result = subprocess.run(
             update_cmd,
-            check=True,
             universal_newlines=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
         logging.debug(f"output: {result.stdout}")
+        sys.exit(result.returncode)
 
 
 if __name__ == "__main__":

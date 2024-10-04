@@ -2,11 +2,13 @@
 
 from pprint import pformat
 import argparse
+import filetype
 import logging
 import os
 import shlex
 import sys
 import time
+import xml.etree.ElementTree as ET
 
 
 class ArgumentParsingError(Exception):
@@ -81,6 +83,23 @@ def get_args(parser):
 
 
 @logfunc
+def is_xml(file_path):
+    try:
+        ET.parse(file_path)
+        return True
+    except ET.ParseError:
+        return False
+
+
+@logfunc
+def is_video(file_path):
+    kind = filetype.guess(file_path)
+    if kind is None:
+        return False
+    return kind.mime.startswith("video/")
+
+
+@logfunc
 def check_sbatch(cmd):
     if cmd[0] != "sbatch":
         logging.debug(f"{cmd[0]} != sbatch")
@@ -112,6 +131,28 @@ def check_sbatch(cmd):
         logging.exception(f"Can't parse args {main_args}")
         return False
 
+    script_file = os.path.join(
+        os.path.expanduser("~"), "work", "hpc-transcode", "submit-one.sh"
+    )
+    if parsed_args.script != script_file:
+        logging.error(f"{parsed_args.script} != {script_file}")
+        return False
+
+    if not is_video(parsed_args.input):
+        logging.error(f"{parsed_args.input} is not a video file")
+        return False
+
+    if not parsed_args.output.startswith(os.environ["SCRATCH"]):
+        logging.error(
+            f"Output base '{parsed_args.output}' does not start with"
+            f" '{os.environ['SCRATCH']}'"
+        )
+        return False
+
+    if not parsed_args.job_id.isdigit():
+        logging.error(f"{parsed_args.job_id} is not an integer")
+        return False
+
     profile_args = cmd_args[num_args:]
     parser = ArgumentParser(add_help=False)
     parser.add_argument("--profiles_path", action="append")
@@ -121,6 +162,11 @@ def check_sbatch(cmd):
     except ArgumentParsingError:
         logging.exception(f"Can't parse args {profile_args}")
         return False
+
+    for profile in parsed_args.profiles_path or []:
+        if not is_xml(profile):
+            logging.error(f"{profile} is no a valid XML file.")
+            return False
 
     return True
 
@@ -139,7 +185,6 @@ def check_sacct(cmd):
 
 def main():
     level = logging.DEBUG
-    homedir = os.path.expanduser("~")
     logfile = os.path.join(os.path.expanduser("~"), "logs", "ssh-command-log")
     logging.basicConfig(
         format="%(asctime)s %(levelname)s: %(message)s",
@@ -147,6 +192,13 @@ def main():
         datefmt="%m/%d/%Y %I:%M:%S %p",
         handlers=[logging.FileHandler(logfile)],
     )
+
+    logging.debug("env: %s:", pformat(dict(os.environ)))
+
+    os.environ.pop("DISPLAY", "")
+    os.environ.pop("XDG_SESSION_COOKIE", "")
+    os.environ.pop("XAUTHORITY", "")
+
     cmd_str = os.environ["SSH_ORIGINAL_COMMAND"]
     logging.debug(f"Original commmand: {cmd_str}")
 

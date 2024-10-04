@@ -38,7 +38,6 @@ def gen_vid_requests(req):
                 }
             )
     else:
-        files = [input_path]
         requests = [
             {
                 "input": req["input_path"],
@@ -53,6 +52,7 @@ def gen_vid_requests(req):
 def main():
     level = logging.DEBUG
     logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+    logging.getLogger("pika").setLevel(logging.WARNING)
 
     myconfig = tqcommon.get_myconfig()
     sysconfig = tqcommon.get_sysconfig()
@@ -102,6 +102,8 @@ def main():
         if not (req["class"] == "video" and req["operation"] == "transcode"):
             continue
         requests.extend(gen_vid_requests(req))
+
+    logging.debug("requests:\n%s", pformat(requests))
 
     cursor.close()
     dbconn.close()

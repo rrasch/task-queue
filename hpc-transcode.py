@@ -179,8 +179,12 @@ def transcode(req, host, email, hpc_config):
     config = paramiko.SSHConfig.from_path(config_file).lookup(host)
     logging.debug("config: %s", pformat(config))
 
+    remote_homedir = root_join("home", config["user"])
+    remote_scratch = root_join("scratch", config["user"])
+
     basename = Path(req["input"]).stem
-    sacct = do_cmd(["ssh", host, "~/bin/sacct.sh"])
+    sacct_path = root_join(remote_homedir, "bin", "sacct.sh")
+    sacct = do_cmd(["ssh", host, sacct_path])
     if basename in sacct.stdout:
         logging.info(f"{basename} already running")
         return
@@ -208,6 +212,8 @@ def transcode(req, host, email, hpc_config):
         for arg in ("--profiles_path", abs_join(remote_dir, path))
     ]
 
+    job_id = req.get("job_id", "0")
+
     remote_cmd_list = [
         "sbatch",
         f"--output={logdir}/transcode-%j.out",
@@ -217,7 +223,7 @@ def transcode(req, host, email, hpc_config):
         remote_script,
         remote_input,
         remote_output,
-        req["job_id"],
+        job_id,
         *args_list,
     ]
 
@@ -280,8 +286,11 @@ def get_email():
 
 
 def main():
+    sysconfig = tqcommon.get_sysconfig()
+    hpc_config = tqcommon.get_hpc_config()
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="localhost")
+    parser.add_argument("--host", default=hpc_config["remote_host"])
     parser.add_argument(
         "-c",
         "--count",
@@ -329,9 +338,6 @@ def main():
     logging.debug(f"{script_dir} {script_name} {missing_file}")
 
     clear_rsync_env()
-
-    sysconfig = tqcommon.get_sysconfig()
-    hpc_config = tqcommon.get_hpc_config()
 
     params = pika.ConnectionParameters(
         host=sysconfig["mqhost"], heartbeat=600, blocked_connection_timeout=600

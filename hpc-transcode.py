@@ -315,11 +315,11 @@ def main():
     )
     args = parser.parse_args()
 
-    fmt = "%(levelname)s|%(name)s: %(message)s"
+    fmt = "%(asctime)s|%(levelname)s|%(name)s: %(message)s"
     if args.debug:
         level = {
             "default": logging.DEBUG,
-            "pika": logging.INFO,
+            "pika": logging.WARNING,
             "paramiko.transport": logging.DEBUG,
         }
     else:
@@ -328,14 +328,20 @@ def main():
             "pika": logging.WARNING,
             "paramiko.transport": logging.WARNING,
         }
-    logging.basicConfig(format=fmt, level=level["default"])
+    logging.basicConfig(
+        format=fmt,
+        datefmt="%m/%d/%Y %I:%M:%S %p",
+        level=level["default"],
+    )
     level.pop("default")
     for mod, lvl in level.items():
         logging.getLogger(mod).setLevel(lvl)
 
     script_dir, script_name = script_paths()
     missing_file = os.path.join(script_dir, "missing.txt")
-    logging.debug(f"{script_dir} {script_name} {missing_file}")
+    logging.debug(f"script dir='{script_dir}'")
+    logging.debug(f"script_name='{script_name}'")
+    logging.debug(f"missing file='{missing_file}'")
 
     clear_rsync_env()
 
@@ -354,7 +360,7 @@ def main():
     for _ in range(args.count):
         method_frame, header_frame, body = channel.basic_get(queue=queue_name)
         if not method_frame:
-            logging.info("No message available")
+            logging.debug("No message available")
             break
 
         request = body.decode()

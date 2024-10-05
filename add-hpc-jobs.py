@@ -13,6 +13,7 @@ import os
 import pika
 import re
 import sqlite3
+import sys
 import tqcommon
 
 
@@ -50,7 +51,13 @@ def gen_vid_requests(req):
 
 
 def main():
-    level = logging.DEBUG
+    parser = argparse.ArgumentParser(description="Add video jobs to hpc queue")
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debugging"
+    )
+    args = parser.parse_args()
+
+    level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
     logging.getLogger("pika").setLevel(logging.WARNING)
 
@@ -109,7 +116,7 @@ def main():
     dbconn.close()
 
     if not os.path.isfile(hpc_config["dbfile"]):
-        print(f"dbfile {hpc_config['dbfile']} doesn't exist.")
+        sys.exit(f"sqlite database '{hpc_config['dbfile']}' doesn't exist.")
     dbconn = sqlite3.connect(hpc_config["dbfile"])
     cursor = dbconn.cursor()
     cursor.execute(
@@ -135,7 +142,7 @@ def main():
             continue
 
         body = json.dumps(request, indent=4)
-        logging.debug("body: %s", pformat(body))
+        logging.info("Adding video request: %s", pformat(body))
         channel.basic_publish(
             exchange="",
             routing_key=hpc_config["queue_name"],

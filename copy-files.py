@@ -122,6 +122,10 @@ def move_file(path, jobid, config):
     backup_file = f"{path}.backup"
     shutil.move(path, backup_file)
 
+    cmd = get_ssh(config, for_rsync=False) + [f"~/bin/cleanup {data['job_id']}"]
+    output = do_cmd(cmd, stderr=subprocess.STDOUT)
+    logging.debug(f"cleanup output: {output}")
+
     cs_file = os.path.join(input_dir, f"{basename}_contact_sheet.jpg")
     attachments = [cs_file] if os.path.isfile(cs_file) else []
     notify(attachments, config)
@@ -130,7 +134,7 @@ def move_file(path, jobid, config):
 def process(config):
     for entry in os.listdir(config["logdir"]):
         path = os.path.join(config["logdir"], entry)
-        match = re.search(r"^(\d+)\.json", entry)
+        match = re.search(r"^(\d+)\.json$", entry)
         if match:
             jobid = match.group(1)
             logging.debug(f"logfile: {path}")
@@ -161,8 +165,7 @@ def set_env():
         sys.exit("ssh-agent not running")
 
 
-def sync_fs(config):
-    # set_env()
+def get_ssh(config, for_rsync=True):
     ssh = [
         "/usr/bin/ssh",
         "-i",
@@ -172,14 +175,20 @@ def sync_fs(config):
         "-o",
         "IdentitiesOnly=yes",
     ]
-    ssh = " ".join(ssh)
+    if for_rsync:
+        return " ".join(ssh)
+    else:
+        ssh.append(config["remote_host"])
+        return ssh
 
+
+def sync_fs(config):
     output = do_cmd(
         [
             "/usr/bin/rsync",
             "-avz",
             "-e",
-            ssh,
+            get_ssh(config, for_rsync=True),
             "--delete",
             "--exclude=*.mov",
             "--exclude=.*",
@@ -192,23 +201,25 @@ def sync_fs(config):
 
 
 def main():
+    script_name, ext = os.path.splitext(
+        os.path.basename(os.path.realpath(sys.argv[0]))
+    )
+    default_logfile = os.path.join(
+        tqcommon.get_rstar_dir(), "tmp", f"{script_name}.log"
+    )
+
     parser = argparse.ArgumentParser(description="Add video jobs to hpc queue")
     parser.add_argument(
         "-d", "--debug", action="store_true", help="Enable debugging"
     )
+    parser.add_argument("-l", "--logfile", default=default_logfile)
+    parser.add_argument("-k", "--keyfile")
+    parser.add_argument("--no-sync", action="store_true")
     args = parser.parse_args()
 
-    script_name, ext = os.path.splitext(
-        os.path.basename(os.path.realpath(sys.argv[0]))
-    )
-
     level = logging.DEBUG if args.debug else logging.INFO
-    logfile = os.path.join(
-        tqcommon.get_rstar_dir(), "tmp", f"{script_name}.log"
-    )
-    # file_handler = logging.FileHandler(logfile)
     file_handler = RotatingFileHandler(
-        logfile, maxBytes=10 * 1024 * 1024, backupCount=3
+        args.logfile, maxBytes=10 * 1024 * 1024, backupCount=3
     )
     logging.basicConfig(
         format="%(asctime)s|%(levelname)s: %(message)s",
@@ -218,9 +229,12 @@ def main():
     )
 
     config = tqcommon.get_hpc_config()
+    if args.keyfile:
+        config["ssh_key"] = args.keyfile
 
     with FileLock(config["lock_file"], timeout=3):
-        sync_fs(config)
+        if not args.no_sync:
+            sync_fs(config)
         process(config)
 
 

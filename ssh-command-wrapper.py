@@ -5,6 +5,7 @@ import argparse
 import filetype
 import logging
 import os
+import re
 import shlex
 import sys
 import time
@@ -171,8 +172,7 @@ def check_sbatch(cmd):
     return True
 
 
-def check_home_cmds(cmd):
-    scripts = ["sacct.sh", "cleanup"]
+def get_home_cmds(scripts):
     homedir = os.path.expanduser("~")
     cmd_list = [
         os.path.join(dirname, "bin", basename)
@@ -180,10 +180,29 @@ def check_home_cmds(cmd):
         for dirname in ("~", homedir)
     ]
     logging.debug(f"cmd list: {cmd_list}")
-    if cmd not in cmd_list:
+    return cmd_list
+
+
+@logfunc
+def check_scmds(cmd):
+    scripts = ["sacct.sh", "squeue.sh"]
+    cmd_list = get_home_cmds(scripts)
+    if len(cmd) != 1:
+        logging.error(f"len({cmd}) != 1")
+        return False
+    if cmd[0] not in cmd_list:
         logging.error(f"{cmd} not in {cmd_list}")
         return False
     return True
+
+
+@logfunc
+def check_cleanup(cmd):
+    return (
+        len(cmd) == 2
+        and cmd[0] in get_home_cmds(["cleanup"])
+        and cmd[1].isdigit()
+    )
 
 
 def main():
@@ -212,17 +231,23 @@ def main():
 
     logging.debug("env: %s:", pformat(dict(os.environ)))
 
-    if check_home_cmds(cmd_str):
-        pass
-    elif check_rsync(cmd_list):
-        pass
-    elif check_rsync_sender(cmd_list):
-        pass
-    elif check_sbatch(cmd_list):
-        pass
-    else:
+    check_list = ["scmds", "rsync", "rsync_sender", "cleanup"]
+
+    is_valid = False
+    for check in check_list:
+        check_func = globals()[f"check_{check}"]
+        if check_func(cmd_list):
+            is_valid = True
+            break
+
+    if not is_valid:
         logging.error("Access denied")
         sys.exit("Access denied")
+
+    cmd_list[0] = re.sub(
+        rf"^~{os.sep}", os.path.expanduser("~") + os.sep, cmd_list[0]
+    )
+    logging.debug("cmd: %s", pformat(cmd_list))
 
     os.execvp(cmd_list[0], cmd_list)
 

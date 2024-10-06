@@ -171,14 +171,17 @@ def check_sbatch(cmd):
     return True
 
 
-def check_sacct(cmd):
-    sacct_paths = [
-        os.path.join(d, "bin", "sacct.sh")
-        for d in ("~", os.path.expanduser("~"))
+def check_home_cmds(cmd):
+    scripts = ["sacct.sh", "cleanup"]
+    homedir = os.path.expanduser("~")
+    cmd_list = [
+        os.path.join(dirname, "bin", basename)
+        for basename in scripts
+        for dirname in ("~", homedir)
     ]
-    logging.debug(f"sacct paths: {sacct_paths}")
-    if cmd not in sacct_paths:
-        logging.error(f"{cmd} not in {sacct_paths}")
+    logging.debug(f"cmd list: {cmd_list}")
+    if cmd not in cmd_list:
+        logging.error(f"{cmd} not in {cmd_list}")
         return False
     return True
 
@@ -193,11 +196,8 @@ def main():
         handlers=[logging.FileHandler(logfile)],
     )
 
-    logging.debug("env: %s:", pformat(dict(os.environ)))
-
-    os.environ.pop("DISPLAY", "")
-    os.environ.pop("XDG_SESSION_COOKIE", "")
-    os.environ.pop("XAUTHORITY", "")
+    if "SSH_ORIGINAL_COMMAND" not in os.environ:
+        sys.exit("Access denied")
 
     cmd_str = os.environ["SSH_ORIGINAL_COMMAND"]
     logging.debug(f"Original commmand: {cmd_str}")
@@ -205,7 +205,14 @@ def main():
     cmd_list = shlex.split(cmd_str)
     logging.debug("cmd: %s", pformat(cmd_list))
 
-    if check_sacct(cmd_str):
+    os.environ["PATH"] = "/bin:/usr/bin:/opt/slurm/bin"
+    os.environ.pop("DISPLAY", "")
+    os.environ.pop("XDG_SESSION_COOKIE", "")
+    os.environ.pop("XAUTHORITY", "")
+
+    logging.debug("env: %s:", pformat(dict(os.environ)))
+
+    if check_home_cmds(cmd_str):
         pass
     elif check_rsync(cmd_list):
         pass

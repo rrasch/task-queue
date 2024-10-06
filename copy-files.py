@@ -4,7 +4,9 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from filelock import Timeout, FileLock
+from logging.handlers import RotatingFileHandler
 from pprint import pformat
+import argparse
 import contextlib
 import json
 import logging
@@ -93,7 +95,9 @@ def move_file(path, jobid, config):
 
     cwd = os.getcwd()
     os.chdir(input_dir)
-    process = subprocess.run(["md5sum", "--check", "--strict", checksum_file])
+    process = subprocess.run(
+        ["/usr/bin/md5sum", "--check", "--strict", checksum_file]
+    )
     os.chdir(cwd)
 
     if process.returncode != 0:
@@ -112,10 +116,11 @@ def move_file(path, jobid, config):
         logging.debug(f"dst file: {dst}")
         if os.path.isfile(dst):
             print(f"Video file '{dst}' already exists.")
-        # shutil.move(src, dst)
+        else:
+            shutil.move(src, dst)
 
-    # backup_file = f"{path}.backup"
-    # shutil.move(path, backup_file)
+    backup_file = f"{path}.backup"
+    shutil.move(path, backup_file)
 
     cs_file = os.path.join(input_dir, f"{basename}_contact_sheet.jpg")
     attachments = [cs_file] if os.path.isfile(cs_file) else []
@@ -134,7 +139,10 @@ def process(config):
 
 def do_cmd(cmd, stderr=subprocess.PIPE):
     process = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=stderr, universal_newlines=True
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=stderr,
+        universal_newlines=True,
     )
     return process.stdout.strip()
 
@@ -150,17 +158,28 @@ def set_env():
             ["pgrep", "-u", userid, "ssh-agent"]
         )
     if not (os.environ["SSH_AUTH_SOCK"] and os.environ["SSH_AGENT_PID"]):
-        print("ssh-agent not running", file=sys.stderr)
+        sys.exit("ssh-agent not running")
 
 
 def sync_fs(config):
-    set_env()
+    # set_env()
+    ssh = [
+        "/usr/bin/ssh",
+        "-i",
+        config["ssh_key"],
+        "-o",
+        "PreferredAuthentications=publickey",
+        "-o",
+        "IdentitiesOnly=yes",
+    ]
+    ssh = " ".join(ssh)
+
     output = do_cmd(
         [
-            "rsync",
+            "/usr/bin/rsync",
             "-avz",
             "-e",
-            "ssh",
+            ssh,
             "--delete",
             "--exclude=*.mov",
             "--exclude=.*",
@@ -169,15 +188,36 @@ def sync_fs(config):
         ],
         stderr=subprocess.STDOUT,
     )
-    logging.debug("output: %s", output)
+    logging.debug("rsync output: %s", output)
 
 
 def main():
-    level = logging.DEBUG
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+    parser = argparse.ArgumentParser(description="Add video jobs to hpc queue")
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debugging"
+    )
+    args = parser.parse_args()
+
+    script_name, ext = os.path.splitext(
+        os.path.basename(os.path.realpath(sys.argv[0]))
+    )
+
+    level = logging.DEBUG if args.debug else logging.INFO
+    logfile = os.path.join(
+        tqcommon.get_rstar_dir(), "tmp", f"{script_name}.log"
+    )
+    # file_handler = logging.FileHandler(logfile)
+    file_handler = RotatingFileHandler(
+        logfile, maxBytes=10 * 1024 * 1024, backupCount=3
+    )
+    logging.basicConfig(
+        format="%(asctime)s|%(levelname)s: %(message)s",
+        datefmt="%m/%d/%Y %I:%M:%S %p",
+        level=level,
+        handlers=[logging.StreamHandler(), file_handler],
+    )
 
     config = tqcommon.get_hpc_config()
-    logging.debug("config: %s", pformat(config))
 
     with FileLock(config["lock_file"], timeout=3):
         sync_fs(config)

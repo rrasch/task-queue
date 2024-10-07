@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 from filelock import Timeout, FileLock
 from logging.handlers import RotatingFileHandler
 from pprint import pformat
+import MySQLdb
 import argparse
 import contextlib
 import json
@@ -88,6 +89,32 @@ def update_db(job_id, dbfile):
     )
     dbconn.commit()
     dbconn.close()
+
+
+def update_task_queue_db(data):
+    config = tqcommon.get_myconfig()
+    conn = MySQLdb.connect(
+        host=config["host"],
+        database=conifg["database"],
+        user=config["user"],
+        password=config["password"],
+        connect_timeout=10,
+    )
+    cursor = conn.cursor()
+    num_rows = cursor.execute(
+        f"""UPDATE job
+        SET started = %s, completed = %s
+        WHERE job_id = %s
+        """,
+        (
+            data["start_time"],
+            data["end_time"],
+            data["job_id"],
+        ),
+    )
+    cursor.close()
+    conn.close()
+    return num_rows
 
 
 def move_file(path, jobid, config):

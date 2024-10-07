@@ -18,6 +18,7 @@ import sqlite3
 import subprocess
 import sys
 import tqcommon
+import util
 
 
 @contextlib.contextmanager
@@ -182,6 +183,7 @@ def set_env():
         sys.exit("ssh-agent not running")
 
 
+@util.logfunc
 def get_ssh(config, for_rsync=True):
     ssh = [
         "/usr/bin/ssh",
@@ -193,7 +195,7 @@ def get_ssh(config, for_rsync=True):
         "IdentitiesOnly=yes",
     ]
     if for_rsync:
-        return " ".join(ssh)
+        return util.shlex_join(ssh)
     else:
         ssh.append(config["remote_host"])
         return ssh

@@ -219,6 +219,13 @@ def sync_fs(config):
     logging.debug("rsync output: %s", output)
 
 
+def validate_filepath(filepath):
+    """Validates a filepath and returns it if valid."""
+    if not os.path.exists(filepath):
+        raise argparse.ArgumentTypeError(f"File not found: '{filepath}'")
+    return filepath
+
+
 def main():
     script_name, ext = os.path.splitext(
         os.path.basename(os.path.realpath(sys.argv[0]))
@@ -232,7 +239,7 @@ def main():
         "-d", "--debug", action="store_true", help="Enable debugging"
     )
     parser.add_argument("-l", "--logfile", default=default_logfile)
-    parser.add_argument("-k", "--keyfile")
+    parser.add_argument("-k", "--keyfile", type=validate_filepath)
     parser.add_argument("--no-sync", action="store_true")
     args = parser.parse_args()
 

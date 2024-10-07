@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import smtplib
+import sqlite3
 import subprocess
 import sys
 import tqcommon
@@ -75,6 +76,19 @@ def notify(attachments, config):
     # post_photo(config["iguser"], config["igpass"], attachments[0], subject)
 
 
+def update_db(job_id, dbfile):
+    dbconn = sqlite3.connect(dbfile)
+    cursor = dbconn.cursor()
+    cursor.execute(
+        f"""UPDATE jobs
+        SET state = 'done'
+        WHERE job_id = {job_id}
+        """
+    )
+    dbconn.commit()
+    dbconn.close()
+
+
 def move_file(path, jobid, config):
     with open(path) as f:
         data = json.load(f)
@@ -118,9 +132,12 @@ def move_file(path, jobid, config):
             print(f"Video file '{dst}' already exists.")
         else:
             shutil.move(src, dst)
+            os.chmod(dst, 0o644)
 
     backup_file = f"{path}.backup"
     shutil.move(path, backup_file)
+
+    update_db(data["job_id"], config["dbfile"])
 
     cmd = get_ssh(config, for_rsync=False) + [f"~/bin/cleanup {data['job_id']}"]
     output = do_cmd(cmd, stderr=subprocess.STDOUT)

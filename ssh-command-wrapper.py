@@ -164,7 +164,15 @@ def check_sbatch(cmd):
         logging.exception(f"Can't parse args {profile_args}")
         return False
 
+    conf_dir = os.path.join(
+        os.path.expanduser("~"),
+        "work",
+        "convert2mp4",
+        "conf",
+    )
     for profile in parsed_args.profiles_path or []:
+        if not os.path.isabs(profile):
+            profile = os.path.join(conf_dir, profile)
         if not is_xml(profile):
             logging.error(f"{profile} is no a valid XML file.")
             return False
@@ -231,7 +239,7 @@ def main():
 
     logging.debug("env: %s:", pformat(dict(os.environ)))
 
-    check_list = ["scmds", "rsync", "rsync_sender", "cleanup"]
+    check_list = ["scmds", "sbatch", "rsync", "rsync_sender", "cleanup"]
 
     is_valid = False
     for check in check_list:

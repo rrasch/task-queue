@@ -157,7 +157,7 @@ def move_file(path, jobid, config):
         logging.debug(f"src file: {src}")
         logging.debug(f"dst file: {dst}")
         if os.path.isfile(dst):
-            print(f"Video file '{dst}' already exists.")
+            logging.info(f"Video file '{dst}' already exists.")
         else:
             shutil.move(src, dst)
             os.chmod(dst, 0o644)

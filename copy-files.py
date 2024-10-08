@@ -3,7 +3,7 @@
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from filelock import Timeout, FileLock
+from filelock import FileLock
 from logging.handlers import RotatingFileHandler
 from pprint import pformat
 import MySQLdb
@@ -69,11 +69,14 @@ def post_photo(user, pwd, img_file, caption):
     logging.debug("media: %s", pformat(media))
 
 
-def notify(attachments, config):
+def notify(data, attachments, config):
     sender = config["mailfrom"]
     receivers = config["mailto"]
-    subject = "completed"
-    body = subject
+    subject = (
+        f"hpc job {data['job_id']} completed {data['end_time']} "
+        f"with exit status {data['exit_status']}"
+    )
+    body = subject + "\n\n" + json.dumps(data, indent=4)
     send_mail(sender, receivers, subject, body, attachments)
     # post_photo(config["iguser"], config["igpass"], attachments[0], subject)
 
@@ -95,14 +98,14 @@ def update_task_queue_db(data):
     config = tqcommon.get_myconfig()
     conn = MySQLdb.connect(
         host=config["host"],
-        database=conifg["database"],
+        database=config["database"],
         user=config["user"],
         password=config["password"],
         connect_timeout=10,
     )
     cursor = conn.cursor()
     num_rows = cursor.execute(
-        f"""UPDATE job
+        """UPDATE job
         SET started = %s, completed = %s
         WHERE job_id = %s
         """,
@@ -173,7 +176,7 @@ def move_file(path, jobid, config):
 
     cs_file = os.path.join(input_dir, f"{basename}_contact_sheet.jpg")
     attachments = [cs_file] if os.path.isfile(cs_file) else []
-    notify(attachments, config)
+    notify(data, attachments, config)
 
 
 def process(config):

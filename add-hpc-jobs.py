@@ -3,6 +3,7 @@
 from glob import glob
 from pathlib import Path
 from pprint import pformat, pprint
+from util import is_pos_int
 import MySQLdb
 import argparse
 import configparser
@@ -55,11 +56,42 @@ def main():
     parser.add_argument(
         "-d", "--debug", action="store_true", help="Enable debugging"
     )
+    parser.add_argument(
+        "-n",
+        "--dry-run",
+        action="store_true",
+        help="Don't actually add job, implies --debug",
+    )
+    parser.add_argument(
+        "--create-database", action="store_true", help="Create database"
+    )
+    parser.add_argument(
+        "-s",
+        "--job-state",
+        default="pending",
+        help="Get jobs from task queue in this state, e.g. 'success'",
+    )
+    parser.add_argument(
+        "-l",
+        "--limit",
+        type=is_pos_int,
+        default=100,
+        help="Limit jobs added to queue to this number",
+    )
     args = parser.parse_args()
 
+    if args.dry_run:
+        args.debug = True
+
     level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+    logging.basicConfig(
+        format="%(asctime)s|%(levelname)s: %(message)s",
+        datefmt="%m/%d/%Y %I:%M:%S %p",
+        level=level,
+    )
     logging.getLogger("pika").setLevel(logging.WARNING)
+
+    logging.debug(f"args: {args}")
 
     myconfig = tqcommon.get_myconfig()
     sysconfig = tqcommon.get_sysconfig()
@@ -95,10 +127,13 @@ def main():
         "SELECT j.batch_id, j.job_id, b.cmd_line, j.request "
         "FROM batch b, job j "
         "WHERE b.batch_id = j.batch_id "
-        "AND j.state = 'pending' "
+        "AND j.state = %s "
+        "AND j.request LIKE '%%video%%' "
         "ORDER BY j.job_id DESC "
+        "LIMIT %s "
     )
-    cursor.execute(query)
+    num_rows = cursor.execute(query, (args.job_state, args.limit))
+    logging.debug(f"Num rows: {num_rows}")
 
     requests = []
 
@@ -115,34 +150,41 @@ def main():
     cursor.close()
     dbconn.close()
 
+    if args.dry_run:
+        sys.exit()
+
     if not os.path.isfile(hpc_config["dbfile"]):
         sys.exit(f"sqlite database '{hpc_config['dbfile']}' doesn't exist.")
     dbconn = sqlite3.connect(hpc_config["dbfile"])
     cursor = dbconn.cursor()
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS jobs (
-            job_id INTEGER PRIMARY KEY NOT NULL UNIQUE,
-            slurm_id INTEGER,
-            output TEXT NOT NULL,
-            state TEXT NOT NULL CHECK (state IN ('pending', 'running', 'done'))
+    if args.create_database:
+        cursor.execute("DROP TABLE IF EXISTS jobs")
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS jobs (
+                job_id INTEGER PRIMARY KEY NOT NULL UNIQUE,
+                slurm_id INTEGER,
+                output TEXT,
+                state TEXT NOT NULL
+                    CHECK (state IN ('pending', 'running', 'done'))
+            )
+            """
         )
-    """
-    )
 
     # delivery_mode=pika.DeliveryMode.Persistent
     delivery_mode = 2
 
     for request in requests:
         result = cursor.execute(
-            f"SELECT job_id FROM jobs WHERE job_id = {request['job_id']}"
+            "SELECT job_id FROM jobs WHERE job_id = ?", (request["job_id"],)
         )
         row = result.fetchone()
         if row:
+            logging.info("job_id %s already in db", request["job_id"])
             continue
 
         body = json.dumps(request, indent=4)
-        logging.info("Adding video request: %s", pformat(body))
+        logging.info("Adding video request: %s", body)
         channel.basic_publish(
             exchange="",
             routing_key=hpc_config["queue_name"],
@@ -152,9 +194,10 @@ def main():
 
         cursor.execute(
             f"""
-            INSERT INTO jobs (job_id, output, state)
-            VALUES ({request['job_id']}, '{request['job_id']}', 'pending')
-            """
+            INSERT INTO jobs (job_id, state)
+            VALUES (?, 'pending')
+            """,
+            (request["job_id"],),
         )
 
     mqconn.close()

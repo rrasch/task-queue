@@ -1,3 +1,4 @@
+from argparse import ArgumentTypeError
 import logging
 import time
 import shlex
@@ -37,3 +38,13 @@ def logfunc(func):
 def shlex_join(split_command):
     """Return a shell-escaped string from *split_command*."""
     return " ".join(shlex.quote(arg) for arg in split_command)
+
+
+def is_pos_int(val):
+    try:
+        int_val = int(val)
+    except ValueError:
+        int_val = None
+    if int_val is None or int_val < 1:
+        raise ArgumentTypeError(f"'{val}' is not a positive integer")
+    return int_val

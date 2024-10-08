@@ -5,6 +5,7 @@ from itertools import chain, repeat
 from mutagen import File
 from pathlib import Path
 from pprint import pformat, pprint
+from pymediainfo import MediaInfo
 from scp import SCPClient
 from signal import SIGHUP, SIG_IGN, signal
 from subprocess import CalledProcessError, DEVNULL, PIPE, Popen, STDOUT, run
@@ -87,10 +88,28 @@ def round_down_min(minutes, to_min=30):
     return minutes // to_min * to_min
 
 
+class VideoTrackNotFound(Exception):
+    __module__ = "builtins"
+
+
 def duration(input_file, minutes=True):
-    video_file = File(input_file, easy=True)
-    logging.debug("video metadata: %s", video_file.pprint())
-    duration_sec = video_file.info.length
+    # video_file = File(input_file, easy=True)
+    # logging.debug("video metadata: %s", video_file.pprint())
+    # duration_sec = video_file.info.length
+    media_info = MediaInfo.parse(input_file)
+    video_tracks = [
+        track for track in media_info.tracks if track.track_type == "Video"
+    ]
+    if not video_tracks:
+        raise VideoTrackNotFound(f"No video track found for {input_file}")
+    video = video_tracks[0]
+    logging.debug("data: %s", pformat(video.to_data()))
+    logging.debug(
+        f"Bit rate: {video.bit_rate}, Frame rate: {video.frame_rate}, "
+        f"Format: {video.format}, "
+        f"Duration (raw value): {video.duration} "
+    )
+    duration_sec = video.duration / 1000
     duration_min = duration_sec / 60
     logging.debug(f"duration: {duration_min:.3f} minutes")
     return duration_min if minutes else duration_sec
@@ -136,7 +155,6 @@ def get_profiles(args_str):
     except ArgumentParsingError as e:
         logging.exception(f"Error processing arguments")
         sys.exit(1)
-    print(args)
     return args.profiles_path
 
 
@@ -144,10 +162,11 @@ def add_slurm_id(job_id, slurm_id, dbfile):
     dbconn = sqlite3.connect(dbfile)
     cursor = dbconn.cursor()
     cursor.execute(
-        f"""UPDATE jobs
-        SET slurm_id = {slurm_id}, state = 'running'
-        WHERE job_id = {job_id}
-        """
+        """UPDATE jobs
+        SET slurm_id = ?, state = 'running'
+        WHERE job_id = ?
+        """,
+        (slurm_id, job_id),
     )
     dbconn.commit()
     dbconn.close()
@@ -205,11 +224,18 @@ def transcode(req, host, email, hpc_config):
     remote_output = abs_join(remote_dir, req["output"])
 
     profile_paths = get_profiles(req["args"])
-    src_files = [req["input"], *profile_paths]
+    src_files = [req["input"]]
+    for path in profile_paths:
+        if os.path.isabs(path):
+            src_files.append(path)
+
     args_list = [
         arg
         for path in profile_paths
-        for arg in ("--profiles_path", abs_join(remote_dir, path))
+        for arg in (
+            "--profiles_path",
+            abs_join(remote_dir, path) if os.path.isabs(path) else path,
+        )
     ]
 
     job_id = req["job_id"]
@@ -223,7 +249,7 @@ def transcode(req, host, email, hpc_config):
         remote_script,
         remote_input,
         remote_output,
-        job_id,
+        str(job_id),
         *args_list,
     ]
 
@@ -236,10 +262,11 @@ def transcode(req, host, email, hpc_config):
     try:
         ret = run(
             [
-                "rsync",
+                "/usr/bin/rsync",
                 "-Rsavzhessh",
                 "--progress",
                 "--stats",
+                "--copy-links",
                 *src_files,
                 f"{host}:{remote_dir}",
             ],
@@ -274,7 +301,7 @@ def transcode(req, host, email, hpc_config):
         sys.exit(f"Transcoding on host {host} failed")
     match = re.search(r"Submitted batch job (\d+)", output)
     if match:
-        slurm_id = match.group(1)
+        slurm_id = int(match.group(1))
         logging.debug(f"Slurm ID = {slurm_id}")
         add_slurm_id(job_id, slurm_id, hpc_config["dbfile"])
 
@@ -289,7 +316,14 @@ def main():
     sysconfig = tqcommon.get_sysconfig()
     hpc_config = tqcommon.get_hpc_config()
 
-    parser = argparse.ArgumentParser()
+    if "mailto" in hpc_config:
+        default_email = hpc_config["mailto"][0]
+    else:
+        default_email = get_emmail()
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("--host", default=hpc_config["remote_host"])
     parser.add_argument(
         "-c",
@@ -302,7 +336,7 @@ def main():
     parser.add_argument(
         "-e",
         "--email",
-        default=get_email(),
+        default=default_email,
         help="Email for slurm notifications",
     )
     parser.add_argument(

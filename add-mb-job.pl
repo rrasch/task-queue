@@ -121,7 +121,7 @@ exit(0) if $opt{t};
 
 $dbh->do("
 	INSERT into batch (user_id, cmd_line)
-	VALUES ('$login', '$cmd_line')")
+	VALUES (?, ?)", undef, $login, $cmd_line)
   or die $dbh->errstr;
 
 my $batch_id = $dbh->{mysql_insertid};

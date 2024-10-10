@@ -260,7 +260,7 @@ def validate_email(email):
         r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email
     ):
         raise argparse.ArgumentTypeError(f"'{email}' is not a valid email")
-    return value
+    return email
 
 
 def main():

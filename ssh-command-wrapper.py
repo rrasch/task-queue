@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
 from pprint import pformat
+from pymediainfo import MediaInfo
 import argparse
 import filetype
 import logging
+import magic
 import os
 import re
 import shlex
@@ -93,11 +95,28 @@ def is_xml(file_path):
 
 
 @logfunc
-def is_video(file_path):
+def is_video_filetype(file_path):
     kind = filetype.guess(file_path)
+    logging.debug(f"kind: {kind}")
     if kind is None:
         return False
     return kind.mime.startswith("video/")
+
+
+@logfunc
+def is_video_mediainfo(file_path):
+    media_info = MediaInfo.parse(file_path)
+    for track in media_info.tracks:
+        if track.track_type == "Video":
+            return True
+    return False
+
+
+@logfunc
+def is_video(file_path):
+    mime_type = magic.Magic(mime=True).from_file(file_path)
+    logging.debug(f"mime type: {mime_type}")
+    return "video" in mime_type
 
 
 @logfunc

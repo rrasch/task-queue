@@ -255,6 +255,14 @@ def validate_filepath(filepath):
     return filepath
 
 
+def validate_email(email):
+    if not re.search(
+        r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email
+    ):
+        raise argparse.ArgumentTypeError(f"'{email}' is not a valid email")
+    return value
+
+
 def main():
     script_name, ext = os.path.splitext(
         os.path.basename(os.path.realpath(sys.argv[0]))
@@ -270,6 +278,9 @@ def main():
     parser.add_argument("-l", "--logfile", default=default_logfile)
     parser.add_argument("-k", "--keyfile", type=validate_filepath)
     parser.add_argument("--no-sync", action="store_true")
+    parser.add_argument(
+        "-e", "--email", type=validate_email, help="Email for notifications"
+    )
     args = parser.parse_args()
 
     level = logging.DEBUG if args.debug else logging.INFO
@@ -286,6 +297,8 @@ def main():
     config = tqcommon.get_hpc_config()
     if args.keyfile:
         config["ssh_key"] = args.keyfile
+    if args.email:
+        config["mailto"] = [args.email]
 
     with FileLock(config["lock_file"], timeout=3):
         if not args.no_sync:

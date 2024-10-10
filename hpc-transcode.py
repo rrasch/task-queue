@@ -319,7 +319,7 @@ def main():
     if "mailto" in hpc_config:
         default_email = hpc_config["mailto"][0]
     else:
-        default_email = get_emmail()
+        default_email = get_email()
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter

@@ -86,7 +86,8 @@ if (!$opt{t})
 	}
 }
 
-my $queue_name = "task_queue";
+my $task_queue_name = "task_queue";
+my $hpc_queue_name = "hpc_transcode";
 
 my $mq = Net::AMQP::RabbitMQ->new();
 
@@ -103,15 +104,21 @@ if ($prop && !$prop->{capabilities}{consumer_priorities} && $priority)
 
 $mq->channel_open(1);
 
-$mq->queue_declare(
-	1,
-	$queue_name,
-	{
-		auto_delete => 0,
-		durable     => 1,
-	},
-	{'x-max-priority' => 10}
-);
+for my $qname ($task_queue_name, $hpc_queue_name)
+{
+	my ($name, $num_msgs, $num_consumers) = $mq->queue_declare(
+		1, $qname,
+		{
+			auto_delete => 0,
+			durable     => 1,
+		},
+		{'x-max-priority' => 10}
+	);
+	print STDERR "queue: $name, ",
+	  "num msgs waiting: $num_msgs, ",
+	  "num consumers: $num_consumers\n"
+	  if $opt{v};
+}
 
 my $login = getpwuid($<);
 
@@ -186,9 +193,9 @@ sub publish
 	$body = $json->encode($task);
 	delete $task->{job_id};
 	print STDERR "Sending $body\n" if $opt{v};
-	$mq->publish(1, "$queue_name.pending", $body,
+	$mq->publish(1, "$task_queue_name.pending", $body,
 		{exchange => 'tq_logging'});
-	$mq->publish(1, $queue_name, $body, {},
+	$mq->publish(1, $task_queue_name, $body, {},
 		{priority => $priority});
 }
 

@@ -10,7 +10,6 @@ class JobLog
       :read_timeout => 30,
       :write_timeout => 60,
       :connect_timeout => 10,
-      :reconnect => true,
     )
     @logger = logger
   end

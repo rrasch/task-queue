@@ -14,11 +14,16 @@ import util
 
 QUEUE_NAME = "task_queue"
 EXCHANGE_NAME = "tq_logging"
+CHANNEL_MAX = 32
+PERSISTENT_DELIVERY_MODE = 2
 
 
-def usage(parser, msg):
+def usage(parser, msg, brief=True):
     print(msg, file=sys.stderr)
-    parser.print_usage(sys.stderr)
+    if brief:
+        parser.print_usage(sys.stderr)
+    else:
+        parser.print_usage(sys.stderr)
     sys.exit(1)
 
 
@@ -26,20 +31,24 @@ def publish(cursor, channel, task):
     body = json.dumps(task, indent=4)
     query = """
         INSERT INTO job
-        (batch_id, state, request, user_id, submitted)
-        VALUES (%s, 'pending', %s, %s, NOW())
+        (batch_id, request, user_id, state, submitted)
+        VALUES (%s, %s, %s, 'pending', NOW())
     """
     num_rows = cursor.execute(query, (task["batch_id"], body, task["user_id"]))
+
     task["job_id"] = cursor.lastrowid
     logging.debug("job id: %s", task["job_id"])
-
     body = json.dumps(task, indent=4)
+    task.pop("job_id")
+    logging.debug("Sending body: %s", pformat(task))
 
     channel.basic_publish(
         exchange=EXCHANGE_NAME,
         routing_key=f"{QUEUE_NAME}.pending",
         body=body,
-        properties=pika.BasicProperties(delivery_mode=2),
+        properties=pika.BasicProperties(
+            delivery_mode=PERSISTENT_DELIVERY_MODE,
+        ),
     )
 
     channel.basic_publish(
@@ -47,7 +56,8 @@ def publish(cursor, channel, task):
         routing_key=QUEUE_NAME,
         body=body,
         properties=pika.BasicProperties(
-            delivery_mode=2, priority=task["priority"]
+            delivery_mode=PERSISTENT_DELIVERY_MODE,
+            priority=task["priority"],
         ),
     )
 
@@ -78,15 +88,18 @@ def main():
         "-v", "--verbose", action="store_true", help="Enable verbose messages"
     )
     parser.add_argument(
-        "-t", "--test", action="store_true", help="Enable test mode"
+        "-t",
+        "--test",
+        action="store_true",
+        help="Test connection to rabbitmq and mysql",
     )
     parser.add_argument(
         "-m",
         "--mqhost",
         default=sysconfig["mqhost"],
-        help="hostname for messaging server (default: %(default)s)",
+        help="hostname for RabbitMQ messaging server (default: %(default)s)",
     )
-    parser.add_argument("-r", "--rstar-dir", help="rstar directory")
+    parser.add_argument("-r", "--rstar-dir", help="R* (Rstar) directory")
     parser.add_argument(
         "-i",
         "--input-path",
@@ -113,7 +126,7 @@ def main():
         choices=range(11),
         help="message priority (default: %(default)s)",
     )
-    parser.add_argument("-s", "--service", help="service")
+    parser.add_argument("-s", "--service", help="service, e.g. video:transcode")
     parser.add_argument(
         "-e", "--extra-args", default="", help="extra command line args"
     )
@@ -155,7 +168,18 @@ def main():
             )
 
     mq_conn = pika.BlockingConnection(
-        pika.ConnectionParameters(host=args.mqhost)
+        pika.ConnectionParameters(
+            host=args.mqhost,
+            channel_max=CHANNEL_MAX,
+            socket_timeout=3,
+        )
+    )
+
+    logging.debug(
+        "server properties: %s", pformat(mq_conn._impl.server_properties)
+    )
+    logging.debug(
+        "server capabilities: %s", pformat(mq_conn._impl.server_capabilities)
     )
 
     channel = mq_conn.channel()

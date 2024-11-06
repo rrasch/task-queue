@@ -30,14 +30,24 @@ def main():
     config = tqcommon.get_sysconfig()
     aliases = tqcommon.get_host_aliases()
 
-    parser = argparse.ArgumentParser(description="Get connections")
-    parser.add_argument(
-        "--host", default=config.get("MQHOST", "localhost"), help="Host"
+    parser = argparse.ArgumentParser(
+        description="List connections by querying RabbitMQ API"
     )
-    parser.add_argument("--port", type=int, default=15672, help="Port")
+    parser.add_argument(
+        "--host",
+        default=config.get("mqhost", "localhost"),
+        help="Host (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--port", type=int, default=15672, help="Port (default: %(default)s)"
+    )
     parser.add_argument("--user", default="guest", help="User")
     parser.add_argument("--password", default="guest", help="Password")
-    parser.add_argument("--queue", default="task_queue", help="Queue name")
+    parser.add_argument(
+        "--queue",
+        default="task_queue",
+        help="Queue name (default: %(default)s)",
+    )
     parser.add_argument(
         "-d", "--debug", action="store_true", help="Enable debugging"
     )

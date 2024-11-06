@@ -19,35 +19,43 @@ EMAIL_CNF="/content/prod/rstar/etc/email.yaml"
 MAILTO=$(awk '{print $2'} $EMAIL_CNF | sort | uniq \
     | grep -v '-' | paste -sd ',' - | sed 's/,/, /g')
 
-if [ -x /bin/s-nail ]; then
-    MAIL="/bin/s-nail -M text/html"
-elif [ -x /bin/mailx ]; then
-    MAIL="/bin/mailx -S content_type=text/html"
-else
-    MAIL="/bin/mail"
-fi
+MAILTO=${2:-MAILTO}
 
-SCRIPT_NAME="$(basename -- "$(realpath -- "$0")")"
-SCRIPT_NAME="${SCRIPT_NAME%.*}"
 
-OUTPUT=$($WORKDIR/get-connections.py)
+get_num_consumers()
+{
+    local queue=$1
+    OUTPUT=$($WORKDIR/get-connections.py --queue "$queue")
+    NUM_CONSUMERS=$(echo "$OUTPUT" | grep -v -- -- | grep -v Host | wc -l)
+}
 
-NUM_CONSUMERS=$(echo "$OUTPUT" | grep -v -- -- | grep -v Host | wc -l)
+add_err()
+{
+    local msg=$1
+    [ -n "$ERR" ] && ERR="${ERR}${NL}"
+    ERR="${ERR}${msg}${NL}${OUTPUT}"
+}
 
 ERR=""
 
 NL=$'\n'$'\n'
 
+get_num_consumers "task_queue"
 if [ $NUM_CONSUMERS -ne $EXPECTED ]; then
-    ERR="Only $NUM_CONSUMERS task queue consumers.${NL}${OUTPUT}"
+    add_err "Expected $EXPECTED task queue workers but got $NUM_CONSUMERS."
 fi
 
-JOB_ID=$(echo "SELECT job_id FROM job ORDER BY job_id DESC LIMIT 1" \
-    | mysql --defaults-extra-file=$MY_CNF --skip-column-names --batch)
+get_num_consumers "tq_log_reader"
+if [ $NUM_CONSUMERS -ne 1 ]; then
+    add_err "There is a problem with the task queue logger."
+fi
 
-if ! [[ "$JOB_ID" =~ ^[0-9]+$ ]]; then
-    [ -n "$ERR" ] && ERR="${ERR}${NL}"
-    ERR="${ERR}There was a problem connecting to MySQL"
+OUTPUT=$(echo "SELECT job_id FROM job ORDER BY job_id DESC LIMIT 1" \
+    | mysql --defaults-extra-file=$MY_CNF --skip-column-names --batch 2>&1 \
+	| tee /dev/null)
+
+if ! [[ "$OUTPUT" =~ ^[0-9]+$ ]]; then
+    add_err "There was a problem connecting to MySQL"
 fi
 
 if [ -n "$ERR" ]; then

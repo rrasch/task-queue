@@ -2,6 +2,7 @@ from configparser import ConfigParser
 import os
 import socket
 import tomli
+import yaml
 
 
 def get_env() -> str:
@@ -41,3 +42,12 @@ def get_hpc_config():
     with open(conf_file, "rb") as f:
         config = tomli.load(f)
     return config["main"]
+
+
+def get_host_aliases():
+    alias_file = f"/content/{get_env()}/rstar/etc/host-aliases.yaml"
+    aliases = {}
+    if os.path.exists(alias_file):
+        with open(alias_file) as fh:
+            aliases = yaml.safe_load(fh)["aliases"]
+    return aliases

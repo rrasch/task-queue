@@ -11,6 +11,7 @@ StartLimitBurst=5
 [Service]
 Environment="FOREGROUND=true"
 Type=simple
+User=rstar
 ExecStartPre=/usr/local/dlib/task-queue/service-precheck.py --nfs
 ExecStart=/usr/local/dlib/task-queue/workersctl start
 ExecStop=/usr/local/dlib/task-queue/workersctl stop

@@ -29,9 +29,12 @@ def get_sysconfig():
     return config
 
 
+def get_myconfig_file():
+    return f"/content/{get_env()}/rstar/etc/my-taskqueue.cnf"
+
+
 def get_myconfig():
-    env = get_env()
-    conf_file = f"/content/{env}/rstar/etc/my-taskqueue.cnf"
+    conf_file = get_myconfig_file()
     config = ConfigParser()
     config.read(conf_file)
     return dict(config["client"])

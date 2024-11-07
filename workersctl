@@ -49,12 +49,7 @@ start() {
 		echo "Task Queue already running with pids '$PIDS'" 1>&2
 		exit 1
 	fi
-	HOST_LOGDIR="$LOGDIR/$HOST"
-	LOGFILE=$HOST_LOGDIR/worker.$HOST.log
-	if [ ! -e "$HOST_LOGDIR" ]; then
-		mkdir -m 0700 $HOST_LOGDIR
-		chown $TQUSER $HOST_LOGDIR
-	fi
+
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
 	if [ "$FOREGROUND" = "true" ]; then
 		CMD="$CMD -f"
@@ -68,12 +63,20 @@ start() {
 	if [ "$USE_CGROUP" = "true" ]; then
 		CMD="cgexec -g $CGROUP_NAME --sticky $CMD"
 	fi
+
+	HOST_LOGDIR="$LOGDIR/$HOST"
+	LOGFILE=$HOST_LOGDIR/worker.$HOST.log
+	if [ ! -e "$HOST_LOGDIR" ]; then
+		mkdir -m 0755 $HOST_LOGDIR
+	fi
+
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		$CMD
 	else
+		TQGROUP=$(id -gn $TQUSER)
+		chown "${TQUSER}:${TQGROUP}" $HOST_LOGDIR
 		if [ -f $LOGFILE ]; then
-			TQGROUP=$(id -gn $TQUSER)
-			chown $TQUSER:$TQGROUP $LOGFILE
+			chown "${TQUSER}:${TQGROUP}" $LOGFILE
 		fi
 		su -ls /bin/bash $TQUSER -c "$CMD"
 	fi

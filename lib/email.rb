@@ -1,21 +1,22 @@
 require 'net/smtp'
 require 'yaml'
 require 'uri'
+require_relative './tqcommon'
 
 class Email
-
-  ADDR_FILE = "/content/prod/rstar/etc/email.yaml"
 
   def initialize(logger)
     @logger = logger
     read_email_addrs
+    @smtp_host = TQCommon.get_smtp_host()
   end
 
   def read_email_addrs
     @logger.debug "entering read_email_addrs()"
+    addr_file = "/content/prod/rstar/#{TQCommon.get_env()}/email.yaml"
     @addr = {}
-    if ADDR_FILE && File.exist?(ADDR_FILE)
-      yaml = YAML.load_file(ADDR_FILE)
+    if File.exist?(addr_file)
+      yaml = YAML.load_file(addr_file)
       yaml.each do |id, addr|
         @logger.debug id + ': ' + addr
         if id =~ /^[a-z]+/ && addr =~ URI::MailTo::EMAIL_REGEXP
@@ -24,7 +25,7 @@ class Email
         end
       end
     else
-      @logger.debug "email map file #{ADDR_FILE} doesn't exist"
+      @logger.debug "email map file #{addr_file} doesn't exist"
     end
     @logger.debug "email map: #{@addr}"
   end
@@ -54,7 +55,7 @@ Subject: #{desc}
 #{out}
 
 EOM
-      smtp = Net::SMTP.new('localhost')
+      smtp = Net::SMTP.new(@smtp_host)
       smtp.open_timeout = 5
       smtp.read_timeout = 5
       smtp.start do |smtp|

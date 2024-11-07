@@ -146,7 +146,7 @@ def main():
     )
     logging.getLogger("pika").setLevel(logging.WARNING)
 
-    logging.debug("sysconfig: %s", sysconfig)
+    logging.debug("sysconfig: %s", pformat(sysconfig))
 
     cmd_line = util.shlex_join([os.path.realpath(sys.argv[0]), *sys.argv[1:]])
     logging.debug(f"cmd line: {cmd_line}")

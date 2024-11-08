@@ -13,7 +13,7 @@ class Email
 
   def read_email_addrs
     @logger.debug "entering read_email_addrs()"
-    addr_file = "/content/prod/rstar/#{TQCommon.get_env()}/email.yaml"
+    addr_file = "/content/#{TQCommon.get_env()}/rstar/etc/email.yaml"
     @addr = {}
     if File.exist?(addr_file)
       yaml = YAML.load_file(addr_file)
@@ -25,7 +25,7 @@ class Email
         end
       end
     else
-      @logger.debug "email map file #{addr_file} doesn't exist"
+      @logger.warn "email map file #{addr_file} doesn't exist"
     end
     @logger.debug "email map: #{@addr}"
   end

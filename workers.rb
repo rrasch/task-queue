@@ -383,9 +383,7 @@ end
 $stdout = config[:logfh]
 $stderr = config[:logfh]
 config[:logger] = ::Logger.new(config[:logfh])
-if config[:quiet]
-  config[:logger].level = Logger::INFO
-end
+config[:logger].level = config[:quiet] ? Logger::INFO : Logger::DEBUG
 
 ENV["TQ_SERVER_PID"] = Process.pid.to_s
 

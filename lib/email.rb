@@ -9,6 +9,7 @@ class Email
     @logger = logger
     read_email_addrs
     @smtp_host = TQCommon.get_smtp_host()
+    @aliases = TQCommon.get_host_aliases()
   end
 
   def read_email_addrs
@@ -40,6 +41,8 @@ class Email
       desc += "un" if task['state'] == 'error'
       desc += "successfully at #{task['completed']}"
       job = task.clone
+      host = TQCommon.get_hostname(job["worker_host"])
+      job["worker_host_alias"] = @aliases.fetch(host, host)
       job.delete('logger')
       out = job.delete('output').to_s.strip
       out = "output:\n#{out}" unless out.empty?
@@ -70,4 +73,3 @@ EOM
   end
 
 end
-

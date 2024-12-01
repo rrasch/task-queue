@@ -92,6 +92,7 @@ my $hpc_queue_name = "hpc_transcode";
 my $mq = Net::AMQP::RabbitMQ->new();
 
 # connect to RabbitMQ
+print STDERR "Connecting to RabbitMQ host $host\n" if $opt{v};
 $mq->connect($host, {timeout => 3, channel_max => $CHANNEL_MAX});
 
 my $prop;

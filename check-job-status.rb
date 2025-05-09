@@ -68,7 +68,7 @@ def print_row(batch_id, id, state, host, started,
         fmt(fmt_date(started), 20), fmt(fmt_date(completed), 20)
   if $is_large_win
     print fmt(duration, 16)
-    print fmt(objid, 40)
+    print fmt(objid[0, 39], 40)
     print fmt(op, 20)
     print fmt(user_id, 12)
   end

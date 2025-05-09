@@ -20,7 +20,7 @@ class Video
       end
     else
       @logger.error "Video.transcode: Must specify rstar_dir or input_path."
-      { :status => false }
+      return { :success => false }
     end
   end
 

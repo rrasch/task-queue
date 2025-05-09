@@ -22,7 +22,7 @@ class Audio
       @logger.error "Version of MediaInfo tool, "\
                     "#{@minfo_bin_version}, not compatible with version "\
                     "#{@minfo_gem_version} of mediainfo gem."
-      return { :status => false }
+      return { :success => false }
     end
     if !@args['rstar_dir'].nil?
       transcode_wip
@@ -34,7 +34,7 @@ class Audio
       end
     else
       @logger.error "Audio.transcode: Must specify rstar_dir or input_path."
-      { :status => false }
+      return { :success => false }
     end
   end
 

@@ -21,6 +21,7 @@ class Bagit
       @logger.error(err_msg)
       return { success: false, output: err_msg }
     end
-    @cmd.do_cmd("#{BAGIT_CMD} verifyvalid #{@args['input_path']}")
+    @cmd.do_cmd("#{BAGIT_CMD} verifyvalid #{@args['input_path']} " \
+                "--noresultfile #{@args['extra_args']}")
   end
 end

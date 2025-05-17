@@ -1,4 +1,5 @@
 require 'open3'
+require 'shellwords'
 
 class Cmd
 
@@ -22,9 +23,11 @@ class Cmd
         cmd = "#{script_name}"
       end
       env = @args.fetch('env', {})
+      cmd_list = Shellwords.split(cmd)
       @logger.debug("Executing '#{cmd}' with env #{env}")
+      @logger.debug("Cmd list: #{cmd_list}")
       begin
-        output, status = Open3.capture2e(env, cmd)
+        output, status = Open3.capture2e(env, *cmd_list)
         success = status.exitstatus.zero?
       rescue SystemCallError => e
         output = "Failed to execute '#{cmd}': #{e.class} #{e.message}"
@@ -45,8 +48,10 @@ class Cmd
   end
 
   def self.do_or_die(cmd, logger)
+    cmd_list = Shellwords.split(cmd)
     logger.debug "Running '#{cmd}'"
-    output, status = Open3.capture2e(cmd)
+    logger.debug("Cmd list: #{cmd_list}")
+    output, status = Open3.capture2e(*cmd_list)
     logger.debug output
     if ! status.exitstatus.zero?
       logger.error "#{cmd} exited with status #{status.exitstatus}"
@@ -56,4 +61,3 @@ class Cmd
   end
 
 end
-

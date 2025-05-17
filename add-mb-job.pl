@@ -9,11 +9,14 @@ use warnings;
 use Cwd qw(abs_path);
 use Data::Dumper;
 use DBI;
+use File::Basename;
+use File::Spec;
 use Getopt::Std;
 use JSON;
 use Net::AMQP::RabbitMQ;
 use String::ShellQuote;
 use Sys::Hostname;
+use YAML::PP;
 
 our $CHANNEL_MAX = 32;
 
@@ -70,9 +73,19 @@ my $op;
 
 if (!$opt{t})
 {
+	my @services = get_services();
+
 	if (!$opt{s})
 	{
 		usage("You must set -s to define the service.");
+		exit(1);
+	}
+
+	if (!grep { $_ eq $opt{s} } @services)
+	{
+		usage(  "Service '$opt{s}' not allowed. "
+			  . "You must set -s to one of:\n\n\t"
+			  . join("\n\t", @services));
 		exit(1);
 	}
 
@@ -245,4 +258,18 @@ sub get_dir_contents
 	my @files = sort(grep { !/^\./ } readdir($dirh));
 	closedir($dirh);
 	return @files;
+}
+
+
+sub get_services
+{
+	my $services_file =
+	  File::Spec->catfile(dirname(abs_path($0)), 'services.yaml');
+	my $ypp = YAML::PP->new;
+	open(my $fh, '<', $services_file)
+	  or die("Could not open $services_file: $!");
+	my $data = $ypp->load_file($fh);
+	close($fh);
+	my @services = @{$data->{services}};
+	return @services;
 }

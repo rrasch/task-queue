@@ -31,6 +31,7 @@ require 'socket'
 require_relative './lib/audio'
 require_relative './lib/bagit'
 require_relative './lib/book_publisher'
+require_relative './lib/tqcommon'
 require_relative './lib/util'
 require_relative './lib/video'
 
@@ -104,6 +105,12 @@ module JobProcessor
         rescue JSON::JSONError => e
           err_msg = "Can't parse '#{body}': #{e.class} #{e.message}."
         end
+
+        svc = "#{task['class']}:#{task['operation']}"
+        if !@config[:svc_lookup].has_key?(svc)
+          err_msg = "Invalid service: #{svc}"
+        end
+
         task['logger'] = @logger
         task['state'] = "processing"
         task['worker_host'] = get_ip_addr
@@ -320,6 +327,7 @@ config = {
   :foreground  => false,
   :min_workers => max_workers,
   :max_workers => max_workers,
+  :svc_lookup  => TQCommon.get_services.to_h { |svc| [svc, true] },
 }
 
 # puts config[:logfile]

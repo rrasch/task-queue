@@ -54,3 +54,13 @@ def get_host_aliases():
         with open(alias_file) as fh:
             aliases = yaml.safe_load(fh)["aliases"]
     return aliases
+
+
+def get_services():
+    # services_file = f"/content/{get_env()}/rstar/etc/services.yaml"
+    services_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "services.yaml"
+    )
+    with open(services_file) as fh:
+        services = yaml.safe_load(fh)["services"]
+    return services

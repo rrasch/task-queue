@@ -78,9 +78,9 @@ def validate_filepath(filepath):
 
 
 def main():
-    env = tqcommon.get_env()
-    my_conf_file = f"/content/{env}/rstar/etc/my-taskqueue.cnf"
+    my_conf_file = tqcommon.get_myconfig_file()
     sysconfig = tqcommon.get_sysconfig()
+    services = tqcommon.get_services()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("id", nargs="*", help="Digital object identifier")
@@ -126,7 +126,12 @@ def main():
         choices=range(11),
         help="message priority (default: %(default)s)",
     )
-    parser.add_argument("-s", "--service", help="service, e.g. video:transcode")
+    parser.add_argument(
+        "-s",
+        "--service",
+        choices=services,
+        help="service, e.g. video:transcode",
+    )
     parser.add_argument(
         "-e", "--extra-args", default="", help="extra command line args"
     )

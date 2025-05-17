@@ -31,6 +31,13 @@ module TQCommon
     return aliases
   end
 
+  def self.get_services
+    # services_file = "/content/#{get_env()}/rstar/etc/services.yaml"
+    services_file = File.expand_path("../services.yaml", File.dirname(__FILE__))
+    services = YAML.load_file(services_file)["services"]
+    return services
+  end
+
   def self.get_smtp_host
     config = get_sysconfig()
     return config.fetch("smtphost", "localhost")

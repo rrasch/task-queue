@@ -82,6 +82,7 @@ find %{buildroot}%{dlibdir} -maxdepth 1 -regextype posix-extended \
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 chmod 0644 %{buildroot}%{dlibdir}/tqcommon.py
+chmod 0644 %{buildroot}%{dlibdir}/util.py
 
 %define builddir %{_builddir}/%{name}-%{version}
 export GO111MODULE=off

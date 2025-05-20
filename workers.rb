@@ -327,7 +327,7 @@ config = {
   :foreground  => false,
   :min_workers => max_workers,
   :max_workers => max_workers,
-  :svc_lookup  => TQCommon.get_services.to_h { |svc| [svc, true] },
+  :svc_lookup  => TQCommon.get_services.map { |svc| [svc, true] }.to_h,
 }
 
 # puts config[:logfile]

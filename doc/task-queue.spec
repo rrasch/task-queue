@@ -55,11 +55,10 @@ Requires:       fortune-mod
 Requires:       iputils
 Requires:       jq
 Requires:       perl-DBD-MySQL
-%if 0%{?fedora} >= 28 || 0%{?rhel} >= 8
 Requires:       python3-mysqlclient
 Requires:       python3-pika
 Requires:       python3-tabulate
-%endif
+Requires:       python3-tomli
 
 %description
 %{summary}

@@ -22,6 +22,6 @@ class Bagit
       return { success: false, output: err_msg }
     end
     @cmd.do_cmd("#{BAGIT_CMD} verifyvalid #{@args['input_path']} " \
-                "--noresultfile #{@args['extra_args']}")
+                "--noresultfile #{@args['extra_args']}".rstrip)
   end
 end

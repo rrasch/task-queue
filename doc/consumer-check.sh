@@ -19,7 +19,7 @@ EMAIL_CNF="/content/prod/rstar/etc/email.yaml"
 MAILTO=$(awk '{print $2'} $EMAIL_CNF | sort | uniq \
     | grep -v '-' | paste -sd ',' - | sed 's/,/, /g')
 
-MAILTO=${2:-MAILTO}
+MAILTO=${2:-$MAILTO}
 
 
 get_num_consumers()

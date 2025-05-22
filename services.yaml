@@ -8,6 +8,7 @@ services:
   - book_publisher:create_pdf
   - book_publisher:gen_all
   - book_publisher:stitch_pages
+  - util:env
   - util:fortune
   - util:nope
   - util:ping

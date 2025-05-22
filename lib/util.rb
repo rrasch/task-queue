@@ -62,7 +62,7 @@ class Util
       #{env_info}
     INFO
 
-    { success: false, output: full_info }
+    { success: true, output: full_info }
   end
   # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 end

@@ -20,12 +20,29 @@ class Util
     @cmd.do_cmd('false')
   end
 
+  def env
+    full_info = <<~INFO
+      #{ruby_info}
+      #{gem_info}
+      #{gem_info_from_cmd}
+      Installed Gems:
+      #{installed_gems}
+
+      Environment Variables:
+      #{env_info}
+    INFO
+    { success: true, output: full_info }
+  end
+
+  private
+
   def ruby_info
     <<~INFO
       Ruby Version: #{RUBY_VERSION}
       Patch Level: #{RUBY_PATCHLEVEL}
       Platform: #{RUBY_PLATFORM}
       Release Date: #{RUBY_RELEASE_DATE}
+      Current Date: #{Time.now.to_s}
       Engine: #{defined?(RUBY_ENGINE) ? RUBY_ENGINE : 'ruby'}
       Description: #{RUBY_DESCRIPTION}
       Executable: #{RbConfig.ruby}
@@ -60,19 +77,5 @@ class Util
 
   def env_info
     ENV.map { |key, value| "#{key}=#{value}" }.join("\n")
-  end
-
-  def env
-    full_info = <<~INFO
-      #{ruby_info}
-      #{gem_info}
-      #{gem_info_from_cmd}
-      Installed Gems:
-      #{installed_gems}
-
-      Environment Variables:
-      #{env_info}
-    INFO
-    { success: true, output: full_info }
   end
 end

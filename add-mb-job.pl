@@ -58,9 +58,11 @@ if ((exists($opt{p}) && !defined($opt{p}))
 
 my $env = hostname() =~ /^d/ ? "dev" : "prod";
 
+my $sys_conf_file = "/content/$env/rstar/etc/task-queue.sysconfig";
+
 my $priority = $opt{p} || 0;
 
-my $host = $opt{m} || "localhost";
+my $host = $opt{m} || get_mqhost($sys_conf_file) || "localhost";
 
 my $my_cnf = $opt{c} || "/content/$env/rstar/etc/my-taskqueue.cnf";
 
@@ -272,4 +274,30 @@ sub get_services
 	close($fh);
 	my @services = @{$data->{services}};
 	return @services;
+}
+
+
+sub get_mqhost
+{
+	my ($filepath) = @_;
+	my %config;
+
+	open(my $fh, $filepath)
+	  or die("Could not open '$filepath': $!");
+
+	while (<$fh>)
+	{
+		chomp;
+		next if /^\s*#/;
+		next if /^\s*$/;
+		if (/^\s*([\w\-]+)\s*=\s*["']?(.*?)["']?\s*$/)
+		{
+			my ($key, $value) = ($1, $2);
+			$config{$key} = lc($value);
+		}
+	}
+
+	close($fh);
+
+	return $config{"mqhost"};
 }

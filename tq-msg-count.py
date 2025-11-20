@@ -7,22 +7,8 @@ import tqcommon
 
 
 def main():
-    env = tqcommon.get_env()
-    conf_file = f"/content/{env}/rstar/etc/task-queue.sysconfig"
-
-    if os.path.exists(conf_file):
-        process = subprocess.run(
-            f"unset MQHOST && source {conf_file} && echo $MQHOST",
-            stdout=subprocess.PIPE,
-            shell=True,
-            universal_newlines=True,
-            check=True,
-        )
-        mqhost = process.stdout.strip()
-        if not mqhost:
-            mqhost = "localhost"
-    else:
-        mqhost = "localhost"
+    config = tqcommon.get_sysconfig()
+    mqhost = config.get("mqhost", "localhost")
 
     pika_conn_params = pika.ConnectionParameters(host=mqhost)
     connection = pika.BlockingConnection(pika_conn_params)

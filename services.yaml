@@ -3,10 +3,12 @@ services:
   - audio:transcode
   - bagit:validate
   - book_publisher:create_derivatives
+  - book_publisher:create_dmakers
   - book_publisher:create_map
   - book_publisher:create_ocr
   - book_publisher:create_pdf
   - book_publisher:gen_all
+  - book_publisher:hocr2pdf
   - book_publisher:stitch_pages
   - util:env
   - util:fortune

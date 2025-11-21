@@ -10,6 +10,8 @@ class BookPublisher
   ENVIRON = {
     "MAGICK_THREAD_LIMIT" => "1",
     "OMP_THREAD_LIMIT" => "1",
+    "PYTHONPATH" => "/usr/local/dlib/aco-scripts",
+    "PERL5LIB" => "/usr/local/dlib/book-publisher/lib",
   }
 
   def initialize(args)
@@ -22,6 +24,10 @@ class BookPublisher
 
   def create_derivatives
     exec_cmd('create-deriv-images.pl')
+  end
+
+  def create_dmakers
+    exec_cmd('create-deriv-images.pl -m')
   end
 
   def stitch_pages
@@ -42,8 +48,13 @@ class BookPublisher
 
   def gen_all
     exec_cmd('create-deriv-images.pl',
-                'stitch-pages.pl',
-                'create-pdf.pl')
+             'stitch-pages.pl',
+             'create-pdf.pl')
+  end
+
+  def hocr2pdf
+    exec_cmd('create-deriv-images.pl -m',
+             'hocr2pdf.py')
   end
 
   def exec_cmd(*script_names)
@@ -83,4 +94,3 @@ class BookPublisher
   end
 
 end
-

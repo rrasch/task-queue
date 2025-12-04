@@ -18,7 +18,9 @@ use String::ShellQuote;
 use Sys::Hostname;
 use YAML::PP;
 
+our $EXCHANGE_NAME = "tq_logging";
 our $CHANNEL_MAX = 32;
+our $PERSISTENT_DELIVERY_MODE = 2;
 
 # Command line options
 # -h:  help message
@@ -209,10 +211,23 @@ sub publish
 	$body = $json->encode($task);
 	delete $task->{job_id};
 	print STDERR "Sending $body\n" if $opt{v};
-	$mq->publish(1, "$task_queue_name.pending", $body,
-		{exchange => 'tq_logging'});
-	$mq->publish(1, $task_queue_name, $body, {},
-		{priority => $priority});
+	$mq->publish(
+		1,
+		"$task_queue_name.pending",
+		$body,
+		{exchange      => $EXCHANGE_NAME},
+		{delivery_mode => $PERSISTENT_DELIVERY_MODE}
+	);
+	$mq->publish(
+		1,
+		$task_queue_name,
+		$body,
+		{},
+		{
+			priority      => $priority,
+			delivery_mode => $PERSISTENT_DELIVERY_MODE
+		}
+	);
 }
 
 

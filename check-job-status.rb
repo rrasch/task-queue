@@ -195,7 +195,7 @@ joblog.select_job(options).each do |row|
     if id =~ /^(aux|data)$/
       id = File.basename(File.dirname(input), ".*")
     end
-    id = id.gsub(/(_\d{6})?_[dm]$/, '')
+    id = id.gsub(/_[dm]$/, '')
   else
     id = "N/A"
   end

@@ -16,3 +16,35 @@ tmp
 .yardoc
 _yardoc
 #doc/
+
+## Go
+
+# Binaries for the current OS and architecture
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+*.test
+*.out
+/vendor/
+
+# Environment-specific files
+.env
+.env.*
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*~
+
+# Log files
+*.log
+
+# Dependency management
+go.sum
+
+# Other temporary files
+tmp/

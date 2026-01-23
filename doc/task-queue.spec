@@ -1,11 +1,12 @@
 %define __brp_mangle_shebangs_exclude_from .rb$
 
+%{!?git_tag:%{error:git_tag macro must be defined}}
+%{!?git_commit:%{error:git_commit macro must be defined}}
+
 %define name     task-queue
-%define version  1.4.14
+%define version  %(echo %{git_tag} | sed 's/^v//')
+%define release  1.dlts.git%{git_commit}%{?dist}
 %define repourl  https://github.com/rrasch/%{name}
-%define gitdate  %(date +"%Y%m%d")
-%define commit   %(get-commit-id.sh %{repourl})
-%define release  1.dlts.git.%{gitdate}.%{commit}%{?dist}
 %define dlibdir  /usr/local/dlib/%{name}
 
 %if 0%{?fedora} >= 15 || 0%{?rhel} >= 7

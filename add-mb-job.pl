@@ -308,7 +308,7 @@ sub get_mqhost
 		if (/^\s*([\w\-]+)\s*=\s*["']?(.*?)["']?\s*$/)
 		{
 			my ($key, $value) = ($1, $2);
-			$config{$key} = lc($value);
+			$config{lc($key)} = $value;
 		}
 	}
 

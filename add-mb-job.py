@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import pika
+import psutil
 import sys
 import tqcommon
 import util
@@ -16,6 +17,8 @@ QUEUE_NAME = "task_queue"
 EXCHANGE_NAME = "tq_logging"
 CHANNEL_MAX = 32
 PERSISTENT_DELIVERY_MODE = 2
+
+PATH_ARGS = ("rstar_dir", "input_path", "output_path")
 
 
 def usage(parser, msg, brief=True):
@@ -27,6 +30,14 @@ def usage(parser, msg, brief=True):
     sys.exit(1)
 
 
+def do_query(cursor, query, values):
+    num_rows = cursor.execute(query, values)
+    logging.debug("rows affected: %s", num_rows)
+    if num_rows == 0:
+        filled_query = " ".join((query % values).split())
+        logging.warning("No rows affected for query: %s", filled_query)
+
+
 def publish(cursor, channel, task):
     body = json.dumps(task, indent=4)
     query = """
@@ -34,7 +45,7 @@ def publish(cursor, channel, task):
         (batch_id, request, user_id, state, submitted)
         VALUES (%s, %s, %s, 'pending', NOW())
     """
-    num_rows = cursor.execute(query, (task["batch_id"], body, task["user_id"]))
+    do_query(cursor, query, (task["batch_id"], body, task["user_id"]))
 
     task["job_id"] = cursor.lastrowid
     logging.debug("job id: %s", task["job_id"])
@@ -72,9 +83,32 @@ def get_dir_contents(dirpath):
 
 def validate_filepath(filepath):
     """Validates a filepath and returns it if valid."""
+    filepath = os.path.realpath(filepath)
     if not os.path.exists(filepath):
         raise argparse.ArgumentTypeError(f"File not found: '{filepath}'")
     return filepath
+
+
+def get_nfs_mounts():
+    return [
+        part.mountpoint
+        for part in psutil.disk_partitions(all=True)
+        if part.fstype.startswith("nfs")
+    ]
+
+
+def check_paths_on_nfs(args_dict):
+    """Ensure path arguments are on NFS mount if NFS mounts exist."""
+    nfs_mounts = get_nfs_mounts()
+    if not nfs_mounts:
+        return
+
+    for arg_name in PATH_ARGS:
+        filepath = args_dict.get(arg_name)
+        if filepath and not any(
+            filepath.startswith(mount) for mount in nfs_mounts
+        ):
+            sys.exit(f"ERROR: {filepath} must be on an NFS mount")
 
 
 def main():
@@ -151,6 +185,9 @@ def main():
     )
     logging.getLogger("pika").setLevel(logging.WARNING)
 
+    args_dict = vars(args)
+    logging.debug("args dict:\n%s", pformat(args_dict))
+
     logging.debug("sysconfig: %s", pformat(sysconfig))
 
     cmd_line = util.shlex_join([os.path.realpath(sys.argv[0]), *sys.argv[1:]])
@@ -182,6 +219,8 @@ def main():
                 parser.error(
                     "-i/--input-path and -o/--output-path must be set together",
                 )
+
+            check_paths_on_nfs(args_dict)
 
     mq_conn = pika.BlockingConnection(
         pika.ConnectionParameters(
@@ -225,7 +264,7 @@ def main():
     login = os.getlogin()
 
     query = "INSERT into batch (user_id, cmd_line) VALUES (%s, %s)"
-    num_rows = cursor.execute(query, (login, cmd_line))
+    do_query(cursor, query, (login, cmd_line))
     batch_id = cursor.lastrowid
 
     task = {
@@ -238,11 +277,9 @@ def main():
         "priority": args.priority,
     }
 
-    args_dict = vars(args)
-    logging.debug("args dict:\n%s", pformat(args_dict))
-    for path in ("rstar_dir", "input_path", "output_path"):
-        if args_dict[path]:
-            task[path] = args_dict[path]
+    for arg_name in PATH_ARGS:
+        if args_dict[arg_name]:
+            task[arg_name] = args_dict[arg_name]
 
     if args.json_config:
         with open(args.json_config) as f:

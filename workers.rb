@@ -103,7 +103,7 @@ module JobProcessor
           task = JSON.parse(body)
           @logger.debug task.inspect
         rescue JSON::JSONError => e
-          err_msg = "Can't parse '#{body}': #{e.class} #{e.message}."
+          err_msg = "Can't parse '#{body}': #{e.full_message}"
         end
 
         svc = "#{task['class']}:#{task['operation']}"
@@ -153,12 +153,21 @@ module JobProcessor
         @logger.debug "Sending ack"
         @ch.ack(delivery_info.delivery_tag)
       rescue Exception => e
-        @logger.error "#{e.class} => #{e.message}"
+        @logger.error "subcribe error: #{e.full_message}"
+        if task.any?
+          task['state'] = 'error'
+          task['output'] = e.full_message
+          task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+          @x.publish(JSON.pretty_generate(task),
+                     :routing_key => "task_queue.error")
+        end
+        @logger.debug("Rejecting message: #{delivery_info}")
+        @ch.nack(delivery_info.delivery_tag, false, false)
         @conn.close
       end
     end
   rescue Exception => e
-    @logger.error "#{e.class} => #{e.message}"
+    @logger.error "execute error #{e.full_message}"
     @conn.close
     raise e
   end

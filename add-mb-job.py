@@ -23,7 +23,7 @@ def usage(parser, msg, brief=True):
     if brief:
         parser.print_usage(sys.stderr)
     else:
-        parser.print_usage(sys.stderr)
+        parser.print_help(sys.stderr)
     sys.exit(1)
 
 
@@ -166,11 +166,22 @@ def main():
         cls, delim, op = args.service.partition(":")
 
         if not cls or not op:
-            usage(
-                parser,
+            parser.error(
                 "You must set -s to define service in the format "
                 "<class>:<service>,  e.g. audio:transcode",
             )
+
+        if cls != "util":
+            if args.rstar_dir and (args.input_path or args.output_path):
+                parser.error(
+                    "-r/--rstar-dir can't be used with -i/--input-path,"
+                    " -o/--output-path"
+                )
+
+            if (args.input_path is None) != (args.output_path is None):
+                parser.error(
+                    "-i/--input-path and -o/--output-path must be set together",
+                )
 
     mq_conn = pika.BlockingConnection(
         pika.ConnectionParameters(
@@ -207,6 +218,8 @@ def main():
     cursor = db_conn.cursor()
 
     if args.test:
+        mq_conn.close()
+        db_conn.close()
         sys.exit(0)
 
     login = os.getlogin()

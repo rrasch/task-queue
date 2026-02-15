@@ -94,7 +94,7 @@ install -m 0755 rerun %{buildroot}%{dlibdir}/rerun
 popd
 
 mkdir -p %{buildroot}%{_bindir}
-ln -s %{dlibdir}/add-mb-job.pl %{buildroot}%{_bindir}/add-mb-job
+ln -s %{dlibdir}/add-mb-job.py %{buildroot}%{_bindir}/add-mb-job
 ln -s %{dlibdir}/check-job-status.rb \
 	%{buildroot}%{_bindir}/check-job-status
 ln -s %{dlibdir}/log-job-status.rb \

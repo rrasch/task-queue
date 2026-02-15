@@ -51,7 +51,7 @@ def publish(cursor, channel, task):
     logging.debug("job id: %s", task["job_id"])
     body = json.dumps(task, indent=4)
     task.pop("job_id")
-    logging.debug("Sending body: %s", pformat(task))
+    logging.debug("Sending body:\n%s", pformat(task))
 
     channel.basic_publish(
         exchange=EXCHANGE_NAME,
@@ -111,12 +111,28 @@ def check_paths_on_nfs(args_dict):
             sys.exit(f"ERROR: {filepath} must be on an NFS mount")
 
 
+def rewrite_extra_args(argv):
+    new_argv = []
+    i = 0
+    while i < len(argv):
+        if argv[i] in ("-e", "--extra-args") and i + 1 < len(argv):
+            new_argv.append(f"{argv[i]}={argv[i+1]}")
+            i += 2
+        else:
+            new_argv.append(argv[i])
+            i += 1
+    return new_argv
+
+
 def main():
     my_conf_file = tqcommon.get_myconfig_file()
     sysconfig = tqcommon.get_sysconfig()
     services = tqcommon.get_services()
 
-    parser = argparse.ArgumentParser()
+    orig_argv = sys.argv
+    sys.argv = rewrite_extra_args(sys.argv)
+
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("id", nargs="*", help="Digital object identifier")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose messages"
@@ -184,6 +200,9 @@ def main():
         datefmt="%m/%d/%Y %I:%M:%S %p",
     )
     logging.getLogger("pika").setLevel(logging.WARNING)
+
+    logging.debug("orig argv: %s", orig_argv)
+    logging.debug("sys.argv: %s", sys.argv)
 
     args_dict = vars(args)
     logging.debug("args dict:\n%s", pformat(args_dict))

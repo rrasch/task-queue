@@ -41,6 +41,10 @@ MIN_WORKERS=${MIN_WORKERS:-}
 
 MAX_WORKERS=${MAX_WORKERS:-}
 
+RVM_RUBY_VERSION=${RVM_RUBY_VERSION:-}
+
+RVM_GEM_DIR="/usr/share/rvm/gems"
+
 RETVAL=0
 
 start() {
@@ -57,6 +61,9 @@ start() {
 	fi
 
 	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
+	if [ -n "$RVM_RUBY_VERSION" ]; then
+		CMD="$RVM_GEM_DIR/ruby-$RVM_RUBY_VERSION@task-queue/wrappers/ruby $CMD"
+	fi
 	if [ "$FOREGROUND" = "true" ]; then
 		CMD="$CMD -f"
 	fi

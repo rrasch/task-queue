@@ -35,6 +35,8 @@ require_relative './lib/tqcommon'
 require_relative './lib/util'
 require_relative './lib/video'
 
+class ProcessTaskError < StandardError; end
+
 module JobProcessor
 
   # Open a connection to our RabbitMQ queue. This method is called once just
@@ -83,6 +85,91 @@ module JobProcessor
     @thread.wakeup
   end
 
+  def process_task(body, task, delivery_info)
+    begin
+      task.merge!(JSON.parse(body))
+      @logger.debug task.inspect
+    rescue JSON::JSONError => e
+       @logger.error "Can't parse '#{body}': #{e.full_message}"
+       raise
+    end
+
+    task['logger'] = @logger
+    task['state'] = "processing"
+    task['worker_host'] = get_ip_addr
+    task['started'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+    @x.publish(JSON.pretty_generate(task),
+               :routing_key => "task_queue.processing")
+
+    svc = "#{task['class']}:#{task['operation']}"
+    if !@config[:svc_lookup].has_key?(svc)
+      raise ProcessTaskError, "Invalid service: #{svc}"
+    end
+
+    class_name = classify(task['class'].to_s.strip)
+
+    if class_name.empty?
+      raise ProcessTaskError, "Class name isn't defined."
+    end
+
+    if !class_exists?(class_name)
+      raise ProcessTaskError, "Class '#{class_name}' doesn't exist."
+    end
+
+    unless task['class'] == "util"
+      has_rstar = task.key?("rstar_dir")
+      has_input = task.key?("input_path")
+      has_output = task.key?("output_path")
+
+      # must have one mode or the other
+      unless has_rstar || (has_input && has_output)
+        raise ArgumentError,
+          "Must provide rstar_dir OR input_path+output_path"
+      end
+
+      # rstar_dir is mutually exclusive with input/output
+      if has_rstar && (has_input || has_output)
+        raise ArgumentError,
+          "rstar_dir cannot be used with input_path/output_path"
+      end
+
+      # input and output must be paired
+      if has_input ^ has_output
+        raise ArgumentError,
+          "input_path and output_path must be provided together"
+      end
+    end
+
+    @logger.debug "Creating new '#{class_name}' object"
+    obj = Object::const_get(class_name).new(task)
+    method_name = task['operation'].to_s.tr('-', '_')
+
+    if !obj.respond_to?(method_name)
+      raise ProcessTaskError,
+        "Method '#{class_name}.#{method_name}' does not exist."
+    end
+
+    @logger.debug "Executing '#{method_name}'"
+    status = obj.send(method_name)
+    if status[:success]
+      state = 'success'
+    else
+      state = 'error'
+    end
+    output = status[:output]
+
+    @logger.debug "#{state.capitalize}!"
+    @logger.debug " [x] Done"
+    task['state'] = state
+    task['output'] = output
+    task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+    @logger.debug "Publishing to task_queue.#{state}"
+    @x.publish(JSON.pretty_generate(task),
+              :routing_key => "task_queue.#{state}")
+    @logger.debug "Sending ack"
+    @ch.ack(delivery_info.delivery_tag)
+  end
+
   # Reserve a job from the RabbitMQ queue, and processes jobs as we receive
   # them. We have a timeout set for 2 minutes so that we can send a heartbeat
   # back to the parent process even if the RabbitMQ queue is empty.
@@ -95,63 +182,8 @@ module JobProcessor
                                                           properties, body|
       begin
         @logger.debug " [x] Received '#{body}'"
-        err_msg = nil
         task = {}
-        state = 'error'
-        output = nil
-        begin
-          task = JSON.parse(body)
-          @logger.debug task.inspect
-        rescue JSON::JSONError => e
-          err_msg = "Can't parse '#{body}': #{e.full_message}"
-        end
-
-        svc = "#{task['class']}:#{task['operation']}"
-        if !@config[:svc_lookup].has_key?(svc)
-          err_msg = "Invalid service: #{svc}"
-        end
-
-        task['logger'] = @logger
-        task['state'] = "processing"
-        task['worker_host'] = get_ip_addr
-        task['started'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
-        @x.publish(JSON.pretty_generate(task),
-                   :routing_key => "task_queue.processing")
-        class_name = classify(task['class'].to_s.strip)
-        if err_msg.nil?
-          if class_name.empty?
-            err_msg = "Class name isn't defined."
-          elsif class_exists?(class_name)
-            @logger.debug "Creating new '#{class_name}' object"
-            obj = Object::const_get(class_name).new(task)
-            method_name = task['operation'].to_s.tr('-', '_')
-            if obj.respond_to?(method_name)
-              @logger.debug "Executing '#{method_name}'"
-              status = obj.send(method_name)
-              state = 'success' if status[:success]
-              output = status[:output]
-            else
-              err_msg = "Method '#{class_name}.#{method_name}' "\
-                        "does not exist."
-            end
-          else
-            err_msg = "Class '#{class_name}' doesn't exist."
-          end
-        end
-        if err_msg
-          @logger.error err_msg
-          output = err_msg
-        end
-        @logger.debug "#{state.capitalize}!"
-        @logger.debug " [x] Done"
-        task['state'] = state
-        task['output'] = output
-        task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
-        @logger.debug "Publishing to task_queue.#{state}"
-        @x.publish(JSON.pretty_generate(task),
-                   :routing_key => "task_queue.#{state}")
-        @logger.debug "Sending ack"
-        @ch.ack(delivery_info.delivery_tag)
+        process_task(body, task, delivery_info)
       rescue Exception => e
         @logger.error "subcribe error: #{e.full_message}"
         if task.any?

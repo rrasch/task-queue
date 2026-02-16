@@ -228,16 +228,22 @@ def main():
             )
 
         if cls != "util":
-            if args.rstar_dir and (args.input_path or args.output_path):
-                parser.error(
-                    "-r/--rstar-dir can't be used with -i/--input-path,"
-                    " -o/--output-path"
-                )
+            has_rstar = bool(args.rstar_dir)
+            has_input = bool(args.input_path)
+            has_output = bool(args.output_path)
+            has_both_io_paths = has_input and has_output
 
-            if (args.input_path is None) != (args.output_path is None):
-                parser.error(
-                    "-i/--input-path and -o/--output-path must be set together",
-                )
+            # Require rstar_dir or input/output paths to be set
+            if not has_rstar and not has_both_io_paths:
+                parser.error("Missing rstar_dir or input/output path pair")
+
+            # rstar_dir is mutually exclusive with input/output
+            if has_rstar and (has_input or has_output):
+                parser.error("rstar_dir can't be used with input/output paths")
+
+            # input/output must be paired
+            if has_input ^ has_output:
+                parser.error("input/output paths must be set together")
 
             check_paths_on_nfs(args_dict)
 

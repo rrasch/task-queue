@@ -15,6 +15,11 @@ else
 	ENV=prod
 fi
 
+# Clear environment and read values from config file. We don't
+# unset FOREGROUND because we set this in systemd service file
+unset TQHOME TQUSER PIDFILE LOGDIR MQHOST USE_CGROUP CGROUP_NAME \
+      MIN_WORKERS MAX_WORKERS RVM_RUBY_VERSION
+
 CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -54,38 +59,51 @@ start() {
 		exit 1
 	fi
 
+	if [ "$TQUSER" = "root" ]; then
+		echo "Choose a non-root user to run task queue." 1>&2
+		exit 1
+	fi
+
 	HOST_LOGDIR="$LOGDIR/$HOST"
 	LOGFILE=$HOST_LOGDIR/worker.$HOST.log
 	if [ ! -e "$HOST_LOGDIR" ]; then
 		mkdir -m 0755 $HOST_LOGDIR
 	fi
 
-	CMD="$TQHOME/workers.rb -m $MQHOST -l $LOGFILE -p $PIDFILE"
-	if [ -n "$RVM_RUBY_VERSION" ]; then
-		CMD="$RVM_GEM_DIR/ruby-$RVM_RUBY_VERSION@task-queue/wrappers/ruby $CMD"
+	CMD=()
+	if [ "$USE_CGROUP" = "true" ]; then
+		CMD+=(cgexec -g "$CGROUP_NAME" --sticky)
 	fi
+	if [ -n "$RVM_RUBY_VERSION" ]; then
+		CMD+=("$RVM_GEM_DIR/ruby-$RVM_RUBY_VERSION@task-queue/wrappers/ruby")
+	fi
+	CMD+=("$TQHOME/workers.rb" -m "$MQHOST" -l "$LOGFILE" -p "$PIDFILE")
 	if [ "$FOREGROUND" = "true" ]; then
-		CMD="$CMD -f"
+		CMD+=(-f)
 	fi
 	if [ -n "$MIN_WORKERS" ]; then
-		CMD="$CMD -n $MIN_WORKERS"
+		CMD+=(-n "$MIN_WORKERS")
 	fi
 	if [ -n "$MAX_WORKERS" ]; then
-		CMD="$CMD -x $MAX_WORKERS"
+		CMD+=(-x "$MAX_WORKERS")
 	fi
-	if [ "$USE_CGROUP" = "true" ]; then
-		CMD="cgexec -g $CGROUP_NAME --sticky $CMD"
+
+	printf -v CMD_STR '%q ' "${CMD[@]}"
+	CMD_STR="${CMD_STR%" "}"
+	if [[ "$CMD" =~ [\;\&\|\`\<\>\$\(] ]]; then
+		echo "Unsafe characters in command" 1>&2
+		exit 1
 	fi
 
 	if [ "$TQUSER" = "$(whoami)" ]; then
-		$CMD
+		exec "${CMD[@]}"
 	else
 		TQGROUP=$(id -gn $TQUSER)
 		chown "${TQUSER}:${TQGROUP}" $HOST_LOGDIR
-		if [ -f $LOGFILE ]; then
+		if [ -f "$LOGFILE" ]; then
 			chown "${TQUSER}:${TQGROUP}" $LOGFILE
 		fi
-		su -ls /bin/bash $TQUSER -c "$CMD"
+		su -ls /bin/bash "$TQUSER" -c 'exec "$@"' -- _ "${CMD[@]}"
 	fi
 	RETVAL=$?
 }

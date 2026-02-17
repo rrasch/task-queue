@@ -58,6 +58,7 @@ Requires:       jq
 Requires:       perl-DBD-MySQL
 Requires:       python3-mysqlclient
 Requires:       python3-pika
+Requires:       python3-psutil
 Requires:       python3-tabulate
 Requires:       python3-tomli
 

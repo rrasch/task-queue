@@ -195,7 +195,12 @@ module JobProcessor
         end
         @logger.debug("Rejecting message: #{delivery_info}")
         @ch.nack(delivery_info.delivery_tag, false, false)
-        @conn.close
+        unless [
+          JSON::JSONError,
+          ProcessTaskError
+        ].any? { |klass| e.is_a?(klass) }
+          @conn.close
+        end
       end
     end
   rescue Exception => e

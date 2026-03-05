@@ -35,7 +35,7 @@ require_relative './lib/tqcommon'
 require_relative './lib/util'
 require_relative './lib/video'
 
-class ProcessTaskError < StandardError; end
+class InvalidTaskError < StandardError; end
 
 module JobProcessor
 
@@ -90,8 +90,7 @@ module JobProcessor
       task.merge!(JSON.parse(body))
       @logger.debug task.inspect
     rescue JSON::JSONError => e
-       @logger.error "Can't parse '#{body}': #{e.full_message}"
-       raise
+      raise InvalidTaskError, "Can't parse JSON '#{body}' - #{e.message}"
     end
 
     task['logger'] = @logger
@@ -103,17 +102,17 @@ module JobProcessor
 
     svc = "#{task['class']}:#{task['operation']}"
     if !@config[:svc_lookup].has_key?(svc)
-      raise ProcessTaskError, "Invalid service: #{svc}"
+      raise InvalidTaskError, "Invalid service: #{svc}"
     end
 
     class_name = classify(task['class'].to_s.strip)
 
     if class_name.empty?
-      raise ProcessTaskError, "Class name isn't defined."
+      raise InvalidTaskError, "Class name isn't defined."
     end
 
     if !class_exists?(class_name)
-      raise ProcessTaskError, "Class '#{class_name}' doesn't exist."
+      raise InvalidTaskError, "Class '#{class_name}' doesn't exist."
     end
 
     unless task['class'] == "util"
@@ -145,7 +144,7 @@ module JobProcessor
     method_name = task['operation'].to_s.tr('-', '_')
 
     if !obj.respond_to?(method_name)
-      raise ProcessTaskError,
+      raise InvalidTaskError,
         "Method '#{class_name}.#{method_name}' does not exist."
     end
 
@@ -185,22 +184,22 @@ module JobProcessor
         task = {}
         process_task(body, task, delivery_info)
       rescue Exception => e
-        @logger.error "subcribe error: #{e.full_message}"
+        if (is_invalid_err = e.is_a?(InvalidTaskError))
+          err_msg = e.message
+        else
+          err_msg = e.full_message
+        end
+        @logger.error "#{e.class}: #{err_msg}"
         if task.any?
           task['state'] = 'error'
-          task['output'] = e.full_message
+          task['output'] = err_msg
           task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
           @x.publish(JSON.pretty_generate(task),
                      :routing_key => "task_queue.error")
         end
         @logger.debug("Rejecting message: #{delivery_info}")
         @ch.nack(delivery_info.delivery_tag, false, false)
-        unless [
-          JSON::JSONError,
-          ProcessTaskError
-        ].any? { |klass| e.is_a?(klass) }
-          @conn.close
-        end
+        @conn.close unless is_invalid_err
       end
     end
   rescue Exception => e

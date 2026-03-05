@@ -52,6 +52,11 @@ class BookPublisher
              'create-pdf.pl')
   end
 
+  def make_yaiglobal_upload_pdf
+    exec_cmd('create-deriv-images.pl --pdf-tifs --force',
+             'create-pdf.pl --lores --force')
+  end
+
   def hocr2pdf
     exec_cmd('create-deriv-images.pl -m',
              'hocr2pdf.py')

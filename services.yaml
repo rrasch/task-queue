@@ -9,6 +9,7 @@ services:
   - book_publisher:create_pdf
   - book_publisher:gen_all
   - book_publisher:hocr2pdf
+  - book_publisher:make_yaiglobal_upload_pdf
   - book_publisher:stitch_pages
   - util:env
   - util:fortune

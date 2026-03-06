@@ -48,17 +48,19 @@ class BookPublisher
 
   def gen_all
     exec_cmd('create-deriv-images.pl',
-             'stitch-pages.pl',
              'create-pdf.pl')
   end
 
+  # create low resolution pdf that will be uploaded
+  # to yaiglobal to extract hocr
   def make_yaiglobal_upload_pdf
-    exec_cmd('create-deriv-images.pl --pdf-tifs --force',
-             'create-pdf.pl --lores --force')
+    opts = '--lores'
+    exec_cmd("create-deriv-images.pl #{opts}",
+             "create-pdf.pl #{opt}")
   end
 
   def hocr2pdf
-    exec_cmd('create-deriv-images.pl -m',
+    exec_cmd('create-deriv-images.pl --dmakers',
              'hocr2pdf.py')
   end
 

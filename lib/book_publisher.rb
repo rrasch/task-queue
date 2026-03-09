@@ -56,7 +56,8 @@ class BookPublisher
   def make_yaiglobal_upload_pdf
     opts = '--lores'
     exec_cmd("create-deriv-images.pl #{opts}",
-             "create-pdf.pl #{opt}")
+             "create-pdf.pl #{opts}",
+             'clean-aux.py --exclude _lo.pdf')
   end
 
   def hocr2pdf

@@ -2,23 +2,9 @@
 #
 # Preforking RabbitMQ job runner using Servolux.
 #
-# In this example, we prefork 7 processes each of which connect to our
-# RabbitMQ queue and then wait for jobs to process. We are using a module so
-# that we can connect to the RabbitMQ queue before executing and then
-# disconnect from the RabbitMQ queue after exiting. These methods are called
-# exactly once per child process.
-#
-# A variation on this is to load source code in the before_executing method
-# and initialize an object that will process jobs. This is advantageous because
-# now you can send SIGHUP to a child process and it will restart, loading your
-# Ruby libraries before executing. Now you can do a rolling deploy of new
-# code.
-#
-#   def before_executing
-#     Kernel.load '/your/source/code.rb'
-#     @job_runner = Your::Source::Code::JobRunner.new
-#   end
-# --------
+# On startup the server forks a pool of worker processes. Each worker
+# connects to the RabbitMQ queue named task_queue, waits for jobs,
+# and processes them as they arrive.
 
 require 'rubygems'
 require 'bunny'

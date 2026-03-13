@@ -54,7 +54,7 @@ class BookPublisher
   # create low resolution pdf that will be uploaded
   # to yaiglobal to extract hocr
   def make_yaiglobal_upload_pdf
-    opts = '--lores'
+    opts = '--force --lores'
     exec_cmd("create-deriv-images.pl #{opts}",
              "create-pdf.pl #{opts}",
              'clean-aux.py --exclude _lo.pdf')

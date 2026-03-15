@@ -75,7 +75,8 @@ rm -rf %{buildroot}
 
 git clone %{url}.git %{buildroot}%{dlibdir}
 cd  %{buildroot}%{dlibdir}
-# rm -rf %{buildroot}%{dlibdir}/.git*
+rm -rf %{buildroot}%{dlibdir}/.git*
+rm -rf %{buildroot}%{dlibdir}/.rubocop.yml
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -maxdepth 1 -regextype posix-extended \

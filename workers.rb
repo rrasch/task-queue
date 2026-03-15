@@ -108,19 +108,19 @@ module JobProcessor
 
       # must have one mode or the other
       unless has_rstar || (has_input && has_output)
-        raise ArgumentError,
+        raise InvalidTaskError,
           "Must provide rstar_dir OR input_path+output_path"
       end
 
       # rstar_dir is mutually exclusive with input/output
       if has_rstar && (has_input || has_output)
-        raise ArgumentError,
+        raise InvalidTaskError,
           "rstar_dir cannot be used with input_path/output_path"
       end
 
       # input and output must be paired
       if has_input ^ has_output
-        raise ArgumentError,
+        raise InvalidTaskError,
           "input_path and output_path must be provided together"
       end
     end

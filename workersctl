@@ -17,7 +17,7 @@ fi
 
 # Clear environment and read values from config file. We don't
 # unset FOREGROUND because we set this in systemd service file
-unset TQHOME TQUSER PIDFILE LOGDIR MQHOST USE_CGROUP CGROUP_NAME \
+unset TQHOME TQUSER PIDFILE LOGDIR LOG_LEVEL MQHOST USE_CGROUP CGROUP_NAME \
       MIN_WORKERS MAX_WORKERS RVM_RUBY_VERSION
 
 CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
@@ -33,6 +33,8 @@ TQUSER=${TQUSER:-rstar}
 PIDFILE=${PIDFILE:-/var/lib/task-queue/taskqueueserver.pid}
 
 LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
+
+LOG_LEVEL=${LOG_LEVEL:-info}
 
 MQHOST=${MQHOST:-localhost}
 
@@ -78,6 +80,9 @@ start() {
 		CMD+=("$RVM_GEM_DIR/ruby-$RVM_RUBY_VERSION@task-queue/wrappers/ruby")
 	fi
 	CMD+=("$TQHOME/workers.rb" -m "$MQHOST" -l "$LOGFILE" -p "$PIDFILE")
+	if [ -n "$LOG_LEVEL" ]; then
+		CMD+=(--log-level "$LOG_LEVEL")
+	fi
 	if [ "$FOREGROUND" = "true" ]; then
 		CMD+=(-f)
 	fi

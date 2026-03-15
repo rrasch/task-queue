@@ -24,7 +24,7 @@ class Cmd
       end
       env = @args.fetch('env', {})
       cmd_list = Shellwords.split(cmd)
-      @logger.debug("Executing '#{cmd}' with env #{env}")
+      @logger.info("Executing '#{cmd}' with env #{env}")
       @logger.debug("Cmd list: #{cmd_list}")
       begin
         output, status = Open3.capture2e(env, *cmd_list)
@@ -49,7 +49,7 @@ class Cmd
 
   def self.do_or_die(cmd, logger)
     cmd_list = Shellwords.split(cmd)
-    logger.debug "Running '#{cmd}'"
+    logger.info "Running '#{cmd}'"
     logger.debug("Cmd list: #{cmd_list}")
     output, status = Open3.capture2e(*cmd_list)
     logger.debug output

@@ -74,7 +74,7 @@ module JobProcessor
   def process_task(body, task, delivery_info)
     begin
       task.merge!(JSON.parse(body))
-      @logger.debug task.inspect
+      @logger.info "Parsed JSON task: #{task}"
     rescue JSON::JSONError => e
       raise InvalidTaskError, "Can't parse JSON '#{body}' - #{e.message}"
     end
@@ -153,6 +153,7 @@ module JobProcessor
               :routing_key => "task_queue.#{state}")
     @logger.debug "Sending ack"
     @ch.ack(delivery_info.delivery_tag)
+    @logger.info "Task completed #{task}"
   end
 
   # Reserve a job from the RabbitMQ queue, and processes jobs as we receive
@@ -354,15 +355,20 @@ config = {
   :timeout     => nil,
   :logfile     => Dir.pwd + "/worker.log",
   :pidfile     => Dir.pwd + "/taskqueueserver.pid",
-  :quiet       => false,
+  :log_level   => Logger::INFO,
   :foreground  => false,
   :min_workers => max_workers,
   :max_workers => max_workers,
   :svc_lookup  => TQCommon.get_services.map { |svc| [svc, true] }.to_h,
 }
 
-# puts config[:logfile]
-# puts config[:pidfile]
+log_levels = {
+  "debug" => Logger::DEBUG,
+  "info"  => Logger::INFO,
+  "warn"  => Logger::WARN,
+  "error" => Logger::ERROR,
+  "fatal" => Logger::FATAL
+}
 
 OptionParser.new do |opts|
 
@@ -388,8 +394,9 @@ OptionParser.new do |opts|
     config[:foreground] = true
   end
 
-  opts.on('-q', '--quiet', 'Suppress debugging messages') do
-    config[:quiet] = true
+  opts.on('--log-level LEVEL', log_levels.keys,
+          "Set log level (#{log_levels.keys.join(', ')})") do |level|
+    config[:log_level] = log_levels[level]
   end
 
   opts.on('-n', '--min-workers MIN_WORKERS', Integer, 'Min number of workers') do |n|
@@ -422,7 +429,7 @@ end
 $stdout = config[:logfh]
 $stderr = config[:logfh]
 config[:logger] = ::Logger.new(config[:logfh])
-config[:logger].level = config[:quiet] ? Logger::INFO : Logger::DEBUG
+config[:logger].level = config[:log_level]
 
 ENV["TQ_SERVER_PID"] = Process.pid.to_s
 

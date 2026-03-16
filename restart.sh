@@ -25,7 +25,7 @@ fi
 # temp directory
 RSTAR_TMPDIR="/content/$ENV/rstar/tmp"
 
-# execuite command if this file exists
+# execute command if this file exists
 TRIGGER_FILE="$RSTAR_TMPDIR/tq-$CMD.txt"
 
 # store date/time of command here

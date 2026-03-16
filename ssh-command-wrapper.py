@@ -246,7 +246,7 @@ def main():
         sys.exit("Access denied")
 
     cmd_str = os.environ["SSH_ORIGINAL_COMMAND"]
-    logging.debug(f"Original commmand: {cmd_str}")
+    logging.debug(f"Original command: {cmd_str}")
 
     cmd_list = shlex.split(cmd_str)
     logging.debug("cmd: %s", pformat(cmd_list))

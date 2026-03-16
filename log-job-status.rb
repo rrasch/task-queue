@@ -102,7 +102,7 @@ begin
               :manual_ack => true) do |delivery_info, properties, payload|
     consumer = delivery_info[:consumer]
     logger.debug "Received #{payload}, "\
-                 "message proprties are #{properties.inspect}, and "\
+                 "message properties are #{properties.inspect}, and "\
                  "delivery info is #{delivery_info.inspect}"
     task = JSON.parse(payload)
     joblog = JobLog.new(options[:my_cnf], logger)

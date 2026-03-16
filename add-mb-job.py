@@ -322,6 +322,8 @@ def main():
     else:
         publish(cursor, channel, task)
 
+    print(f"The batch id {batch_id}")
+
     mq_conn.close()
     db_conn.close()
 

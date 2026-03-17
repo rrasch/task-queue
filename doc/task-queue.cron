@@ -1,5 +1,7 @@
 # /etc/cron.d/task-queue
 
+PATH=/usr/sbin:/sbin:/usr/bin:/bin
+
 # Restart server if restart trigger file exists
 */5 * * * * root /usr/local/dlib/task-queue/restart.sh > /dev/null 2>&1
 

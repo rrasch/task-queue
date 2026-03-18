@@ -2,6 +2,7 @@
 
 require 'rubygems'
 require 'chronic'
+require 'csv'
 require 'io/console'
 require 'json'
 require 'logger'
@@ -114,6 +115,10 @@ OptionParser.new do |opts|
     options[:limit] = l
   end
 
+  opts.on("--csv [FILE]", "Write output to CSV (default: jobs.csv)") do |file|
+    options[:csv] = file || "jobs.csv"
+  end
+
   opts.on('-o', '--output', 'Print output for jobs') do
     options[:output] = true
   end
@@ -152,6 +157,20 @@ if options.key?(:from) && options.key?(:to) &&
 end
 
 joblog = JobLog.new(options[:my_cnf], logger)
+
+if options[:csv]
+  result = joblog.select_job(options)
+  headers = %w[
+    job_id batch_id state user_id worker_host submitted started completed
+  ]
+  CSV.open(options[:csv], "w", write_headers: true, headers: headers) do |csv|
+    result.each do |row|
+      csv << headers.map { |h| row[h] }
+    end
+  end
+  puts "CSV written to #{options[:csv]}"
+  exit
+end
 
 sep = '-' * win_cols
 

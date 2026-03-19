@@ -26,7 +26,6 @@ class JobLog
     @logger.debug "bind value: #{query.bind}"
     stmt = @client.prepare(query.as_sql)
     result = stmt.execute(*(query.bind))
-    result.first
   end
 
   def select_job(args)

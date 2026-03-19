@@ -200,9 +200,8 @@ end
 sep = '-' * win_cols
 
 if !options[:batch_id].nil?
-  batch = joblog.select_batch(options[:batch_id])
-  if !batch.nil?
-    puts "\nBATCH ##{options[:batch_id]}"
+  joblog.select_batch(options[:batch_id]).each do |batch|
+    puts "BATCH ##{batch['batch_id']}"
     puts sep
     batch.each do |key, value|
       puts key + ': ' + value.to_s

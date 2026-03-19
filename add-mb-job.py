@@ -172,6 +172,7 @@ def main():
     parser.add_argument(
         "-p",
         "--priority",
+        type=int,
         default=0,
         choices=range(11),
         help="message priority (default: %(default)s)",

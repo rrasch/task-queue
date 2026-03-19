@@ -91,12 +91,41 @@ options = {
 # :to => 'now',
 }
 
+
+ID_RANGE = Object.new
+
+OptionParser.accept(ID_RANGE) do |s|
+  case s
+  when /\A\d+\z/
+    s.to_i
+
+  when /\A\d+[-:]\d+\z/
+    start_id, end_id = s.split(/[-:]/).map(&:to_i)
+
+    if start_id > end_id
+      raise OptionParser::InvalidArgument, 'start > end in range'
+    end
+
+    [start_id, end_id]
+
+  else
+    raise OptionParser::InvalidArgument,
+          'must be a number or range (e.g. 100 or 100-105 or 100:105)'
+  end
+end
+
+
 OptionParser.new do |opts|
 
   opts.banner = "Usage: #{$0} [options]"
 
   opts.on('-c', '--my-cnf CONFIG_FILE', 'MySQL config for taskqueue db') do |c|
     options[:my_cnf] = c
+  end
+
+  opts.on('--batch-id ID', ID_RANGE,
+          'Query jobs with batch id (e.g. 123, 100-105, 200:210)') do |b|
+    options[:batch_id] = b
   end
 
   opts.on('-b', '--batch-id NUMBER', 'Query jobs from batch id') do |b|

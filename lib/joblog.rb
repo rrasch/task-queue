@@ -16,9 +16,12 @@ class JobLog
 
   def select_batch(batch_id)
     @logger.debug "batch id: #{batch_id}"
-    query = SQL::Maker::Select.new.add_select('*')
-                                  .add_from('batch')
-                                  .add_where('batch_id' => batch_id)
+    query = SQL::Maker::Select.new.add_select('*').add_from('batch')
+    if batch_id.is_a?(Array)
+        query.add_where('batch_id' => {:between => batch_id})
+    else
+        query.add_where('batch_id' => batch_id)
+    end
     @logger.debug "sql: #{query.as_sql}"
     @logger.debug "bind value: #{query.bind}"
     stmt = @client.prepare(query.as_sql)
@@ -30,7 +33,11 @@ class JobLog
     @logger.debug "entering select_job(#{args})"
     subquery = SQL::Maker::Select.new.add_select('*').add_from('job')
     if args.key?(:batch_id)
-      subquery.add_where('batch_id' => args[:batch_id])
+      if args[:batch_id].is_a?(Array)
+        subquery.add_where('batch_id' => {:between => args[:batch_id]})
+      else
+        subquery.add_where('batch_id' => args[:batch_id])
+      end
     end
     if args.key?(:from)
       @logger.debug "starting date: #{args[:from]}"

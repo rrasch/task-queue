@@ -123,12 +123,8 @@ OptionParser.new do |opts|
     options[:my_cnf] = c
   end
 
-  opts.on('--batch-id ID', ID_RANGE,
+  opts.on('-b', '--batch-id ID', ID_RANGE,
           'Query jobs with batch id (e.g. 123, 100-105, 200:210)') do |b|
-    options[:batch_id] = b
-  end
-
-  opts.on('-b', '--batch-id NUMBER', 'Query jobs from batch id') do |b|
     options[:batch_id] = b
   end
 

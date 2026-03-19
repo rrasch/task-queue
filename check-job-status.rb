@@ -86,10 +86,9 @@ alias_file = "#{etcdir}/host-aliases.yaml"
 
 options = {
   :my_cnf => "#{etcdir}/my-taskqueue.cnf",
-  :limit => "100",
-# :from => '3 days ago',
-# :to => 'now',
 }
+
+DEFAULT_LIMIT = 100
 
 
 ID_RANGE = Object.new
@@ -136,7 +135,7 @@ OptionParser.new do |opts|
     options[:to] = t
   end
 
-  opts.on('-l', '--limit LIMIT', 'Limit results to this number') do |l|
+  opts.on('-l', '--limit LIMIT', Integer, 'Limit results to this number') do |l|
     options[:limit] = l
   end
 
@@ -158,6 +157,10 @@ OptionParser.new do |opts|
   end
 
 end.parse!
+
+unless options[:limit] || options[:batch_id]
+  options[:limit] = DEFAULT_LIMIT
+end
 
 logger = Logger.new($stderr)
 logger.level = options[:verbose] ? Logger::DEBUG : Logger::INFO

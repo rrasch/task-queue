@@ -89,6 +89,66 @@ def validate_filepath(filepath):
     return filepath
 
 
+def validate_parent_path(filepath):
+    """
+    Argparse type function: checks that the parent directory of filepath exists.
+    """
+    filepath = os.path.realpath(filepath)
+    parent = os.path.dirname(filepath) or "."
+
+    if not os.path.isdir(parent):
+        raise argparse.ArgumentTypeError(
+            f"Parent directory does not exist: '{parent}'"
+        )
+
+    return filepath
+
+
+def validate_transcode_output_path(input_path, output_path):
+    """
+    Validates output_path based on input_path type:
+
+    - If input_path is a file:
+        - output_path is treated as a file prefix
+        - parent directory must exist
+        - output_path must not be a directory
+    - If input_path is a directory:
+        - output_path must be an existing directory
+    """
+    output_path = os.path.realpath(output_path)
+
+    # Input is a file so must output be a prefix
+    if os.path.isfile(input_path):
+        parent = os.path.dirname(output_path) or "."
+
+        if not os.path.isdir(parent):
+            raise ValueError(
+                f"Output prefix directory does not exist: '{parent}'"
+            )
+
+        if os.path.isdir(output_path):
+            raise ValueError(
+                "Output path must be a file prefix, not a directory:"
+                f" '{output_path}'"
+            )
+
+        return output_path
+
+    # Input is a directory so output must also be a directory
+    elif os.path.isdir(input_path):
+        if not os.path.isdir(output_path):
+            raise ValueError(
+                "When input is a directory, output must also be a directory:"
+                f" '{output_path}'"
+            )
+
+        return output_path
+
+    else:
+        # Should not happen if argparse validated input_path
+        raise RuntimeError(f"Unexpected input path type: '{input_path}'")
+
+
 def get_nfs_mounts():
     return [
         part.mountpoint
@@ -159,7 +219,7 @@ def main():
     parser.add_argument(
         "-o",
         "--output-path",
-        type=validate_filepath,
+        type=validate_parent_path,
         help="output path (directory or file prefix)",
     )
     parser.add_argument(
@@ -216,7 +276,7 @@ def main():
     if args.test:
         print("Running in test mode.")
 
-    if not args.test:
+    else:  # Validate arguments
         if not args.service:
             usage(parser, "You must set -s to define the service.")
 
@@ -248,85 +308,98 @@ def main():
 
             check_paths_on_nfs(args_dict)
 
-    mq_conn = pika.BlockingConnection(
-        pika.ConnectionParameters(
-            host=args.mqhost,
-            channel_max=CHANNEL_MAX,
-            socket_timeout=3,
+            if has_input and args.service == "video:trancode":
+                validate_transcode_output_path(
+                    args.input_path, args.output_path
+                )
+
+    mq_conn = None
+    db_conn = None
+
+    try:
+        mq_conn = pika.BlockingConnection(
+            pika.ConnectionParameters(
+                host=args.mqhost,
+                channel_max=CHANNEL_MAX,
+                socket_timeout=3,
+            )
         )
-    )
 
-    logging.debug(
-        "server properties: %s", pformat(mq_conn._impl.server_properties)
-    )
-    logging.debug(
-        "server capabilities: %s", pformat(mq_conn._impl.server_capabilities)
-    )
+        logging.debug(
+            "server properties: %s", pformat(mq_conn._impl.server_properties)
+        )
+        logging.debug(
+            "server capabilities: %s",
+            pformat(mq_conn._impl.server_capabilities),
+        )
 
-    channel = mq_conn.channel()
-    queue = channel.queue_declare(
-        queue=QUEUE_NAME,
-        durable=True,
-        arguments={"x-max-priority": 10},
-    )
-    logging.debug(
-        f"Queue {QUEUE_NAME} message count: {queue.method.message_count}"
-    )
+        channel = mq_conn.channel()
+        queue = channel.queue_declare(
+            queue=QUEUE_NAME,
+            durable=True,
+            arguments={"x-max-priority": 10},
+        )
+        logging.debug(
+            f"Queue {QUEUE_NAME} message count: {queue.method.message_count}"
+        )
 
-    channel.exchange_declare(
-        exchange=EXCHANGE_NAME,
-        exchange_type="topic",
-        durable=True,
-    )
+        channel.exchange_declare(
+            exchange=EXCHANGE_NAME,
+            exchange_type="topic",
+            durable=True,
+        )
 
-    db_conn = MySQLdb.connect(read_default_file=my_conf_file, autocommit=True)
-    cursor = db_conn.cursor()
+        db_conn = MySQLdb.connect(
+            read_default_file=my_conf_file, autocommit=True
+        )
+        cursor = db_conn.cursor()
 
-    if args.test:
-        mq_conn.close()
-        db_conn.close()
-        sys.exit(0)
+        if args.test:
+            sys.exit(0)
 
-    login = os.getlogin()
+        login = os.getlogin()
 
-    query = "INSERT into batch (user_id, cmd_line) VALUES (%s, %s)"
-    do_query(cursor, query, (login, cmd_line))
-    batch_id = cursor.lastrowid
+        query = "INSERT into batch (user_id, cmd_line) VALUES (%s, %s)"
+        do_query(cursor, query, (login, cmd_line))
+        batch_id = cursor.lastrowid
 
-    task = {
-        "class": cls,
-        "operation": op,
-        "extra_args": args.extra_args,
-        "user_id": os.getlogin(),
-        "batch_id": batch_id,
-        "state": "pending",
-        "priority": args.priority,
-    }
+        task = {
+            "class": cls,
+            "operation": op,
+            "extra_args": args.extra_args,
+            "user_id": os.getlogin(),
+            "batch_id": batch_id,
+            "state": "pending",
+            "priority": args.priority,
+        }
 
-    for arg_name in PATH_ARGS:
-        if args_dict[arg_name]:
-            task[arg_name] = args_dict[arg_name]
+        for arg_name in PATH_ARGS:
+            if args_dict[arg_name]:
+                task[arg_name] = args_dict[arg_name]
 
-    if args.json_config:
-        with open(args.json_config) as f:
-            data = json.load(f)
-        for k, v in data.items():
-            task[k] = v
+        if args.json_config:
+            with open(args.json_config) as f:
+                data = json.load(f)
+            for k, v in data.items():
+                task[k] = v
 
-    logging.debug("task:\n%s", pformat(task))
+        logging.debug("task:\n%s", pformat(task))
 
-    if args.rstar_dir:
-        id_list = args.id if args.id else get_dir_contents(args.rstar_dir)
-        for dig_id in id_list:
-            task["identifiers"] = [dig_id]
+        if args.rstar_dir:
+            id_list = args.id if args.id else get_dir_contents(args.rstar_dir)
+            for dig_id in id_list:
+                task["identifiers"] = [dig_id]
+                publish(cursor, channel, task)
+        else:
             publish(cursor, channel, task)
-    else:
-        publish(cursor, channel, task)
 
-    print(f"The batch id {batch_id}")
+        print(f"The batch id {batch_id}")
 
-    mq_conn.close()
-    db_conn.close()
+    finally:
+        if mq_conn:
+            mq_conn.close()
+        if db_conn:
+            db_conn.close()
 
 
 if __name__ == "__main__":

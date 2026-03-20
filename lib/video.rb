@@ -3,9 +3,14 @@ require_relative './cmd'
 
 class Video
 
+  ENVIRON = {
+    "TMPDIR" = "/content/prod/rstar/tmp",
+  }
+
   def initialize(args)
     @args = args.clone
     @logger = @args['logger']
+    @args['env'] = ENVIRON
     @cmd = Cmd.new(@args)
   end
 
@@ -72,5 +77,9 @@ class Video
     return cmds
   end
 
-end
+  def convert_iso(input_path, output_path)
+    @cmd.do_cmd("convert_iso -q #{input_path} "\
+                "#{output_path} #{@args['extra_args']}")
+  end
 
+end

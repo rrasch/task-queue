@@ -15,4 +15,5 @@ services:
   - util:fortune
   - util:nope
   - util:ping
+  - video:convert_iso
   - video:transcode

@@ -78,8 +78,19 @@ class Video
   end
 
   def convert_iso
-    @cmd.do_cmd("convert_iso -q #{@args['input_path']} "\
-                "#{@args['output_path']} #{@args['extra_args']}")
+    logdir = File.join(ENVIRON['TMPDIR'], 'rstar', 'logs')
+    logfile = File.join(
+      logdir,
+      File.basename(
+        @args['input_path'],
+        File.extname(@args['input_path'])
+      ) + ".log"
+    )
+    @cmd.do_cmd("convert_iso --quiet "\
+                "--threads 1 "\
+                "--log-file #{logfile} "\
+                "#{@args['extra_args']} "\
+                "#{@args['input_path']} #{@args['output_path']}")
   end
 
 end

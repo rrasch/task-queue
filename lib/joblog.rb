@@ -48,7 +48,7 @@ class JobLog
     end
     subquery.add_order_by('job_id' => 'DESC')
     if args.key?(:limit)
-      subquery.limit(args[:limit])
+      subquery.limit(args[:limit].to_s)
     end
     query = SQL::Maker::Select.new.add_select('*')
                                   .add_from(subquery => 'job_table')

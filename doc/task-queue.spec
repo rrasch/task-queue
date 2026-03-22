@@ -74,7 +74,11 @@ Requires:       python3-tomli
 rm -rf %{buildroot}
 
 git clone %{url}.git %{buildroot}%{dlibdir}
-cd  %{buildroot}%{dlibdir}
+cd %{buildroot}%{dlibdir}
+%if "%{git_tag}" != "v0.0.0"
+git -c advice.detachedHead=false checkout %{git_tag}
+%endif
+
 rm -rf %{buildroot}%{dlibdir}/.git*
 rm -rf %{buildroot}%{dlibdir}/.rubocop.yml
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
@@ -86,25 +90,27 @@ chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 chmod 0644 %{buildroot}%{dlibdir}/tqcommon.py
 chmod 0644 %{buildroot}%{dlibdir}/util.py
 
-%define builddir %{_builddir}/%{name}-%{version}
+# build outside of buildroot to avoid check-buildroot error
+cp rerun.go %{_builddir}/%{name}-%{version}
+pushd %{_builddir}/%{name}-%{version}
 export GO111MODULE=off
 export GOPATH=$HOME/go:/usr/share/gocode
-cp rerun.go %builddir
-pushd %builddir
-go build -ldflags="-s -w" rerun.go
+go build -trimpath -ldflags="-s -w" rerun.go
 install -m 0755 rerun %{buildroot}%{dlibdir}/rerun
 popd
 
 mkdir -p %{buildroot}%{_bindir}
 ln -s %{dlibdir}/add-mb-job.py %{buildroot}%{_bindir}/add-mb-job
 ln -s %{dlibdir}/check-job-status.rb \
-	%{buildroot}%{_bindir}/check-job-status
+        %{buildroot}%{_bindir}/check-job-status
 ln -s %{dlibdir}/log-job-status.rb \
-	%{buildroot}%{_bindir}/log-job-status
+        %{buildroot}%{_bindir}/log-job-status
 ln -s %{dlibdir}/rerun \
-	%{buildroot}%{_bindir}/rerun-mb-job
-ln -s %{dlibdir}/restart.sh \
-	%{buildroot}%{dlibdir}/stop.sh
+        %{buildroot}%{_bindir}/rerun-mb-job
+
+for action in stop add-worker remove-worker; do
+        ln -s %{dlibdir}/restart.sh %{buildroot}%{dlibdir}/${action}.sh
+done
 
 %if 0%{?_with_systemd:1}
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
@@ -262,5 +268,5 @@ rm -rf %{buildroot}
 %attr(0750,rstar,dlib) %{_var}/log/%{name}
 
 %changelog
-
-# vim: et nowrap:
+* Sun Mar 22 2026 Rasan Rasch <rasan@nyu.edu> - 1.5.2-1
+- add video:convert_iso

@@ -273,6 +273,17 @@ class TaskQueueServer < ::Servolux::Server
     end
   end
 
+  def remove_worker
+    workers = []
+    @pool.each_worker { |w| workers << w if w.alive? }
+    if workers.size > @pool.min_workers
+      retiring_worker = workers.last
+      retiring_worker.stop
+      sleep 0.5
+      retiring_worker.reap
+    end
+  end
+
   def log_worker_status(worker)
     if not worker.alive? then
       worker.wait
@@ -311,11 +322,10 @@ class TaskQueueServer < ::Servolux::Server
     @pool.add_workers
   end
 
-  # kill all the current workers with a usr2, the run loop will respawn up to
-  # the min_worker count
-  #
+  # Remove a worker from the pool when USR2 is received
   def usr2
-    shutdown_workers
+    log "Removing a worker"
+    remove_worker
   end
 
   def hup

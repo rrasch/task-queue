@@ -169,7 +169,7 @@ if !File.file?(options[:my_cnf])
   abort "MySQL config file #{options[:my_cnf]} doesn't exist."
 end
 
-win_rows, win_cols = IO.console.winsize
+win_rows, win_cols = IO.console&.winsize || [24, 80]
 $is_large_win = win_cols > 120
 
 $host_aliases = get_host_aliases(alias_file)

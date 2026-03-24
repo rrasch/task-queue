@@ -367,7 +367,7 @@ config = {
   :pidfile     => Dir.pwd + "/taskqueueserver.pid",
   :log_level   => Logger::INFO,
   :foreground  => false,
-  :min_workers => max_workers,
+  :min_workers => 1,
   :max_workers => max_workers,
   :svc_lookup  => TQCommon.get_services.map { |svc| [svc, true] }.to_h,
 }

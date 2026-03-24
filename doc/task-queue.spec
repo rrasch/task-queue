@@ -108,10 +108,6 @@ ln -s %{dlibdir}/log-job-status.rb \
 ln -s %{dlibdir}/rerun \
         %{buildroot}%{_bindir}/rerun-mb-job
 
-for action in stop add-worker remove-worker; do
-        ln -s %{dlibdir}/restart.sh %{buildroot}%{dlibdir}/${action}.sh
-done
-
 %if 0%{?_with_systemd:1}
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 install -D -m 0644 doc/log-job-status.service \

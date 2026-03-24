@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Administers the task-queue service by reading commands from a file.
+# Administer task-queue service by reading commands from a file.
 #
 # This script is intended to run periodically via cron or a systemd timer.
 # - It checks the action file (tq-action.txt) and validates its command.

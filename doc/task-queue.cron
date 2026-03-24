@@ -2,11 +2,9 @@
 
 PATH=/usr/sbin:/sbin:/usr/bin:/bin
 
-# Restart server if restart trigger file exists
-*/5 * * * * root /usr/local/dlib/task-queue/restart.sh > /dev/null 2>&1
-
-# Shutdown server if stop trigger file exists
-*/5 * * * * root /usr/local/dlib/task-queue/stop.sh > /dev/null 2>&1
+# Perform task-queue service actions based on commands read from tq-action.txt
+# We check the file every 5 minutes
+*/5 * * * * root /usr/local/dlib/task-queue/tq-cmd.sh > /dev/null 2>&1
 
 # Update task-queue rpm package every Sunday at 3am
 0 3 * * Sun root LOG_LEVEL=DEBUG /usr/bin/python3 /usr/local/dlib/task-queue/update-rpm.py > /dev/null 2>&1

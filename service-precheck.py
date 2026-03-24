@@ -139,10 +139,14 @@ def main():
         time.sleep(15)
 
     sysconfig = tqcommon.get_sysconfig()
+    if "mqhost" not in sysconfig:
+        sys.exit("RabbitMQ host not defined in task queue config")
     sock_addrs = [(sysconfig["mqhost"], socket.getservbyname("amqp"))]
 
     if args.mysql:
         myconfig = tqcommon.get_myconfig()
+        if "host" not in myconfig:
+            sys.exit("Database host not defined in MySQL config")
         sock_addrs.append((myconfig["host"], socket.getservbyname("mysql")))
 
     if args.smtp:

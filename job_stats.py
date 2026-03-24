@@ -57,7 +57,8 @@ def gen_csv(args, csv_path):
 
 
 def print_df(df):
-    print(tabulate(df, df.columns))
+    headers = [col.replace("_", " ").title() for col in df.columns]
+    print(tabulate(df, headers=headers, showindex=False, tablefmt="plain"))
 
 
 def main():

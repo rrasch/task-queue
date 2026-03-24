@@ -308,7 +308,7 @@ def main():
 
             check_paths_on_nfs(args_dict)
 
-            if has_input and args.service == "video:trancode":
+            if has_input and args.service == "video:transcode":
                 validate_transcode_output_path(
                     args.input_path, args.output_path
                 )

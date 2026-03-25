@@ -79,13 +79,13 @@ class Video
 
   def convert_iso
     logdir = File.join(ENVIRON['TMPDIR'], 'rstar', 'logs')
-    logfile = File.join(
-      logdir,
-      File.basename(
-        @args['input_path'],
-        File.extname(@args['input_path'])
-      ) + ".log"
+    timestamp = Time.now.strftime("%Y%m%d-%H%M%S")
+    pid = Process.pid
+    basename = File.basename(
+      @args['output_path'],
+      File.extname(@args['output_path'])
     )
+    logfile = File.join(logdir, "#{basename}-#{timestamp}-#{pid}.log")
     @cmd.do_cmd("convert_iso --quiet "\
                 "--threads 1 "\
                 "--log-file #{logfile} "\

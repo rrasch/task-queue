@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from collections import Counter
 from pprint import pformat
 import MySQLdb
 import argparse
@@ -8,6 +9,7 @@ import logging
 import os
 import pika
 import psutil
+import requests
 import sys
 import tqcommon
 import util
@@ -184,6 +186,41 @@ def rewrite_extra_args(argv):
     return new_argv
 
 
+def get_consumer_counts(mqhost):
+    api_url = f"http://{mqhost}:15672/api/queues/%2f/task_queue"
+    try:
+        response = requests.get(api_url, auth=("guest", "guest"))
+        qdata = response.json()
+    except requests.exceptions.RequestException as e:
+        logging.error("Problem calling admin api - %s %s", type(e).__name__, e)
+        return
+
+    return Counter(
+        c["channel_details"]["peer_host"]
+        for c in qdata.get("consumer_details", [])
+    )
+
+
+def is_multiple_workers(mqhost):
+    counts = get_consumer_counts(mqhost)
+    logging.debug("Consumers: %s", pformat(counts))
+    return any(cnt > 1 for cnt in counts.values()) if counts else False
+
+
+def confirm_handbrake_job():
+    warning = """
+WARNING: The task-queue currently has multiple workers per host.
+Running HandBrake in parallel with other jobs may overload the server.
+Do you want to still send this job?
+Type 'yes' to confirm, anything else will cancel.
+"""
+    print(warning)
+    response = input("> ").strip().lower()
+    if response != "yes":
+        print("Job cancelled to avoid server overload.")
+        sys.exit(0)
+
+
 def main():
     my_conf_file = tqcommon.get_myconfig_file()
     sysconfig = tqcommon.get_sysconfig()
@@ -274,7 +311,7 @@ def main():
     logging.debug(f"cmd line: {cmd_line}")
 
     if args.test:
-        print("Running in test mode.")
+        print("Running in test mode.", file=sys.stderr)
 
     else:  # Validate arguments
         if not args.service:
@@ -312,6 +349,9 @@ def main():
                 validate_transcode_output_path(
                     args.input_path, args.output_path
                 )
+
+            if op == "convert_iso" and is_multiple_workers(args.mqhost):
+                confirm_handbrake_job()
 
     mq_conn = None
     db_conn = None
@@ -355,6 +395,7 @@ def main():
         cursor = db_conn.cursor()
 
         if args.test:
+            print("Test succeeded.", file=sys.stderr)
             sys.exit(0)
 
         login = os.getlogin()

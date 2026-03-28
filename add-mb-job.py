@@ -186,25 +186,36 @@ def rewrite_extra_args(argv):
     return new_argv
 
 
+def log_warn(msg, e):
+    logging.warning("%s - %s %s", msg, type(e).__name__, e)
+
+
 def get_consumer_counts(mqhost):
     api_url = f"http://{mqhost}:15672/api/queues/%2f/task_queue"
     try:
-        response = requests.get(api_url, auth=("guest", "guest"))
-        qdata = response.json()
+        response = requests.get(api_url, timeout=2, auth=("guest", "guest"))
+        queue_data = response.json()
+        consumer_details = queue_data["consumer_details"]
     except requests.exceptions.RequestException as e:
-        logging.error("Problem calling admin api - %s %s", type(e).__name__, e)
+        log_warn("Problem calling management API", e)
+        return
+    except KeyError as e:
+        log_warn("Consumer details not found in queue data", e)
         return
 
     return Counter(
-        c["channel_details"]["peer_host"]
-        for c in qdata.get("consumer_details", [])
+        consumer["channel_details"]["peer_host"]
+        for consumer in consumer_details
     )
 
 
 def is_multiple_workers(mqhost):
-    counts = get_consumer_counts(mqhost)
-    logging.debug("Consumers: %s", pformat(counts))
-    return any(cnt > 1 for cnt in counts.values()) if counts else False
+    worker_counts = get_consumer_counts(mqhost)
+    logging.debug("Consumers: %s", pformat(worker_counts))
+    if worker_counts:
+        return any(count > 1 for count in worker_counts.values())
+    else:
+        return False
 
 
 def confirm_handbrake_job():

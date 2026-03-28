@@ -2,6 +2,7 @@
 
 from collections import Counter
 from pprint import pformat
+from typing import Optional
 import MySQLdb
 import argparse
 import json
@@ -190,7 +191,26 @@ def log_warn(msg, e):
     logging.warning("%s - %s %s", msg, type(e).__name__, e)
 
 
-def get_consumer_counts(mqhost):
+def get_consumer_counts(mqhost: str) -> Optional[Counter]:
+    """
+    Retrieve and count RabbitMQ queue consumers by peer host.
+
+    This function queries the RabbitMQ management API for the
+    "task_queue" queue on the specified host, extracts the consumer
+    details, and returns a Counter mapping each peer_host to the
+    number of consumers connected from that host.
+
+    If the API request fails or the expected data is missing, a
+    warning is logged and None is returned.
+
+    Parameters:
+        mqhost (str): Hostname or IP address of the RabbitMQ server.
+
+    Returns:
+        collections.Counter or None: A Counter where keys are
+        peer_host values and values are the number of consumers
+        from each host, or None if an error occurs.
+    """
     api_url = f"http://{mqhost}:15672/api/queues/%2f/task_queue"
     try:
         response = requests.get(api_url, timeout=2, auth=("guest", "guest"))

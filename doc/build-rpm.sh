@@ -21,6 +21,11 @@ GIT_NAME="task-queue"
 
 GIT_URL="https://github.com/rrasch/$GIT_NAME"
 
+WORK_DIR=$HOME/work/$GIT_NAME
+
+pushd $WORK_DIR
+git pull
+
 if [ "$TAG" = "0.0.0" ] || [ "$TAG" = "v0.0.0" ]; then
 	COMMIT=$(git rev-parse --short HEAD)
 	PROD_BUILD=0
@@ -28,6 +33,8 @@ else
 	COMMIT=$(git ls-remote $GIT_URL refs/tags/$TAG | cut -f1 | cut -c1-7)
 	PROD_BUILD=1
 fi
+
+popd
 
 if [ -z "$COMMIT" ]; then
 	echo "ERROR: Tag '$TAG' not found in repository '$GIT_URL'" >&2
@@ -41,7 +48,11 @@ echo "  Commit: $COMMIT"
 
 source /etc/os-release
 
-VERSION="$(echo ${VERSION_ID} | grep -Eo '^[0-9]')"
+if [[ "$ID" == "rhel" ]]; then
+    VERSION="${VERSION_ID%%.*}"   # major only
+else
+    VERSION="$VERSION_ID"         # full version (Fedora, etc.)
+fi
 
 OSVER="${ID}${VERSION}"
 
@@ -56,9 +67,9 @@ set -e
 
 rm -vf $RPM_DIR/$GIT_NAME-*rpm
 
-pushd ~/work/$GIT_NAME
-git pull
-popd
+# pushd ~/work/$GIT_NAME
+# git pull
+# popd
 
 rpmbuild --bb --without ruby $GIT_NAME.spec \
   --define "git_tag $TAG" \

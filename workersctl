@@ -54,6 +54,24 @@ RVM_GEM_DIR="/usr/share/rvm/gems"
 
 RETVAL=0
 
+
+detect_cgroups() {
+	local fstype
+	fstype=$(stat -fc %T /sys/fs/cgroup 2>/dev/null)
+	case "$fstype" in
+		cgroup2fs)
+			echo "v2"
+			;;
+		tmpfs)
+			if grep -q " cgroup " /proc/self/mounts; then
+				echo "v1"
+			fi
+			;;
+	esac
+	echo "none"
+}
+
+
 start() {
 	PIDS=$(pgrep -f 'ruby.*workers.rb' | paste -sd' ')
 	if [ -n "$PIDS" ]; then
@@ -66,6 +84,12 @@ start() {
 		exit 1
 	fi
 
+	CGROUP_VERSION=$(detect_cgroups)
+	if [ "$USE_CGROUP" = "true" -a "$CGROUP_VERSION" = "none" ]; then
+		echo "Please enable cgroups." 1>&2
+		exit 1
+	fi
+
 	HOST_LOGDIR="$LOGDIR/$HOST"
 	LOGFILE=$HOST_LOGDIR/worker.$HOST.log
 	if [ ! -e "$HOST_LOGDIR" ]; then
@@ -73,7 +97,7 @@ start() {
 	fi
 
 	CMD=()
-	if [ "$USE_CGROUP" = "true" ]; then
+	if [ "$USE_CGROUP" = "true" -a "$CGROUP_VERSION" = "v1" ]; then
 		CMD+=(cgexec -g "$CGROUP_NAME" --sticky)
 	fi
 	if [ -n "$RVM_RUBY_VERSION" ]; then

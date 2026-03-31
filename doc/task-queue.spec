@@ -1,16 +1,19 @@
-%define __brp_mangle_shebangs_exclude_from .rb$
+%bcond_with cgroup_v1
 
 %{!?git_tag:%{error:git_tag macro must be defined}}
 %{!?git_commit:%{error:git_commit macro must be defined}}
 
-%define name     task-queue
-%define version  %(echo %{git_tag} | sed 's/^v//')
-%define release  1.dlts.git%{git_commit}%{?dist}
-%define repourl  https://github.com/rrasch/%{name}
-%define dlibdir  /usr/local/dlib/%{name}
+%global name     task-queue
+%global version  %(echo %{git_tag} | sed 's/^v//')
+%global release  1.dlts.git%{git_commit}%{?dist}
+%global repourl  https://github.com/rrasch/%{name}
+%global dlibdir  /usr/local/dlib/%{name}
 
-%if 0%{?fedora} >= 15 || 0%{?rhel} >= 7
-%define _with_systemd 1
+%global __brp_mangle_shebangs_exclude_from .rb$
+%global __requires_exclude ^(user|group)
+
+%if 0%{?rhel} <= 8
+%global _with_cgroup_v1 1
 %endif
 
 Summary:        Run jobs in parallel using RabbitMQ.
@@ -29,22 +32,20 @@ Requires:       rubygem-bunny
 Requires:       rubygem-chronic
 Requires:       rubygem-mediainfo
 Requires:       rubygem-mysql2
+Requires:       rubygem-rbtree
 Requires:       rubygem-servolux
+Requires:       rubygem-sorted_set >= 1.0.2
 Requires:       rubygem-sql-maker
 %endif
 BuildRoot:      %{_tmppath}/%{name}-root
-%if 0%{?fedora} > 0 || 0%{?rhel} > 0
 BuildRequires:  git
-%if 0%{?fedora} >= 28 || 0%{?rhel} >= 7
+%if %{with cgroup_v1}
 Requires:       libcgroup-tools
-%else
 Requires:       libcgroup
-%endif
-%else
 Requires:       /bin/cgexec
 %endif
 BuildRequires:  golang-bin
-%if 0%{?fedora} >= 31
+%if 0%{?fedora} > 0
 BuildRequires:  golang-github-sql-driver-mysql-devel
 BuildRequires:  golang-gopkg-ini-1-devel
 %endif
@@ -61,6 +62,9 @@ Requires:       python3-pika
 Requires:       python3-psutil
 Requires:       python3-tabulate
 Requires:       python3-tomli
+Provides:       user(rstar)
+Provides:       group(dlib)
+Provides:       %{dlibdir}/system-ruby
 
 %description
 %{summary}
@@ -84,7 +88,7 @@ rm -rf %{buildroot}%{dlibdir}/.rubocop.yml
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -maxdepth 1 -regextype posix-extended \
-        -regex '.*\.(pl|py|rb|sh)' | xargs chmod 0755
+    -regex '.*\.(pl|py|rb|sh)' | xargs chmod 0755
 chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 chmod 0644 %{buildroot}%{dlibdir}/tqcommon.py
@@ -100,23 +104,18 @@ install -m 0755 rerun %{buildroot}%{dlibdir}/rerun
 popd
 
 mkdir -p %{buildroot}%{_bindir}
-ln -s %{dlibdir}/add-mb-job.py %{buildroot}%{_bindir}/add-mb-job
-ln -s %{dlibdir}/check-job-status.rb \
-        %{buildroot}%{_bindir}/check-job-status
-ln -s %{dlibdir}/log-job-status.rb \
-        %{buildroot}%{_bindir}/log-job-status
-ln -s %{dlibdir}/rerun \
-        %{buildroot}%{_bindir}/rerun-mb-job
+ln -s ../..%{dlibdir}/add-mb-job.py %{buildroot}%{_bindir}/add-mb-job
+ln -s ../..%{dlibdir}/check-job-status.rb \
+    %{buildroot}%{_bindir}/check-job-status
+ln -s ../..%{dlibdir}/log-job-status.rb \
+    %{buildroot}%{_bindir}/log-job-status
+ln -s ../..%{dlibdir}/rerun \
+    %{buildroot}%{_bindir}/rerun-mb-job
 
-%if 0%{?_with_systemd:1}
 install -D -m 0644 doc/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 install -D -m 0644 doc/log-job-status.service \
-        %{buildroot}%{_unitdir}/log-job-status.service
-%else
-install -D -m 0755 workersctl %{buildroot}%{_initrddir}/%{name}
-install -D -m 0755 log-job-status-ctl \
-        %{buildroot}%{_initrddir}/log-job-status
-%endif
+    %{buildroot}%{_unitdir}/log-job-status.service
+
 install -D -m 0644 doc/%{name}.cron %{buildroot}/etc/cron.d/%{name}
 install -D -m 0644 conf/logrotate.conf %{buildroot}/etc/logrotate.d/task-queue
 
@@ -124,64 +123,68 @@ mkdir -p -m 0700 %{buildroot}%{_var}/lib/%{name}
 
 mkdir -p -m 0700 %{buildroot}%{_var}/log/%{name}
 
+%if %{with cgroup_v1}
 install -D -m 0644 conf/cpulimited.conf \
-        %{buildroot}%{_sysconfdir}/cgconfig.d/cpulimited.conf
+    %{buildroot}%{_sysconfdir}/cgconfig.d/cpulimited.conf
+%else
+sed -i \
+    '/^\[Service\]/a CPUAccounting=yes\nCPUQuota=200%\nCPUQuotaPeriodSec=1s' \
+    %{buildroot}%{_unitdir}/%{name}.service
+%endif
 
 %if 0%{!?_without_ruby:1}
 chmod 0755 %{buildroot}%{dlibdir}/rubywrap
 find . -name '*.rb' | xargs perl -pi -e \
-        "s,#!/usr/bin/env ruby,#!%{dlibdir}/rubywrap,"
+    "s,#!/usr/bin/env ruby,#!%{dlibdir}/rubywrap,"
 mkdir -p %{buildroot}%{dlibdir}/ruby
 tar -jvxf %{SOURCE0} -C %{buildroot}%{dlibdir} \
-        --exclude=doc \
-        --exclude=gem_make.out \
-        --exclude='*.log' \
-        --exclude=executable-hooks-uninstaller
+    --exclude=doc \
+    --exclude=gem_make.out \
+    --exclude='*.log' \
+    --exclude=executable-hooks-uninstaller
 find %{buildroot}%{dlibdir}/ruby -name racc2y -o -name y2racc \
-        | xargs perl -pi -e \
-        "s,#!/usr/local/bin/ruby,#!%{dlibdir}/ruby/bin/ruby,"
+    | xargs perl -pi -e \
+    "s,#!/usr/local/bin/ruby,#!%{dlibdir}/ruby/bin/ruby,"
 %else
 chmod 0755 %{buildroot}%{dlibdir}/system-ruby
 find . -name '*.rb' | xargs perl -pi -e \
-        "s,#!/usr/bin/env ruby,#!%{dlibdir}/system-ruby,"
+    "s,#!/usr/bin/env ruby,#!%{dlibdir}/system-ruby,"
 %endif
 
+
 %pre
+if ! id rstar >/dev/null 2>&1; then
+    echo "ERROR: user 'rstar' must exist before installing this package." >&2
+    exit 1
+fi
+
+if ! getent group dlib >/dev/null; then
+    echo "ERROR: group 'dlib' must exist before installing this package." >&2
+    exit 1
+fi
+
 rm -f /etc/logrotate.d/taskqueue*
+
 if [ "$1" = "2" ]; then
-  if [ -f /etc/redhat-release ]; then
-    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
-      service task-queue stop
-      service log-job-status stop
-    else
-      /etc/init.d/task-queue stop
-      /etc/init.d/log-job-status stop
-    fi
-  else
-    /etc/init.d/task-queue stop
-    /etc/init.d/log-job-status stop
-  fi
+    systemctl stop task-queue
+    systemctl stop log-job-status
 fi
 exit 0
 
+
 %post
-# Check if release is systemd based and add plex service accordingly.
-if [ -f /etc/redhat-release ]; then
-  if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 15 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 7 ]]; then
-     chkconfig --add task-queue
-     service cgconfig restart
-  else
-     systemctl enable task-queue.service
-     systemctl daemon-reload
-     if ! grep -qs 'group cpulimited' /etc/cgconfig.conf; then
-       echo >> /etc/cgconfig.conf
-       cat /etc/cgconfig.d/cpulimited.conf >> /etc/cgconfig.conf
-     else
-       perl -pi.bak -e 's/(cpu.cfs_quota_us\s+=\s+)\d+;/${1}2000000;/g' /etc/cgconfig.conf
-     fi
-     systemctl restart cgconfig
-  fi
+systemctl enable task-queue.service
+systemctl daemon-reload
+
+%if %{with cgroup_v1}
+if ! grep -qs 'group cpulimited' /etc/cgconfig.conf; then
+    echo >> /etc/cgconfig.conf
+    cat /etc/cgconfig.d/cpulimited.conf >> /etc/cgconfig.conf
+else
+    perl -pi.bak -e 's/(cpu.cfs_quota_us\s+=\s+)\d+;/${1}2000000;/g' /etc/cgconfig.conf
 fi
+systemctl restart cgconfig
+%endif
 
 LOGDIR="/content/prod/rstar/tmp/mdi/task-queue/logs"
 
@@ -204,42 +207,20 @@ echo <<EOF
 EOF
 exit 0
 
+
 %preun
 if [ "$1" = "0" ]; then
-  if [ -f /etc/redhat-release ]; then
-    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
-      service task-queue stop
-      service log-job-status stop
-    else
-      /etc/init.d/task-queue stop
-      /etc/init.d/log-job-status stop
-    fi
-  else
-    /etc/init.d/task-queue stop
-    /etc/init.d/log-job-status stop
-  fi
-fi
-
-if [ "$1" = "0" ]; then
-  if [ -f /etc/redhat-release ]; then
-    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 15 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -lt 7 ]]; then
-      chkconfig --del task-queue
-      chkconfig --del log-job-status
-    else
-      systemctl disable task-queue.service
-      systemctl disable log-job-status.service
-      systemctl daemon-reload
-    fi
-  fi
+    systemctl stop task-queue
+    systemctl stop log-job-status
+    systemctl disable task-queue.service
+    systemctl disable log-job-status.service
+    systemctl daemon-reload
 else
-  if [ -f /etc/redhat-release ]; then
-    if [[ -n `grep -i fedora /etc/redhat-release` && `cat /etc/redhat-release|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 14 ]] || [[ -n `egrep -i 'CentOS|Red Hat Ent' /etc/redhat-release` && `cat /etc/redhat-release | cut -d"." -f1|sed 's/[^0-9]*\([0-9]\+\).*/\1/'` -gt 6 ]]; then
-      systemctl enable task-queue
-      systemctl daemon-reload
-    fi
-  fi
+    systemctl enable task-queue
+    systemctl daemon-reload
 fi
 exit 0
+
 
 %postun
 
@@ -247,21 +228,20 @@ exit 0
 %clean
 rm -rf %{buildroot}
 
+
 %files
 %defattr(-, root, root)
-#attr(-,deploy,deploy) {dlibdir}
 %{dlibdir}
 %{_bindir}/*
-%if 0%{?_with_systemd:1}
 %{_unitdir}/*
-%else
-%{_initrddir}/*
-%endif
 /etc/cron.d/%{name}
 %config(noreplace) /etc/logrotate.d/task-queue
+%if %{with cgroup_v1}
 %config(noreplace) /etc/cgconfig.d/cpulimited.conf
+%endif
 %attr(0750,rstar,dlib) %{_var}/lib/%{name}
 %attr(0750,rstar,dlib) %{_var}/log/%{name}
+
 
 %changelog
 * Sun Mar 22 2026 Rasan Rasch <rasan@nyu.edu> - 1.5.2-1

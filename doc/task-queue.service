@@ -9,6 +9,7 @@ StartLimitIntervalSec=500
 StartLimitBurst=5
 
 [Service]
+Slice=task-queue.slice
 Environment="FOREGROUND=true"
 Type=simple
 User=rstar

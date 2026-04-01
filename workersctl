@@ -56,19 +56,11 @@ RETVAL=0
 
 
 detect_cgroups() {
-	local fstype
-	fstype=$(stat -fc %T /sys/fs/cgroup 2>/dev/null)
-	case "$fstype" in
-		cgroup2fs)
-			echo "v2"
-			;;
-		tmpfs)
-			if grep -q " cgroup " /proc/self/mounts; then
-				echo "v1"
-			fi
-			;;
+	case "$(stat -fc %T /sys/fs/cgroup 2>/dev/null)" in
+		cgroup2fs) echo "v2" ;;
+		tmpfs)     echo "v1" ;;
+		*)         echo "none" ;;
 	esac
-	echo "none"
 }
 
 

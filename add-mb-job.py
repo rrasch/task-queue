@@ -107,6 +107,83 @@ def validate_parent_path(filepath):
     return filepath
 
 
+def parse_service(service, parser):
+    """
+    Parse and validate a service string in "<class>:<service>" format.
+
+    Splits the provided service string into its class and operation
+    components using ":" as a delimiter. Ensures that both components
+    are present and non-empty.
+
+    Args:
+        service: String specifying the service in "<class>:<service>"
+            format (e.g. "audio:transcode").
+        parser: ArgumentParser instance used to report errors.
+
+    Returns:
+        A tuple (cls, op) where ``cls`` is the service class and ``op``
+        is the service operation.
+
+    Raises:
+        SystemExit: If the service is missing or not in the expected
+            format. Triggered via ``usage()`` or ``parser.error()``.
+    """
+    if not service:
+        usage(parser, "You must set -s to define the service.")
+
+    cls, delim, op = service.partition(":")
+
+    if not cls or not op:
+        parser.error(
+            "You must set -s to define service in the format "
+            "<class>:<service>, e.g. audio:transcode",
+        )
+
+    return cls, op
+
+
+def validate_io_paths(args, parser):
+    """
+    Validate combinations of I/0 path-related command-line arguments.
+
+    Ensures that either ``rstar_dir`` is provided, or both
+    ``input_path`` and ``output_path`` are provided together. Enforces
+    that ``rstar_dir`` is mutually exclusive with ``input_path`` and
+    ``output_path``, and that input/output paths are specified as a
+    pair. Also performs additional checks on the provided paths (e.g.,
+    verifying constraints such as NFS usage).
+
+    Args:
+        args: Parsed argparse namespace containing ``rstar_dir``,
+            ``input_path``, and ``output_path`` attributes.
+        parser: ArgumentParser instance used to report errors.
+
+    Raises:
+        SystemExit: If validation fails. Triggered via
+            ``parser.error()``, which prints an error message and
+            exits the program, or by helper validation functions.
+    """
+    has_rstar = bool(args.rstar_dir)
+    has_input = bool(args.input_path)
+    has_output = bool(args.output_path)
+    has_both_io_paths = has_input and has_output
+
+    # Require rstar_dir or input/output paths to be set
+    if not has_rstar and not has_both_io_paths:
+        parser.error("Missing rstar_dir or input/output path pair")
+
+    # rstar_dir is mutually exclusive with input/output
+    if has_rstar and (has_input or has_output):
+        parser.error("rstar_dir can't be used with input/output paths")
+
+    # input/output must be paired
+    if has_input ^ has_output:
+        parser.error("input/output paths must be set together")
+
+    # Make sure any path given is on isilon filesystem
+    check_paths_on_nfs(vars(args))
+
+
 def validate_transcode_output_path(input_path, output_path):
     """
     Validates output_path based on input_path type:
@@ -150,6 +227,35 @@ def validate_transcode_output_path(input_path, output_path):
     else:
         # Should not happen if argparse validated input_path
         raise RuntimeError(f"Unexpected input path type: '{input_path}'")
+
+
+def validate_operation(args, op):
+    """
+    Apply operation-specific validation and safeguards.
+
+    Enforces additional constraints and confirmations that depend on the
+    selected operation. These checks go beyond general argument validation
+    and reflect behavior or safety requirements for particular operations.
+
+    For example:
+    - ``transcode`` may impose additional rules on input/output paths.
+    - ``convert_iso`` may require user confirmation when running with
+      multiple workers.
+
+    Args:
+        args: Parsed argparse namespace containing relevant attributes
+            such as ``input_path``, ``output_path``, and ``mqhost``.
+        op: The operation name extracted from the service string.
+
+    Raises:
+        SystemExit: If a validation or confirmation step fails. Triggered
+            by called helper functions that report errors or prompt exit.
+    """
+    if op == "transcode" and args.input_path:
+        validate_transcode_output_path(args.input_path, args.output_path)
+
+    if op == "convert_iso" and is_multiple_workers(args.mqhost):
+        confirm_handbrake_job()
 
 
 def get_nfs_mounts():
@@ -341,48 +447,11 @@ def main():
     cmd_line = util.shlex_join([os.path.realpath(sys.argv[0]), *sys.argv[1:]])
     logging.debug(f"cmd line: {cmd_line}")
 
-    if args.test:
-        print("Running in test mode.", file=sys.stderr)
-
-    else:  # Validate arguments
-        if not args.service:
-            usage(parser, "You must set -s to define the service.")
-
-        cls, delim, op = args.service.partition(":")
-
-        if not cls or not op:
-            parser.error(
-                "You must set -s to define service in the format "
-                "<class>:<service>,  e.g. audio:transcode",
-            )
-
+    if not args.test:
+        cls, op = parse_service(args.service, parser)
         if cls != "util":
-            has_rstar = bool(args.rstar_dir)
-            has_input = bool(args.input_path)
-            has_output = bool(args.output_path)
-            has_both_io_paths = has_input and has_output
-
-            # Require rstar_dir or input/output paths to be set
-            if not has_rstar and not has_both_io_paths:
-                parser.error("Missing rstar_dir or input/output path pair")
-
-            # rstar_dir is mutually exclusive with input/output
-            if has_rstar and (has_input or has_output):
-                parser.error("rstar_dir can't be used with input/output paths")
-
-            # input/output must be paired
-            if has_input ^ has_output:
-                parser.error("input/output paths must be set together")
-
-            check_paths_on_nfs(args_dict)
-
-            if has_input and args.service == "video:transcode":
-                validate_transcode_output_path(
-                    args.input_path, args.output_path
-                )
-
-            if op == "convert_iso" and is_multiple_workers(args.mqhost):
-                confirm_handbrake_job()
+            validate_io_paths(args, parser)
+            validate_operation(args, op)
 
     mq_conn = None
     db_conn = None
@@ -426,7 +495,7 @@ def main():
         cursor = db_conn.cursor()
 
         if args.test:
-            print("Test succeeded.", file=sys.stderr)
+            print("Test succeeded.")
             sys.exit(0)
 
         login = os.getlogin()

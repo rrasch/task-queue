@@ -254,7 +254,8 @@ class TaskQueueServer < ::Servolux::Server
   end
 
   def log_pool_status
-    log "Pool status : #{@pool.worker_counts.inspect} living pids #{live_worker_pids.join(' ')}"
+    @logger.debug "Pool status: #{@pool.worker_counts.inspect} "\
+                  "living pids #{live_worker_pids.join(' ')}"
   end
 
   def live_worker_pids

@@ -56,12 +56,23 @@ RVM_GEM_DIR="/usr/share/rvm/gems"
 RETVAL=0
 
 
-detect_cgroups() {
+get_cgroup_version() {
 	case "$(stat -fc %T /sys/fs/cgroup 2>/dev/null)" in
 		cgroup2fs) echo "v2" ;;
 		tmpfs)     echo "v1" ;;
 		*)         echo "none" ;;
 	esac
+}
+
+
+has_cpu_quota() {
+	local quota
+	quota=$(systemctl show task-queue --property=CPUQuotaPerSecUSec --value)
+	if [[ -n "$quota" && "$quota" != "infinity" ]]; then
+		return 0
+	else
+		return 1
+	fi
 }
 
 
@@ -77,12 +88,6 @@ start() {
 		exit 1
 	fi
 
-	CGROUP_VERSION=$(detect_cgroups)
-	if [ "$USE_CGROUP" = "true" ] && [ "$CGROUP_VERSION" = "none" ]; then
-		echo "Please enable cgroups." 1>&2
-		exit 1
-	fi
-
 	HOST_LOGDIR="$LOGDIR/$HOST"
 	LOGFILE=$HOST_LOGDIR/worker.$HOST.log
 	if [ ! -e "$HOST_LOGDIR" ]; then
@@ -90,9 +95,28 @@ start() {
 	fi
 
 	CMD=()
-	if [ "$USE_CGROUP" = "true" ] && [ "$CGROUP_VERSION" = "v1" ]; then
-		CMD+=(cgexec -g "$CGROUP_NAME" --sticky)
+
+	CGROUP_VERSION=$(get_cgroup_version)
+
+	if [ "$USE_CGROUP" = "true" ]; then
+
+		if [ "$CGROUP_VERSION" = "none" ]; then
+			echo "Please enable cgroups." 1>&2
+			exit 1
+		fi
+
+		if [ "$CGROUP_VERSION" = "v2" ] && ! has_cpu_quota; then
+			echo "Using cgroups v2 but cpu quota " \
+			     "not set in task-queue.service" 1>&2
+			exit 1
+		fi
+
+		if [ "$CGROUP_VERSION" = "v1" ]; then
+			CMD+=(cgexec -g "$CGROUP_NAME" --sticky)
+		fi
+
 	fi
+
 	if [ -n "$RVM_RUBY_VERSION" ]; then
 		CMD+=("$RVM_GEM_DIR/ruby-$RVM_RUBY_VERSION@task-queue/wrappers/ruby")
 	fi

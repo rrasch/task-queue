@@ -66,7 +66,7 @@ function check_perms()
 {
     owner=$(stat -c "%U" "$ACTION_FILE")
     perm=$(stat -c "%a" "$ACTION_FILE")
-    if ! [ "$owner" = "root" -a "$perm" -eq 644 ]; then
+    if [ "$owner" != "root" ] || [ "$perm" -ne 644 ]; then
         echo "Error: $ACTION_FILE is not owned by root or not 644" >&2
         exit 1
     fi
@@ -74,6 +74,7 @@ function check_perms()
 
 MQHOST=""
 
+# shellcheck disable=SC1090
 . "$TQ_CONFIG_FILE"
 
 get_admin_email
@@ -116,11 +117,11 @@ declare -A log_notice_prefix=(
 date "+%Y-%m-%d %H:%M:%S" > "$TIMESTAMP_FILE"
 notice="${log_notice_prefix[$CMD]} task queue on $(hostname)"
 echo "$notice" | systemd-cat -t task-queue
-echo "$notice" | mail -s "$notice" $admin_email
+echo "$notice" | mail -s "$notice" "$admin_email"
 
 case "$CMD" in
     restart|stop)
-        systemctl $CMD task-queue
+        systemctl "$CMD" task-queue
         ;;
     add-worker)
         systemctl kill -s SIGUSR1 task-queue

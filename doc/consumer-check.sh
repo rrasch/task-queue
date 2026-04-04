@@ -2,7 +2,13 @@
 
 set -eu
 
-EXPECTED=${1:-18}
+. /content/prod/rstar/etc/task-queue.sysconfig
+: "${MAX_WORKERS:=$(nproc --ignore=1)}"
+(( MAX_WORKERS < 1 )) && MAX_WORKERS=1
+NUM_WORKER_HOSTS=6
+DEFAULT_EXPECTED=$((MAX_WORKERS * NUM_WORKER_HOSTS))
+
+EXPECTED=${1:-$DEFAULT_EXPECTED}
 
 if ! [[ "$EXPECTED" =~ ^[0-9]+$ ]]; then
     echo "Input '$EXPECTED' is not a number" >&2
@@ -16,7 +22,7 @@ MY_CNF="/content/prod/rstar/etc/my-taskqueue.cnf"
 
 EMAIL_CNF="/content/prod/rstar/etc/email.yaml"
 
-MAILTO=$(awk '{print $2'} $EMAIL_CNF | sort | uniq \
+MAILTO=$(awk '{print $2}' $EMAIL_CNF | sort | uniq \
     | grep -v '-' | paste -sd ',' - | sed 's/,/, /g')
 
 MAILTO=${2:-$MAILTO}
@@ -25,8 +31,8 @@ MAILTO=${2:-$MAILTO}
 get_num_consumers()
 {
     local queue=$1
-    OUTPUT=$($WORKDIR/get-connections.py --queue "$queue")
-    NUM_CONSUMERS=$(echo "$OUTPUT" | grep -v -- -- | grep -v Host | wc -l)
+    OUTPUT=$("$WORKDIR/get-connections.py" --queue "$queue")
+    NUM_CONSUMERS=$(echo "$OUTPUT" | grep -v -- -- | grep -cv Host)
 }
 
 add_err()
@@ -41,12 +47,12 @@ ERR=""
 NL=$'\n'$'\n'
 
 get_num_consumers "task_queue"
-if [ $NUM_CONSUMERS -ne $EXPECTED ]; then
+if [ "$NUM_CONSUMERS" -ne "$EXPECTED" ]; then
     add_err "Expected $EXPECTED task queue workers but got $NUM_CONSUMERS."
 fi
 
 get_num_consumers "tq_log_reader"
-if [ $NUM_CONSUMERS -ne 1 ]; then
+if [ "$NUM_CONSUMERS" -ne 1 ]; then
     add_err "There is a problem with the task queue logger."
 fi
 

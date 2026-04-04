@@ -23,17 +23,10 @@ class ArgumentParser(argparse.ArgumentParser):
         raise ArgumentParsingError(message)
 
 
-def quote(val):
-    if type(val) == str:
-        return f"'{val}'"
-    else:
-        return str(val)
-
-
 def create_args_str(*args, **kwargs):
     sep = ", "
-    arg_str = sep.join([quote(a) for a in args])
-    kw_str = sep.join([f"{k}={quote(kwargs[k])}" for k in kwargs.keys()])
+    arg_str = sep.join([repr(a) for a in args])
+    kw_str = sep.join([f"{k}={repr(kwargs[k])}" for k in kwargs.keys()])
 
     if arg_str and kw_str:
         return arg_str + sep + kw_str

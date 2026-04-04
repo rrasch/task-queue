@@ -9,6 +9,7 @@ from pprint import pformat
 import MySQLdb
 import argparse
 import contextlib
+import importlib
 import json
 import logging
 import os
@@ -51,6 +52,15 @@ def send_mail(sender, receivers, subject, body, attachments=[]):
 
 
 def post_photo(user, pwd, img_file, caption):
+    try:
+        instagrapi = importlib.import_module("instagrapi")
+        Client = getattr(instagrapi, "Client")
+    except ModuleNotFoundError:
+        raise RuntimeError(
+            "instagrapi module is not installed. "
+            "Install with `pip install instagrapi`"
+        )
+
     cl = Client()
     # adds a random delay between 1 and 3 seconds after each request
     cl.delay_range = [1, 3]

@@ -2,11 +2,10 @@
 
 from glob import glob
 from pathlib import Path
-from pprint import pformat, pprint
+from pprint import pformat
 from util import is_pos_int
 import MySQLdb
 import argparse
-import configparser
 import errno
 import json
 import logging
@@ -96,8 +95,6 @@ def main():
     myconfig = tqcommon.get_myconfig()
     sysconfig = tqcommon.get_sysconfig()
     hpc_config = tqcommon.get_hpc_config()
-
-    queue_name = "hpc_transcode"
 
     dbconn = MySQLdb.connect(
         host=myconfig["host"],
@@ -193,7 +190,7 @@ def main():
         )
 
         cursor.execute(
-            f"""
+            """
             INSERT INTO jobs (job_id, state)
             VALUES (?, 'pending')
             """,

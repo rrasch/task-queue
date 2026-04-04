@@ -1,10 +1,9 @@
 #!/usr/bin/python3
 
-from pprint import pformat, pprint
+from pprint import pformat
 import argparse
 import json
 import logging
-import os
 import requests
 import socket
 import tqcommon
@@ -62,7 +61,7 @@ def main():
     try:
         from tabulate import tabulate
         tab_loaded = True
-    except ImportError as e:
+    except ImportError:
         logging.warning("Can't load tabulate module")
         tab_loaded = False
 

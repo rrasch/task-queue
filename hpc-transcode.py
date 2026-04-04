@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, timedelta
-from itertools import chain, repeat
-from mutagen import File
+from datetime import timedelta
 from pathlib import Path
-from pprint import pformat, pprint
+from pprint import pformat
 from pymediainfo import MediaInfo
-from scp import SCPClient
-from signal import SIGHUP, SIG_IGN, signal
-from subprocess import CalledProcessError, DEVNULL, PIPE, Popen, STDOUT, run
+from subprocess import CalledProcessError, PIPE, STDOUT, run
 from tld import get_fld
 import argparse
 import json
@@ -16,7 +12,6 @@ import logging
 import os
 import paramiko
 import pika
-import psutil
 import re
 import shlex
 import socket
@@ -93,9 +88,6 @@ class VideoTrackNotFound(Exception):
 
 
 def duration(input_file, minutes=True):
-    # video_file = File(input_file, easy=True)
-    # logging.debug("video metadata: %s", video_file.pprint())
-    # duration_sec = video_file.info.length
     media_info = MediaInfo.parse(input_file)
     video_tracks = [
         track for track in media_info.tracks if track.track_type == "Video"
@@ -152,8 +144,8 @@ def get_profiles(args_str):
     try:
         logging.debug(f"args_str={args_str}")
         args = parser.parse_args(shlex.split(args_str))
-    except ArgumentParsingError as e:
-        logging.exception(f"Error processing arguments")
+    except ArgumentParsingError:
+        logging.exception("Error processing arguments")
         sys.exit(1)
     return args.profiles_path
 
@@ -199,7 +191,6 @@ def transcode(req, host, email, hpc_config):
     logging.debug("config: %s", pformat(config))
 
     remote_homedir = root_join("home", config["user"])
-    remote_scratch = root_join("scratch", config["user"])
 
     basename = Path(req["input"]).stem
     sacct_path = root_join(remote_homedir, "bin", "sacct.sh")

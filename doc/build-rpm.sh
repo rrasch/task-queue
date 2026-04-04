@@ -79,6 +79,10 @@ sudo dnf -y remove $GIT_NAME
 
 sleep 60
 
+createrepo --update $REPO_DIR
+
+sleep 1
+
 sudo dnf -y install $RPM_DIR/$GIT_NAME-*rpm
 
 sleep 30

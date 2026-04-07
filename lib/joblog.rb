@@ -59,6 +59,20 @@ class JobLog
     result = stmt.execute(*(query.bind))
   end
 
+  def state_counts(args)
+    @logger.debug "entering state_counts(#{args})"
+    query = SQL::Maker::Select.new
+    query.add_select('state')
+         .add_select(SQL::QueryMaker::sql_raw('COUNT(*)') => 'count')
+         .add_from('job')
+         .add_where('batch_id' => {:between => args[:batch_id]})
+         .add_group_by('state')
+    @logger.debug "sql: #{query.as_sql}"
+    @logger.debug "bind values: #{query.bind}"
+    stmt = @client.prepare(query.as_sql)
+    result = stmt.execute(*(query.bind))
+  end
+
   def update_job(task, create=true)
     result = nil
     output = task['output']

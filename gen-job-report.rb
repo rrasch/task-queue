@@ -32,7 +32,7 @@ def parse_opts
   options = {}
 
   parser = OptionParser.new do |opts|
-    opts.banner = "Usage: #{$PROGRAM_NAME} [options] START_ID END_ID"
+    opts.banner = "Usage: #{$PROGRAM_NAME} [options] START_ID [END_ID]"
 
     opts.on('-v', '--verbose', 'Enable debugging messages') do
       options[:verbose] = true
@@ -46,20 +46,19 @@ def parse_opts
 
   parser.parse!
 
-  if ARGV.length != 2
-    puts parser
-    exit 1
-  end
-
   begin
-    start_id = Integer(ARGV[0])
-    end_id   = Integer(ARGV[1])
+    case ARGV.length
+    when 1
+      start_id = end_id = Integer(ARGV[0])
+    when 2
+      start_id = Integer(ARGV[0])
+      end_id   = Integer(ARGV[1])
+      abort 'Error: START_ID must be <= END_ID' if start_id > end_id
+    else
+      abort parser.to_s
+    end
   rescue ArgumentError
-    raise OptionParser::InvalidArgument, 'START_ID and END_ID must be integers'
-  end
-
-  if start_id > end_id
-    raise OptionParser::InvalidArgument, 'start > end in range'
+    abort 'Error: START_ID and END_ID must be integers'
   end
 
   options[:batch_id] = [start_id, end_id]

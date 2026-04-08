@@ -23,14 +23,14 @@ GIT_URL="https://github.com/rrasch/$GIT_NAME"
 
 WORK_DIR=$HOME/work/$GIT_NAME
 
-pushd $WORK_DIR
+pushd "$WORK_DIR"
 git pull
 
 if [ "$TAG" = "0.0.0" ] || [ "$TAG" = "v0.0.0" ]; then
 	COMMIT=$(git rev-parse --short HEAD)
 	PROD_BUILD=0
 else
-	COMMIT=$(git ls-remote $GIT_URL refs/tags/$TAG | cut -f1 | cut -c1-7)
+	COMMIT=$(git ls-remote $GIT_URL "refs/tags/$TAG" | cut -f1 | cut -c1-7)
 	PROD_BUILD=1
 fi
 
@@ -65,7 +65,7 @@ sudo service $GIT_NAME stop
 sudo service log-job-status stop
 set -e
 
-rm -vf $RPM_DIR/$GIT_NAME-*rpm
+rm -vf "$RPM_DIR/$GIT_NAME"-*rpm
 
 # pushd ~/work/$GIT_NAME
 # git pull
@@ -73,17 +73,17 @@ rm -vf $RPM_DIR/$GIT_NAME-*rpm
 
 rpmbuild --bb --without ruby $GIT_NAME.spec \
   --define "git_tag $TAG" \
-  --define "git_commit $COMMIT" 2>&1 | tee build-${OSVER}.log
+  --define "git_commit $COMMIT" 2>&1 | tee "build-${OSVER}".log
 
 sudo dnf -y remove $GIT_NAME
 
 sleep 60
 
-createrepo --update $REPO_DIR
+createrepo --update "$REPO_DIR"
 
 sleep 1
 
-sudo dnf -y install $RPM_DIR/$GIT_NAME-*rpm
+sudo dnf -y install "$RPM_DIR/$GIT_NAME"-*rpm
 
 sleep 30
 
@@ -91,6 +91,6 @@ sudo service log-job-status start
 sudo service $GIT_NAME start
 
 if (( PROD_BUILD )); then
-	rsync -avz -e ssh $RPM_DIR/$GIT_NAME-*.rpm $REPO_HOST:$RPM_DIR
-	ssh $REPO_HOST createrepo --update $REPO_DIR
+	rsync -avz -e ssh "$RPM_DIR/$GIT_NAME"-*.rpm "$REPO_HOST:$RPM_DIR"
+	ssh "$REPO_HOST" createrepo --update "$REPO_DIR"
 fi

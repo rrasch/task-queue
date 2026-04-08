@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -u
+set -eu
 
 RUBY_VER=2.7.2
 
@@ -35,4 +35,3 @@ LDFLAGS="${LDFLAGS:--Wl,-z,relro }"; export LDFLAGS;
 	--prefix=/usr/local/dlib/task-queue/ruby
 
 make
-

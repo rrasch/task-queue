@@ -108,7 +108,7 @@ ln -s ../..%{dlibdir}/add-mb-job.py %{buildroot}%{_bindir}/add-mb-job
 ln -s ../..%{dlibdir}/check-job-status.rb \
     %{buildroot}%{_bindir}/check-job-status
 ln -s gen-job-report.rb \
-    %{buildroot}%/%{dlibdir}/gen-job-report
+    %{buildroot}%{dlibdir}/gen-job-report
 ln -s ../..%{dlibdir}/log-job-status.rb \
     %{buildroot}%{_bindir}/log-job-status
 ln -s ../..%{dlibdir}/rerun \

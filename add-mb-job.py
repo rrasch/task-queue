@@ -10,6 +10,7 @@ import logging
 import os
 import pika
 import psutil
+import re
 import requests
 import sys
 import tqcommon
@@ -22,6 +23,8 @@ CHANNEL_MAX = 32
 PERSISTENT_DELIVERY_MODE = 2
 
 PATH_ARGS = ("rstar_dir", "input_path", "output_path")
+
+IDENT_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
 
 def usage(parser, msg, brief=True):
@@ -82,6 +85,14 @@ def get_dir_contents(dirpath):
         for item in os.listdir(dirpath)
         if os.path.isdir(os.path.join(dirpath, item))
     ])
+
+
+def validate_identifier(value):
+    if not IDENT_RE.match(value):
+        raise argparse.ArgumentTypeError(
+            f"invalid identifier '{value}': must match {IDENT_RE.pattern}"
+        )
+    return value
 
 
 def validate_filepath(filepath):
@@ -358,6 +369,96 @@ Type 'yes' to confirm, anything else will cancel.
         sys.exit(0)
 
 
+def merge_dicts(cli, json_cfg):
+    conflicts = [k for k in json_cfg.keys() if cli.get(k) is not None]
+
+    if conflicts:
+        raise ValueError(
+            "Configuration conflict: the following keys were provided via CLI "
+            "and also exist in the JSON configuration: "
+            f"{sorted(conflicts)}"
+        )
+
+    return {**cli, **json_cfg}
+
+
+def load_json_config(filepath):
+    with open(filepath) as f:
+        return json.load(f)
+
+
+def json_to_argv(data):
+    pos_list = []
+    args_list = []
+
+    for k, v in data.items():
+        if k == "identifiers":
+            pos_list.extend(v)
+        else:
+            args_list.append(f"--{k.replace('_', '-')}")
+            args_list.append(v)
+
+    args_list.extend(pos_list)
+    return rewrite_extra_args(args_list)
+
+
+def merge_json_with_cli(cli_args, parser):
+    """
+    Merge CLI arguments with a JSON configuration file using argparse
+    validation.
+
+    This function loads a JSON configuration file and converts it into a
+    synthetic argv list. The JSON-derived arguments are parsed through the
+    provided argparse parser to reuse argparse validation rules (types,
+    choices, actions, etc.).
+
+    The final configuration is produced by merging:
+        - CLI arguments (base configuration)
+        - JSON-derived values (applied on top of CLI)
+
+    CLI and JSON must not define the same configuration keys.
+    Overlapping keys are treated as invalid and raise an error.
+
+    Processing steps:
+        1. Load JSON configuration from cli_args.json_config
+        2. Convert JSON configuration into a synthetic argv list
+        3. Parse JSON argv through argparse for validation
+        4. Merge JSON values into CLI arguments
+        5. Return argparse.Namespace with final values
+
+    Parameters
+    ----------
+    cli_args : argparse.Namespace
+        Parsed CLI arguments, including json_config file path.
+    parser : argparse.ArgumentParser
+        Parser used to validate JSON-derived arguments.
+
+    Returns
+    -------
+    argparse.Namespace
+        Final configuration with JSON values merged into CLI arguments.
+
+    Notes
+    -----
+    JSON is validated by simulating CLI argument parsing. CLI remains the
+    base configuration, and JSON is applied as an overlay. Conflicts are
+    treated as invalid state and raise an exception.
+    """
+    json_config = load_json_config(cli_args.json_config)
+    logging.debug("json config: %s", pformat(json_config))
+
+    json_argv = json_to_argv(json_config)
+    logging.debug("json argv: %s", json_argv)
+
+    json_args = parser.parse_args(json_argv)
+    logging.debug("json args: %s", json_args)
+
+    final_config = merge_dicts(vars(cli_args), json_config)
+    logging.debug("final merged config: %s", pformat(final_config))
+
+    return argparse.Namespace(**final_config)
+
+
 def main():
     my_conf_file = tqcommon.get_myconfig_file()
     sysconfig = tqcommon.get_sysconfig()
@@ -367,9 +468,19 @@ def main():
     sys.argv = rewrite_extra_args(sys.argv)
 
     parser = argparse.ArgumentParser(allow_abbrev=False)
-    parser.add_argument("id", nargs="*", help="Digital object identifier")
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose messages"
+        "identifiers",
+        metavar="ID",
+        nargs="*",
+        type=validate_identifier,
+        default=None,
+        help="Digital object identifier",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose messages",
     )
     parser.add_argument(
         "-t",
@@ -383,7 +494,12 @@ def main():
         default=sysconfig["mqhost"],
         help="hostname for RabbitMQ messaging server (default: %(default)s)",
     )
-    parser.add_argument("-r", "--rstar-dir", help="R* (Rstar) directory")
+    parser.add_argument(
+        "-r",
+        "--rstar-dir",
+        type=validate_filepath,
+        help="R* (Rstar) directory",
+    )
     parser.add_argument(
         "-i",
         "--input-path",
@@ -407,9 +523,8 @@ def main():
         "-p",
         "--priority",
         type=int,
-        default=0,
         choices=range(11),
-        help="message priority (default: %(default)s)",
+        help="message priority (default: 0, lowest priority)",
     )
     parser.add_argument(
         "-s",
@@ -418,7 +533,9 @@ def main():
         help="service, e.g. video:transcode",
     )
     parser.add_argument(
-        "-e", "--extra-args", default="", help="extra command line args"
+        "-e",
+        "--extra-args",
+        help="extra command line args",
     )
     parser.add_argument(
         "-j",
@@ -427,6 +544,9 @@ def main():
         help="json config to pass to job",
     )
     args = parser.parse_args()
+
+    if not args.identifiers:
+        args.identifiers = None
 
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
@@ -439,13 +559,17 @@ def main():
     logging.debug("orig argv: %s", orig_argv)
     logging.debug("sys.argv: %s", sys.argv)
 
-    args_dict = vars(args)
-    logging.debug("args dict:\n%s", pformat(args_dict))
-
     logging.debug("sysconfig: %s", pformat(sysconfig))
 
     cmd_line = util.shlex_join([os.path.realpath(sys.argv[0]), *sys.argv[1:]])
     logging.debug(f"cmd line: {cmd_line}")
+
+    if args.json_config:
+        args = merge_json_with_cli(args, parser)
+        logging.debug("New args: %s", args)
+
+    args_dict = vars(args)
+    logging.debug("args dict:\n%s", pformat(args_dict))
 
     if not args.test:
         cls, op = parse_service(args.service, parser)
@@ -507,27 +631,25 @@ def main():
         task = {
             "class": cls,
             "operation": op,
-            "extra_args": args.extra_args,
+            "extra_args": args.extra_args or "",
             "user_id": os.getlogin(),
             "batch_id": batch_id,
             "state": "pending",
-            "priority": args.priority,
+            "priority": args.priority or 0,
         }
 
         for arg_name in PATH_ARGS:
             if args_dict[arg_name]:
                 task[arg_name] = args_dict[arg_name]
 
-        if args.json_config:
-            with open(args.json_config) as f:
-                data = json.load(f)
-            for k, v in data.items():
-                task[k] = v
-
         logging.debug("task:\n%s", pformat(task))
 
         if args.rstar_dir:
-            id_list = args.id if args.id else get_dir_contents(args.rstar_dir)
+            id_list = (
+                args.identifiers
+                if args.identifiers
+                else get_dir_contents(args.rstar_dir)
+            )
             for dig_id in id_list:
                 task["identifiers"] = [dig_id]
                 publish(cursor, channel, task)

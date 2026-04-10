@@ -7,13 +7,22 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"io/ioutil"
 	"gopkg.in/ini.v1"
 	"flag"
 	"regexp"
 	"encoding/json"
 	"strings"
+	"github.com/google/shlex"
 )
+
+
+func PrintSlice(slice []string) {
+	quoted := make([]string, len(slice))
+	for i, s := range slice {
+		quoted[i] = fmt.Sprintf("%q", s)
+	}
+	fmt.Println("[" + strings.Join(quoted, ", ") + "]")
+}
 
 
 func GetMsgBrokerHost(cmdLine string) string {
@@ -22,13 +31,43 @@ func GetMsgBrokerHost(cmdLine string) string {
 	if (found != nil) {
 		return found[1]
 	} else {
-		return "localhost"
+		return ""
 	}
 }
 
 
-func InsertJob(req string, host string) {
-	file, err := ioutil.TempFile("", "job.*.json")
+func InsertJob(request map[string]interface{}, host string, extraArgs *string) {
+	class, _ := request["class"].(string)
+	operation,_ := request["operation"].(string)
+	service := class + ":" + operation
+
+	var unwanted = []string{
+		"batch_id",
+		"class",
+		"job_id",
+		"operation",
+		"state",
+		"user_id",
+	}
+
+	for _, key := range unwanted {
+    	delete(request, key)
+	}
+
+	if *extraArgs != "" {
+		tmp := ""
+		if request["extra_args"] != nil {
+			tmp += request["extra_args"].(string) + " "
+		}
+		tmp += *extraArgs
+		request["extra_args"] = tmp
+	}
+
+	newRequest, _ := json.MarshalIndent(request, "", "    ")
+	req := string(newRequest)
+	fmt.Println("New request:", req)
+
+	file, err := os.CreateTemp("", "job.*.json")
 	if err != nil {
 		panic(err)
 	}
@@ -41,14 +80,19 @@ func InsertJob(req string, host string) {
 		panic(err)
 	}
 
-	out, err := exec.Command("add-mb-job",
-		"-m", host,
-		"-s", "job:rerun",
-		"-j", file.Name()).CombinedOutput()
-	if err != nil {
-		fmt.Printf("%s", err)
+	prog := "add-mb-job"
+	args := []string{"-v", "-s", service, "-j", file.Name()}
+	if host != "" {
+		args = append(args, "-m", host)
 	}
-	output := string(out[:])
+
+	fmt.Println("Running command:", prog, strings.Join(args, " "))
+	cmd := exec.Command(prog, args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("%s\n", err)
+	}
+	output := string(out)
 	fmt.Println(output)
 }
 
@@ -104,30 +148,30 @@ func main() {
 		panic(err.Error())
 	}
 
-	var request map[string]interface{}
-
 	for rows.Next() {
 		var cmdLine string
 		var req string
 		err = rows.Scan(&cmdLine, &req)
+		if err != nil {
+			panic(err)
+		}
+
 		host := GetMsgBrokerHost(cmdLine)
+
 		fmt.Println("cmdline:", cmdLine)
 		fmt.Println("request:", req)
 		fmt.Println("mbhost:", host)
+
+		cmdList, err := shlex.Split(cmdLine)
+		if err != nil {
+        	panic(err)
+    	}
+    	PrintSlice(cmdList)
+
+		var request map[string]interface{}
 		json.Unmarshal([]byte(req), &request)
-		if *extraArgs != "" {
-			tmp := ""
-			if request["extra_args"] != nil {
-				tmp += request["extra_args"].(string) + " "
-			}
-			tmp += *extraArgs
-			request["extra_args"] = tmp
-			newRequest, _ :=
-				json.MarshalIndent(request, "", "    ")
-			req = string(newRequest)
-		}
-		fmt.Println("New request:", req)
-		InsertJob(req, host)
+
+		InsertJob(request, host, extraArgs)
 	}
 
 }

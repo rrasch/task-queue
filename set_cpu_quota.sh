@@ -11,7 +11,7 @@ SERVICE=task-queue
 
 log() {
     local msg="$*"
-    logger -t "$SERVICE" -- "$msg"
+    logger -t "$SERVICE" -p user.info -- "$msg"
     if [ -t 1 ]; then
         echo "$msg"
     fi

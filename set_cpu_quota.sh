@@ -7,12 +7,20 @@ set -eu
 NUM_CORES=$(nproc)
 TARGET_QUOTA=$((NUM_CORES * 50))
 
-SERVICE_NAME=task-queue.service
+SERVICE=task-queue
 
-echo "Detected ${NUM_CORES} cores. Setting CPUQuota to ${TARGET_QUOTA}%."
+log() {
+    local msg="$*"
+    logger -t "$SERVICE" -- "$msg"
+    if [ -t 1 ]; then
+        echo "$msg"
+    fi
+}
 
-systemctl set-property --runtime "$SERVICE_NAME" CPUQuota="${TARGET_QUOTA}%"
+log "Detected ${NUM_CORES} cores. Setting CPUQuota to ${TARGET_QUOTA}%."
 
-CURRENT_QUOTA=$(systemctl show "$SERVICE_NAME" -p CPUQuotaPerSecUSec)
+systemctl set-property --runtime "$SERVICE" CPUQuota="${TARGET_QUOTA}%"
 
-echo "Systemd now reports $CURRENT_QUOTA"
+CURRENT_QUOTA=$(systemctl show "$SERVICE" -p CPUQuotaPerSecUSec)
+
+log "Systemd now reports $CURRENT_QUOTA"

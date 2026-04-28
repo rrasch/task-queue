@@ -130,7 +130,8 @@ install -D -m 0644 conf/cpulimited.conf \
     %{buildroot}%{_sysconfdir}/cgconfig.d/cpulimited.conf
 %else
 sed -i \
-    '/^\[Service\]/a CPUAccounting=yes\nCPUQuota=200%\nCPUQuotaPeriodSec=1s' \
+    -e '\|ExecStartPre=|i ExecStartPre=+%{dlibdir}/set_cpu_quota.sh' \
+    -e '\|cgconfig.service|d' \
     %{buildroot}%{_unitdir}/%{name}.service
 %endif
 

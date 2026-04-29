@@ -13,6 +13,8 @@
 %global repourl  https://github.com/rrasch/%{name}
 %global dlibdir  /usr/local/dlib/%{name}
 
+%global tqbuilddir %{_builddir}/%{name}-%{version}
+
 %global __brp_mangle_shebangs_exclude_from .rb$
 %global __requires_exclude ^(user|group)
 
@@ -95,10 +97,19 @@ chmod 0644 %{buildroot}%{dlibdir}/tqcommon.py
 chmod 0644 %{buildroot}%{dlibdir}/util.py
 
 # build outside of buildroot to avoid check-buildroot error
-cp rerun.go %{_builddir}/%{name}-%{version}
-pushd %{_builddir}/%{name}-%{version}
+cp rerun.go %{tqbuilddir}
+pushd %{tqbuilddir}
+
+# clone shlex repo since there is no rpm for rhel
+%if 0%{?rhel} > 0
+mkdir -p %{tqbuilddir}/gopath/src/github.com/google
+pushd %{tqbuilddir}/gopath/src/github.com/google
+git clone https://github.com/google/shlex.git
+popd
+%endif
+
 export GO111MODULE=off
-export GOPATH=$HOME/go:/usr/share/gocode
+export GOPATH=%{tqbuilddir}/gopath:$HOME/go:/usr/share/gocode
 go build -trimpath -ldflags="-s -w" rerun.go
 install -m 0755 rerun %{buildroot}%{dlibdir}/rerun
 popd

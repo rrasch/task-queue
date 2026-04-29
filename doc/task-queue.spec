@@ -1,4 +1,8 @@
+%if 0%{?rhel} && 0%{?rhel} <= 8
+%bcond_without cgroup_v1
+%else
 %bcond_with cgroup_v1
+%endif
 
 %{!?git_tag:%{error:git_tag macro must be defined}}
 %{!?git_commit:%{error:git_commit macro must be defined}}
@@ -11,10 +15,6 @@
 
 %global __brp_mangle_shebangs_exclude_from .rb$
 %global __requires_exclude ^(user|group)
-
-%if 0%{?rhel} <= 8
-%global _with_cgroup_v1 1
-%endif
 
 Summary:        Run jobs in parallel using RabbitMQ.
 Name:           %{name}
@@ -42,12 +42,12 @@ BuildRequires:  git
 %if %{with cgroup_v1}
 Requires:       libcgroup-tools
 Requires:       libcgroup
-Requires:       /bin/cgexec
 %endif
 BuildRequires:  golang-bin
 %if 0%{?fedora} > 0
 BuildRequires:  golang-github-sql-driver-mysql-devel
 BuildRequires:  golang-gopkg-ini-1-devel
+BuildRequires:  golang-github-google-shlex-devel
 %endif
 %if 0%{?centos} > 0
 BuildRequires:  golang-github-go-ini-ini-devel

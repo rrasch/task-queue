@@ -56,6 +56,15 @@ RVM_GEM_DIR="/usr/share/rvm/gems"
 RETVAL=0
 
 
+log() {
+    local msg="$*"
+    # logger -t task-queue -p user.info -- "$msg"
+    # if [ -t 1 ]; then
+        echo "$msg" 1>&2
+    # fi
+}
+
+
 get_cgroup_version() {
 	case "$(stat -fc %T /sys/fs/cgroup 2>/dev/null)" in
 		cgroup2fs) echo "v2" ;;
@@ -140,6 +149,8 @@ start() {
 		echo "Unsafe characters in command" 1>&2
 		exit 1
 	fi
+
+	log "Running '$CMD_STR' as uid $UID"
 
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		exec "${CMD[@]}"

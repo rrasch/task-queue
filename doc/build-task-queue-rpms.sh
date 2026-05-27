@@ -16,7 +16,7 @@ packages=(
     rubygem-mediainfo
     rubygem-rbtree
     rubygem-servolux
-	rubygem-set
+    rubygem-set
     rubygem-sorted_set
     rubygem-sql-maker
 )

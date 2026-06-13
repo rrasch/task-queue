@@ -648,7 +648,7 @@ def main():
             id_list = (
                 args.identifiers
                 if args.identifiers
-                else get_dir_contents(args.rstar_dir)
+                else get_dir_contents(os.path.join(args.rstar_dir, "wip", "se"))
             )
             for dig_id in id_list:
                 task["identifiers"] = [dig_id]

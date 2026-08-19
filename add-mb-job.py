@@ -5,17 +5,18 @@ from pprint import pformat
 from typing import Optional
 import MySQLdb
 import argparse
+import getpass
 import json
 import logging
 import os
 import pika
 import psutil
+import pwd
 import re
 import requests
 import sys
 import tqcommon
 import util
-
 
 QUEUE_NAME = "task_queue"
 EXCHANGE_NAME = "tq_logging"
@@ -459,6 +460,28 @@ def merge_json_with_cli(cli_args, parser):
     return argparse.Namespace(**final_config)
 
 
+def get_user():
+    try:
+        return os.getlogin()
+    except (OSError, FileNotFoundError):
+        pass
+
+    try:
+        return getpass.getuser()
+    except KeyError:
+        pass
+
+    try:
+        return pwd.getpwuid(os.getuid()).pw_name
+    except KeyError:
+        pass
+
+    raise RuntimeError(
+        "Could not resolve a valid username via "
+        "TTY, environment, or passwd database."
+    )
+
+
 def main():
     my_conf_file = tqcommon.get_myconfig_file()
     sysconfig = tqcommon.get_sysconfig()
@@ -622,7 +645,7 @@ def main():
             print("Test succeeded.")
             sys.exit(0)
 
-        login = os.getlogin()
+        login = get_user()
 
         query = "INSERT into batch (user_id, cmd_line) VALUES (%s, %s)"
         do_query(cursor, query, (login, cmd_line))

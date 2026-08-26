@@ -5,16 +5,16 @@ set -euo pipefail
 TAG=${1:-}
 
 if [ -z "$TAG" ]; then
-    echo "Error: You must specify a git tag to build."
-    echo "Usage: $0 TAG"
-    exit 1
+	echo "Error: You must specify a git tag to build."
+	echo "Usage: $0 TAG"
+	exit 1
 fi
 
 REPO_HOST=${REPO_HOST:-}
 
 if [ -z "$REPO_HOST" ]; then
-    echo "Error: You must set REPO_HOST."
-    exit 1
+	echo "Error: You must set REPO_HOST."
+	exit 1
 fi
 
 GIT_NAME="task-queue"
@@ -49,9 +49,9 @@ echo "  Commit: $COMMIT"
 source /etc/os-release
 
 if [[ "$ID" == "rhel" ]]; then
-    VERSION="${VERSION_ID%%.*}"   # major only
+	VERSION="${VERSION_ID%%.*}"   # major only
 else
-    VERSION="$VERSION_ID"         # full version (Fedora, etc.)
+	VERSION="$VERSION_ID"         # full version (Fedora, etc.)
 fi
 
 OSVER="${ID}${VERSION}"
@@ -71,9 +71,13 @@ rm -vf "$RPM_DIR/$GIT_NAME"-*rpm
 # git pull
 # popd
 
-rpmbuild --bb --without ruby $GIT_NAME.spec \
-  --define "git_tag $TAG" \
-  --define "git_commit $COMMIT" 2>&1 | tee "build-${OSVER}".log
+rpmbuild \
+	--bb \
+	--without ruby \
+	--without cgroup_v1 \
+	--define "git_tag $TAG" \
+	--define "git_commit $COMMIT" 
+	$GIT_NAME.spec 2>&1 | tee "build-${OSVER}".log
 
 sudo dnf -y remove $GIT_NAME
 

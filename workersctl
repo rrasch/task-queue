@@ -17,7 +17,8 @@ fi
 
 # Clear environment and read values from config file. We don't
 # unset FOREGROUND because we set this in systemd service file
-unset TQHOME TQUSER PIDFILE LOGDIR LOG_LEVEL MQHOST USE_CGROUP CGROUP_NAME \
+unset TQHOME TQUSER PIDFILE LOGDIR LOG_LEVEL MQHOST USE_SLICE \
+      USE_CGROUP CGROUP_NAME \
       MIN_WORKERS MAX_WORKERS RVM_RUBY_VERSION
 
 CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
@@ -38,6 +39,8 @@ LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
 LOG_LEVEL=${LOG_LEVEL:-info}
 
 MQHOST=${MQHOST:-localhost}
+
+USE_SLICE=${USE_SLICE:-false}
 
 USE_CGROUP=${USE_CGROUP:-true}
 
@@ -60,6 +63,12 @@ log() {
 	local msg="$*"
 	# logger -t task-queue -p user.info -- "$msg"
 	echo "$msg" 1>&2
+}
+
+
+abort() {
+    echo "$*" 1>&2
+    exit 1
 }
 
 
@@ -86,13 +95,11 @@ has_cpu_quota() {
 start() {
 	PIDS=$(pgrep -f 'ruby.*workers.rb' | paste -sd' ')
 	if [ -n "$PIDS" ]; then
-		echo "Task Queue already running with pids '$PIDS'" 1>&2
-		exit 1
+		abort "Task Queue already running with pids '$PIDS'"
 	fi
 
 	if [ "$TQUSER" = "root" ]; then
-		echo "Choose a non-root user to run task queue." 1>&2
-		exit 1
+		abort "Choose a non-root user to run task queue."
 	fi
 
 	HOST_LOGDIR="$LOGDIR/$HOST"
@@ -105,17 +112,32 @@ start() {
 
 	CGROUP_VERSION=$(get_cgroup_version)
 
-	if [ "$USE_CGROUP" = "true" ]; then
+	if [ "$USE_SLICE" = "true" ]; then
+
+		SLICE_FILE=/etc/systemd/system/rstar.slice
+
+		if [ ! -f "$SLICE_FILE" ]; then
+			abort "File $SLICE_FILE doesn't exit."
+		fi
+
+		if systemctl list-units --all --type=slice \
+				--plain --no-legend "$SLICE" | grep -q .; then
+			abort "Slice rstar.slice not found."
+		fi
+
+		if ! has_cpu_quota; then
+			abort "cpu quota not enabled"
+		fi
+
+	elif [ "$USE_CGROUP" = "true" ]; then
 
 		if [ "$CGROUP_VERSION" = "none" ]; then
-			echo "Please enable cgroups." 1>&2
-			exit 1
+			abort "Please enable cgroups."
 		fi
 
 		if [ "$CGROUP_VERSION" = "v2" ] && ! has_cpu_quota; then
-			echo "Using cgroups v2 but cpu quota " \
-			     "not set in task-queue.service" 1>&2
-			exit 1
+			abort "Using cgroups v2 but cpu quota " \
+			     "not set in task-queue.service"
 		fi
 
 		if [ "$CGROUP_VERSION" = "v1" ]; then
@@ -144,8 +166,7 @@ start() {
 	printf -v CMD_STR '%q ' "${CMD[@]}"
 	CMD_STR="${CMD_STR%" "}"
 	if [[ "$CMD_STR" =~ [\;\&\|\`\<\>\$\(] ]]; then
-		echo "Unsafe characters in command" 1>&2
-		exit 1
+		abort "Unsafe characters in command"
 	fi
 
 	log "Running '$CMD_STR' as uid $UID"

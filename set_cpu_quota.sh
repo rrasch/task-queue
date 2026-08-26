@@ -1,11 +1,14 @@
 #!/bin/bash
 #
-# Set cpu quota for task queue to 50% of total cores
+# Set cpu quota for task queue to 75% of total cores,
+# but round down to a whole number of cores, with a
+# minimum of one core
 
 set -eu
 
 NUM_CORES=$(nproc)
-TARGET_QUOTA=$((NUM_CORES * 50))
+TARGET_QUOTA=$((NUM_CORES * 75 / 100 * 100))
+(( TARGET_QUOTA < 100 )) && TARGET_QUOTA=100
 
 SERVICE=task-queue
 

@@ -76,7 +76,7 @@ rpmbuild \
 	--without ruby \
 	--without cgroup_v1 \
 	--define "git_tag $TAG" \
-	--define "git_commit $COMMIT" 
+	--define "git_commit $COMMIT" \
 	$GIT_NAME.spec 2>&1 | tee "build-${OSVER}".log
 
 sudo dnf -y remove $GIT_NAME

@@ -64,7 +64,7 @@ get_sysconfig_path() {
 }
 
 
-unset USE_GROUP
+unset USE_CGROUP USE_SLICE
 
 CONFIG_FILE=$(get_sysconfig_path)
 
@@ -74,6 +74,8 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 USE_CGROUP=${USE_CGROUP:-true}
+USE_SLICE=${USE_SLICE:-true}
+
 if [ "$USE_CGROUP" != "true" ]; then
 	info "USE_CGROUP config var set to '$USE_CGROUP' ... not setting quota."
 	exit
@@ -87,7 +89,7 @@ info "Undoing all changes to task-queue.service unit"
 systemctl revert task-queue.service
 
 SLICE_FILE=/etc/systemd/system/rstar.slice
-if [ -f "$SLICE_FILE" ]; then
+if [ -f "$SLICE_FILE" ] && [ "$USE_SLICE" = "true" ]; then
 	if ! has_cpu_quota rstar.slice; then
 		abort "Slice file $SLICE_FILE exits but quota not set."
 	fi

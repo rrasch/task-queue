@@ -54,57 +54,14 @@ RVM_GEM_DIR="/usr/share/rvm/gems"
 RETVAL=0
 
 
-log() {
-	local msg="$*"
-	# logger -t task-queue -p user.info -- "$msg"
-	echo "$msg" 1>&2
+info() {
+	echo "$*" 1>&2
 }
-
 
 abort() {
     echo "$*" 1>&2
     exit 1
 }
-
-
-get_cgroup_version() {
-	case "$(stat -fc %T /sys/fs/cgroup 2>/dev/null)" in
-		cgroup2fs) echo "v2" ;;
-		tmpfs)     echo "v1" ;;
-		*)         echo "none" ;;
-	esac
-}
-
-
-has_cpu_quota() {
-	local quota
-	quota=$(systemctl show task-queue --property=CPUQuotaPerSecUSec --value)
-	if [[ -n "$quota" && "$quota" != "infinity" ]]; then
-		return 0
-	else
-		return 1
-	fi
-}
-
-
-set_cpu_quota() {
-    local service=task-queue
-    local percentage=${1:-75}
-
-    local num_cores
-    num_cores=$(nproc)
-
-    local target_quota=$((num_cores * percentage / 100 * 100))
-    (( target_quota < 100 )) && target_quota=100
-
-    echo "Detected ${num_cores} cores. Setting CPUQuota to ${target_quota}%."
-    systemctl set-property --runtime "$service" CPUQuota="${target_quota}%"
-
-    local current_quota
-    current_quota=$(systemctl show "$service" -p CPUQuotaPerSecUSec)
-    echo "Systemd now reports $current_quota"
-}
-
 
 start() {
 	PIDS=$(pgrep -f 'ruby.*workers.rb' | paste -sd' ')
@@ -123,27 +80,6 @@ start() {
 	fi
 
 	CMD=()
-
-	CGROUP_VERSION=$(get_cgroup_version)
-
-	SLICE_FILE=/etc/systemd/system/rstar.slice
-
-	if [ "$USE_CGROUP" = "true" ]; then
-
-		if [ "$CGROUP_VERSION" = "none" ]; then
-			abort "Please enable cgroups."
-		fi
-
-		if [ ! -f "$SLICE_FILE" ]; then
-			set_cpu_quota
-		else
-			if ! has_cpu_quota; then
-				abort "$SLICE_FILE exits but quota not set"
-			fi
-		fi
-
-	fi
-
 	if [ -n "$RVM_RUBY_VERSION" ]; then
 		CMD+=("$RVM_GEM_DIR/ruby-$RVM_RUBY_VERSION@task-queue/wrappers/ruby")
 	fi
@@ -167,7 +103,7 @@ start() {
 		abort "Unsafe characters in command"
 	fi
 
-	log "Running '$CMD_STR' as uid $UID"
+	info "Running '$CMD_STR' as uid $UID"
 
 	if [ "$TQUSER" = "$(whoami)" ]; then
 		exec "${CMD[@]}"

@@ -7,24 +7,90 @@
 
 set -eu
 
-SLICE=rstar.slice
+info() {
+	echo "$*" 1>&2
+}
 
-if systemctl list-units --all --type=slice --plain --no-legend "$SLICE" |
-    grep -q .; then
-    echo "Slice $SLICE exists."
-    exit
+abort() {
+	echo "$*" 1>&2
+	exit 1
+}
+
+get_cgroup_version() {
+	case "$(stat -fc %T /sys/fs/cgroup 2>/dev/null)" in
+		cgroup2fs) echo "v2" ;;
+		tmpfs)     echo "v1" ;;
+		*)         echo "none" ;;
+	esac
+}
+
+has_cpu_quota() {
+	local unit=${1:-task-queue.service}
+	local quota
+	quota=$(systemctl show "$unit" --property=CPUQuotaPerSecUSec --value)
+	if [[ -n "$quota" && "$quota" != "infinity" ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+set_cpu_quota() {
+	local service=task-queue
+	local percentage=${1:-75}
+
+	local num_cores
+	num_cores=$(nproc)
+
+	local target_quota=$((num_cores * percentage / 100 * 100))
+	(( target_quota < 100 )) && target_quota=100
+
+	info "Detected ${num_cores} cores. Setting CPUQuota to ${target_quota}%."
+	systemctl set-property --runtime "$service" CPUQuota="${target_quota}%"
+
+	local current_quota
+	current_quota=$(systemctl show "$service" -p CPUQuotaPerSecUSec)
+	info "Systemd now reports $current_quota"
+}
+
+get_sysconfig_path() {
+	local env
+	if [[ $(hostname -s) =~ ^d ]]; then
+		env=dev
+	else
+		env=prod
+	fi
+	echo "/content/${env}/rstar/etc/task-queue.sysconfig"
+}
+
+
+unset USE_GROUP
+
+CONFIG_FILE=$(get_sysconfig_path)
+
+if [ -f "$CONFIG_FILE" ]; then
+	# shellcheck disable=SC1090
+	. "$CONFIG_FILE"
 fi
 
-NUM_CORES=$(nproc)
-TARGET_QUOTA=$((NUM_CORES * 75 / 100 * 100))
-(( TARGET_QUOTA < 100 )) && TARGET_QUOTA=100
+USE_CGROUP=${USE_CGROUP:-true}
+if [ "$USE_CGROUP" != "true" ]; then
+	info "USE_CGROUP config var set to '$USE_CGROUP' ... not setting quota."
+	exit
+fi
 
-SERVICE=task-queue
+if [ "$(get_cgroup_version)" = "none" ]; then
+	abort "Please enable cgroups."
+fi
 
-echo "Detected ${NUM_CORES} cores. Setting CPUQuota to ${TARGET_QUOTA}%."
+info "Undoing all changes to task-queue.service unit"
+systemctl revert task-queue.service
 
-systemctl set-property --runtime "$SERVICE" CPUQuota="${TARGET_QUOTA}%"
-
-CURRENT_QUOTA=$(systemctl show "$SERVICE" -p CPUQuotaPerSecUSec)
-
-echo "Systemd now reports $CURRENT_QUOTA"
+SLICE_FILE=/etc/systemd/system/rstar.slice
+if [ -f "$SLICE_FILE" ]; then
+	if ! has_cpu_quota rstar.slice; then
+		abort "Slice file $SLICE_FILE exits but quota not set."
+	fi
+else
+	set_cpu_quota
+fi

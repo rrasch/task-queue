@@ -5,7 +5,7 @@ After=cgconfig.service
 After=network-online.target network.target NetworkManager-wait-online.service
 After=rabbitmq-server.service
 After=content-dev.mount content-prod-rstar.mount
-StartLimitIntervalSec=500
+StartLimitIntervalSec=300
 StartLimitBurst=5
 
 [Service]

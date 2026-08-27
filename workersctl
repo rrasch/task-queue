@@ -17,9 +17,8 @@ fi
 
 # Clear environment and read values from config file. We don't
 # unset FOREGROUND because we set this in systemd service file
-unset TQHOME TQUSER PIDFILE LOGDIR LOG_LEVEL MQHOST USE_SLICE \
-      USE_CGROUP CGROUP_NAME \
-      MIN_WORKERS MAX_WORKERS RVM_RUBY_VERSION
+unset TQHOME TQUSER PIDFILE LOGDIR LOG_LEVEL MQHOST \
+      USE_CGROUP MIN_WORKERS MAX_WORKERS RVM_RUBY_VERSION
 
 CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
 
@@ -40,11 +39,7 @@ LOG_LEVEL=${LOG_LEVEL:-info}
 
 MQHOST=${MQHOST:-localhost}
 
-USE_SLICE=${USE_SLICE:-false}
-
 USE_CGROUP=${USE_CGROUP:-true}
-
-CGROUP_NAME=${CGROUP_NAME:-cpu:cpulimited}
 
 FOREGROUND=${FOREGROUND:-false}
 
@@ -92,6 +87,25 @@ has_cpu_quota() {
 }
 
 
+set_cpu_quota() {
+    local service=task-queue
+    local percentage=${1:-75}
+
+    local num_cores
+    num_cores=$(nproc)
+
+    local target_quota=$((num_cores * percentage / 100 * 100))
+    (( target_quota < 100 )) && target_quota=100
+
+    echo "Detected ${num_cores} cores. Setting CPUQuota to ${target_quota}%."
+    systemctl set-property --runtime "$service" CPUQuota="${target_quota}%"
+
+    local current_quota
+    current_quota=$(systemctl show "$service" -p CPUQuotaPerSecUSec)
+    echo "Systemd now reports $current_quota"
+}
+
+
 start() {
 	PIDS=$(pgrep -f 'ruby.*workers.rb' | paste -sd' ')
 	if [ -n "$PIDS" ]; then
@@ -112,36 +126,20 @@ start() {
 
 	CGROUP_VERSION=$(get_cgroup_version)
 
-	if [ "$USE_SLICE" = "true" ]; then
+	SLICE_FILE=/etc/systemd/system/rstar.slice
 
-		SLICE_FILE=/etc/systemd/system/rstar.slice
-
-		if [ ! -f "$SLICE_FILE" ]; then
-			abort "File $SLICE_FILE doesn't exit."
-		fi
-
-		if systemctl list-units --all --type=slice \
-				--plain --no-legend "$SLICE" | grep -q .; then
-			abort "Slice rstar.slice not found."
-		fi
-
-		if ! has_cpu_quota; then
-			abort "cpu quota not enabled"
-		fi
-
-	elif [ "$USE_CGROUP" = "true" ]; then
+	if [ "$USE_CGROUP" = "true" ]; then
 
 		if [ "$CGROUP_VERSION" = "none" ]; then
 			abort "Please enable cgroups."
 		fi
 
-		if [ "$CGROUP_VERSION" = "v2" ] && ! has_cpu_quota; then
-			abort "Using cgroups v2 but cpu quota " \
-			     "not set in task-queue.service"
-		fi
-
-		if [ "$CGROUP_VERSION" = "v1" ]; then
-			CMD+=(cgexec -g "$CGROUP_NAME" --sticky)
+		if [ ! -f "$SLICE_FILE" ]; then
+			set_cpu_quota
+		else
+			if ! has_cpu_quota; then
+				abort "$SLICE_FILE exits but quota not set"
+			fi
 		fi
 
 	fi

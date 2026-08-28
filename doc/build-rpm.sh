@@ -95,6 +95,20 @@ sudo service log-job-status start
 sudo service $GIT_NAME start
 
 if (( PROD_BUILD )); then
-	rsync -avz -e ssh "$RPM_DIR/$GIT_NAME"-*.rpm "$REPO_HOST:$RPM_DIR"
-	ssh "$REPO_HOST" createrepo --update "$REPO_DIR"
+	read -r -p "Repository host: " REPO_HOST
+
+	if [[ -z "$REPO_HOST" ]]; then
+		echo "Repository host is required." >&2
+		exit 1
+	fi
+
+	if [[ -z "$REPO_PORT" ]]; then
+		echo "SSH port for repository host is required." >&2
+		exit 1
+	fi
+
+	rsync -avz -e "ssh -p $REPO_PORT" \
+		"$RPM_DIR/$GIT_NAME"-*.rpm "$REPO_HOST:$RPM_DIR"
+
+	ssh -p "$REPO_PORT" "$REPO_HOST" createrepo --update "$REPO_DIR"
 fi

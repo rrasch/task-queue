@@ -4,16 +4,18 @@ import functools
 import glob
 import logging
 import os
-import pika
-import rpm
 import socket
 import subprocess
 import sys
 import tempfile
+
+import pika
+import rpm
+
 import tqcommon
+from util import shlex_join
 
-
-print = functools.partial(print, flush=True)
+logger = logging.getLogger(__name__)
 
 
 def get_redhat_version():
@@ -35,14 +37,14 @@ def readRpmHeader(ts, filename):
 
 
 def _is_newer(version1, version2):
-    logging.debug(f"comparing {version1} to {version2}")
+    logger.debug(f"comparing {version1} to {version2}")
     return version1 > version2
 
 
 def is_newer(version1, version2):
-    logging.debug(f"comparing {version1} to {version2}")
+    logger.debug(f"comparing {version1} to {version2}")
     rc = rpm.labelCompare(version1, version2)
-    logging.debug(f"rc={rc}")
+    logger.debug(f"rc={rc}")
     return rc > 0
 
 
@@ -55,16 +57,16 @@ def _can_update(rpm_file):
         hdr.dsOfHeader() for hdr in trans_set.dbMatch("name", name)
     ]
     if not installed_dep_sets:
-        logging.info(f"{name} is not installed, OK to update.")
+        logger.info(f"{name} is not installed, OK to update.")
         return True
     elif all(
         is_newer(local_dep_set.EVR(), installed_dep_set.EVR())
         for installed_dep_set in installed_dep_sets
     ):
-        logging.info(f"Package file {rpm_file} is newer, OK to update.")
+        logger.info(f"Package file {rpm_file} is newer, OK to update.")
         return True
     else:
-        logging.info(
+        logger.info(
             f"Package file {rpm_file} is same or older than installed version."
         )
         return False
@@ -80,7 +82,7 @@ def can_update(rpm_file):
     release = header[rpm.RPMTAG_RELEASE]
 
     local_evr = (epoch, version, release)
-    logging.debug(f"local_evr={local_evr}")
+    logger.debug(f"local_evr={local_evr}")
 
     installed_evrs = [
         (
@@ -90,21 +92,44 @@ def can_update(rpm_file):
         )
         for hdr in trans_set.dbMatch("name", name)
     ]
-    logging.debug(f"installed_evrs={installed_evrs}")
+    logger.debug(f"installed_evrs={installed_evrs}")
 
     if not installed_evrs:
-        logging.info(f"Package '{name}' is not installed, OK to upgrade.")
+        logger.info(f"Package '{name}' is not installed, OK to upgrade.")
         return True
     elif all(
         is_newer(local_evr, installed_evr) for installed_evr in installed_evrs
     ):
-        logging.info(f"Package '{name}' is newer, OK to upgrade.")
+        logger.info(f"Package '{name}' is newer, OK to upgrade.")
         return True
     else:
-        logging.info(
+        logger.info(
             f"Package '{name}' is same or older than installed version."
         )
         return False
+
+
+def rpm_evr(path, ts):
+    with open(path, "rb") as f:
+        hdr = ts.hdrFromFdno(f.fileno())
+
+    return (
+        str(hdr["epoch"]),
+        hdr["version"],
+        hdr["release"],
+    )
+
+
+def sort_rpms(rpms):
+    ts = rpm.TransactionSet()
+
+    rpms_with_evr = [(path, rpm_evr(path, ts)) for path in rpms]
+
+    rpms_with_evr.sort(
+        key=functools.cmp_to_key(lambda a, b: rpm.labelCompare(a[1], b[1]))
+    )
+
+    return [path for path, _ in rpms_with_evr]
 
 
 def is_queue_empty():
@@ -118,8 +143,12 @@ def is_queue_empty():
     )
     num_messages = queue.method.message_count
     conn.close()
-    logging.debug(f"message count: {num_messages}")
+    logger.debug(f"message count: {num_messages}")
     return num_messages == 0
+
+
+def is_owned_by_root(path):
+    return os.stat(path).st_uid == 0
 
 
 def main():
@@ -139,39 +168,41 @@ def main():
     logging.getLogger("pika").setLevel(logging.WARNING)
 
     repodir = os.path.join(rstar_dir, "repo", "publishing")
-    logging.debug(f"repo dir: {repodir}")
+    logger.debug(f"repo dir: {repodir}")
 
     redhat_version = get_redhat_version()
-    logging.debug(f"redhat version: {redhat_version}")
+    logger.debug(f"redhat version: {redhat_version}")
     rpmdir = os.path.join(repodir, redhat_version, "RPMS")
-    logging.debug(f"rpm dir: {rpmdir}")
-    rpms = sorted(
-        glob.glob(
-            f"{rpmdir}{os.sep}**{os.sep}task-queue-*.rpm", recursive=True
-        ),
-        key=os.path.getmtime,
+    logger.debug(f"rpm dir: {rpmdir}")
+    rpms = sort_rpms(
+        glob.glob(f"{rpmdir}{os.sep}**{os.sep}task-queue-*.rpm", recursive=True)
     )
     if not rpms:
-        print("No rpms found")
+        logger.info("No rpms found")
         return
     latest_rpm = rpms[-1]
-    logging.debug(f"Latest rpm: {latest_rpm}")
+    logger.debug(f"Latest rpm: {latest_rpm}")
 
     if can_update(latest_rpm) and is_queue_empty():
+        script_path = os.path.join(rstar_dir, "tmp", "update-task-queue.sh")
+        if not is_owned_by_root(script_path):
+            logger.error(f"{script_path} mut be owned by root.")
+            sys.exit(1)
+
         update_cmd = ["bash"]
         if logging.getLogger().isEnabledFor(logging.DEBUG):
             update_cmd.append("-x")
-        update_cmd.append(
-            os.path.join(rstar_dir, "tmp", "update-task-queue.sh")
-        )
-        logging.debug(f"update cmd: {update_cmd}")
+        update_cmd.append(script_path)
+        logger.debug("update cmd: %s", shlex_join(update_cmd))
+
         result = subprocess.run(
             update_cmd,
             universal_newlines=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            check=False,
         )
-        logging.debug(f"output: {result.stdout}")
+        logger.debug(f"output: {result.stdout}")
         sys.exit(result.returncode)
 
 

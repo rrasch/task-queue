@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 
-from __future__ import annotations
-
 import argparse
 import getpass
 import json
@@ -12,6 +10,7 @@ import re
 import sys
 from collections import Counter
 from pprint import pformat
+from typing import Optional
 
 import MySQLdb
 import pika
@@ -314,7 +313,7 @@ def log_warn(msg, e):
     logger.warning("%s - %s %s", msg, type(e).__name__, e)
 
 
-def get_consumer_counts(mqhost: str) -> Counter | None:
+def get_consumer_counts(mqhost: str) -> Optional[Counter]:
     """
     Retrieve and count RabbitMQ queue consumers by peer host.
 

@@ -2,7 +2,7 @@
 target-version = "py37"
 
 [tool.ruff.lint]
-ignore = ["PLW1510", "UP021"]
+ignore = ["FA100", "PLW1510", "UP021"]
 
 [tool.black]
 line-length = 80

@@ -1,20 +1,23 @@
 #!/usr/bin/python3
 
-from collections import Counter
-from pprint import pformat
-from typing import Optional
-import MySQLdb
+from __future__ import annotations
+
 import argparse
 import getpass
 import json
 import logging
 import os
-import pika
-import psutil
 import pwd
 import re
-import requests
 import sys
+from collections import Counter
+from pprint import pformat
+
+import MySQLdb
+import pika
+import psutil
+import requests
+
 import tqcommon
 import util
 
@@ -26,6 +29,8 @@ PERSISTENT_DELIVERY_MODE = 2
 PATH_ARGS = ("rstar_dir", "input_path", "output_path")
 
 IDENT_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+
+logger = logging.getLogger(__name__)
 
 
 def usage(parser, msg, brief=True):
@@ -39,10 +44,10 @@ def usage(parser, msg, brief=True):
 
 def do_query(cursor, query, values):
     num_rows = cursor.execute(query, values)
-    logging.debug("rows affected: %s", num_rows)
+    logger.debug("rows affected: %s", num_rows)
     if num_rows == 0:
         filled_query = " ".join((query % values).split())
-        logging.warning("No rows affected for query: %s", filled_query)
+        logger.warning("No rows affected for query: %s", filled_query)
 
 
 def publish(cursor, channel, task):
@@ -55,10 +60,10 @@ def publish(cursor, channel, task):
     do_query(cursor, query, (task["batch_id"], body, task["user_id"]))
 
     task["job_id"] = cursor.lastrowid
-    logging.debug("job id: %s", task["job_id"])
+    logger.debug("job id: %s", task["job_id"])
     body = json.dumps(task, indent=4)
     task.pop("job_id")
-    logging.debug("Sending body:\n%s", pformat(task))
+    logger.debug("Sending body:\n%s", pformat(task))
 
     channel.basic_publish(
         exchange=EXCHANGE_NAME,
@@ -143,7 +148,7 @@ def parse_service(service, parser):
     if not service:
         usage(parser, "You must set -s to define the service.")
 
-    cls, delim, op = service.partition(":")
+    cls, _delim, op = service.partition(":")
 
     if not cls or not op:
         parser.error(
@@ -306,10 +311,10 @@ def rewrite_extra_args(argv):
 
 
 def log_warn(msg, e):
-    logging.warning("%s - %s %s", msg, type(e).__name__, e)
+    logger.warning("%s - %s %s", msg, type(e).__name__, e)
 
 
-def get_consumer_counts(mqhost: str) -> Optional[Counter]:
+def get_consumer_counts(mqhost: str) -> Counter | None:
     """
     Retrieve and count RabbitMQ queue consumers by peer host.
 
@@ -349,7 +354,7 @@ def get_consumer_counts(mqhost: str) -> Optional[Counter]:
 
 def is_multiple_workers(mqhost):
     worker_counts = get_consumer_counts(mqhost)
-    logging.debug("Consumers: %s", pformat(worker_counts))
+    logger.debug("Consumers: %s", pformat(worker_counts))
     if worker_counts:
         return any(count > 1 for count in worker_counts.values())
     else:
@@ -371,7 +376,7 @@ Type 'yes' to confirm, anything else will cancel.
 
 
 def merge_dicts(cli, json_cfg):
-    conflicts = [k for k in json_cfg.keys() if cli.get(k) is not None]
+    conflicts = [k for k in json_cfg if cli.get(k) is not None]
 
     if conflicts:
         raise ValueError(
@@ -446,16 +451,16 @@ def merge_json_with_cli(cli_args, parser):
     treated as invalid state and raise an exception.
     """
     json_config = load_json_config(cli_args.json_config)
-    logging.debug("json config: %s", pformat(json_config))
+    logger.debug("json config: %s", pformat(json_config))
 
     json_argv = json_to_argv(json_config)
-    logging.debug("json argv: %s", json_argv)
+    logger.debug("json argv: %s", json_argv)
 
     json_args = parser.parse_args(json_argv)
-    logging.debug("json args: %s", json_args)
+    logger.debug("json args: %s", json_args)
 
     final_config = merge_dicts(vars(cli_args), json_config)
-    logging.debug("final merged config: %s", pformat(final_config))
+    logger.debug("final merged config: %s", pformat(final_config))
 
     return argparse.Namespace(**final_config)
 
@@ -579,20 +584,20 @@ def main():
     )
     logging.getLogger("pika").setLevel(logging.WARNING)
 
-    logging.debug("orig argv: %s", orig_argv)
-    logging.debug("sys.argv: %s", sys.argv)
+    logger.debug("orig argv: %s", orig_argv)
+    logger.debug("sys.argv: %s", sys.argv)
 
-    logging.debug("sysconfig: %s", pformat(sysconfig))
+    logger.debug("sysconfig: %s", pformat(sysconfig))
 
     cmd_line = util.shlex_join([os.path.realpath(sys.argv[0]), *sys.argv[1:]])
-    logging.debug(f"cmd line: {cmd_line}")
+    logger.debug(f"cmd line: {cmd_line}")
 
     if args.json_config:
         args = merge_json_with_cli(args, parser)
-        logging.debug("New args: %s", args)
+        logger.debug("New args: %s", args)
 
     args_dict = vars(args)
-    logging.debug("args dict:\n%s", pformat(args_dict))
+    logger.debug("args dict:\n%s", pformat(args_dict))
 
     if not args.test:
         cls, op = parse_service(args.service, parser)
@@ -612,10 +617,10 @@ def main():
             )
         )
 
-        logging.debug(
+        logger.debug(
             "server properties: %s", pformat(mq_conn._impl.server_properties)
         )
-        logging.debug(
+        logger.debug(
             "server capabilities: %s",
             pformat(mq_conn._impl.server_capabilities),
         )
@@ -626,7 +631,7 @@ def main():
             durable=True,
             arguments={"x-max-priority": 10},
         )
-        logging.debug(
+        logger.debug(
             f"Queue {QUEUE_NAME} message count: {queue.method.message_count}"
         )
 
@@ -655,7 +660,7 @@ def main():
             "class": cls,
             "operation": op,
             "extra_args": args.extra_args or "",
-            "user_id": os.getlogin(),
+            "user_id": login,
             "batch_id": batch_id,
             "state": "pending",
             "priority": args.priority or 0,
@@ -665,7 +670,7 @@ def main():
             if args_dict[arg_name]:
                 task[arg_name] = args_dict[arg_name]
 
-        logging.debug("task:\n%s", pformat(task))
+        logger.debug("task:\n%s", pformat(task))
 
         if args.rstar_dir:
             id_list = (

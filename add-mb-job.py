@@ -477,7 +477,7 @@ def get_user():
 
     raise RuntimeError(
         "Could not resolve a valid username via "
-        "TTY, environment, or passwd database."
+        "environment or passwd database."
     )
 
 

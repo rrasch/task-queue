@@ -466,11 +466,6 @@ def merge_json_with_cli(cli_args, parser):
 
 def get_user():
     try:
-        return os.getlogin()
-    except (OSError, FileNotFoundError):
-        pass
-
-    try:
         return getpass.getuser()
     except KeyError:
         pass

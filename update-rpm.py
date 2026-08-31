@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import functools
 import glob
 import logging
@@ -152,6 +153,15 @@ def is_owned_by_root(path):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Update task queue")
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force execution of update helper script",
+    )
+    args = parser.parse_args()
+
     rstar_dir = tqcommon.get_rstar_dir()
 
     hostname = socket.gethostname().split(".")[0]
@@ -183,26 +193,46 @@ def main():
     latest_rpm = rpms[-1]
     logger.debug(f"Latest rpm: {latest_rpm}")
 
-    if can_update(latest_rpm) and is_queue_empty():
-        script_path = os.path.join(rstar_dir, "tmp", "update-task-queue.sh")
-        if not is_owned_by_root(script_path):
-            logger.error(f"{script_path} mut be owned by root.")
-            sys.exit(1)
+    if not args.force:
+        if not can_update(latest_rpm):
+            logger.info("No update available")
+            return
 
-        update_cmd = ["bash"]
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            update_cmd.append("-x")
-        update_cmd.append(script_path)
-        logger.debug("update cmd: %s", shlex_join(update_cmd))
+        if not is_queue_empty():
+            logger.info("Queue not empty, try again later")
+            return
 
-        result = subprocess.run(
-            update_cmd,
-            universal_newlines=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
+    script_path = os.path.join(rstar_dir, "tmp", "update-task-queue.sh")
+
+    if not os.path.exists(script_path):
+        logger.error(f"File {script_path} doesn't exist")
+        sys.exit(1)
+
+    if not is_owned_by_root(script_path):
+        logger.error(f"{script_path} must be owned by root.")
+        sys.exit(1)
+
+    update_cmd = ["bash"]
+    if logging.getLogger().isEnabledFor(logging.DEBUG):
+        update_cmd.append("-x")
+    update_cmd.append(script_path)
+
+    cmd_str = shlex_join(update_cmd)
+    logger.debug(f"Running update command: {cmd_str}")
+
+    result = subprocess.run(
+        update_cmd,
+        universal_newlines=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+    logger.debug(f"output: {result.stdout}")
+
+    if result.returncode != 0:
+        logger.error(
+            f"Command {cmd_str} failed with return code {result.returncode}"
         )
-        logger.debug(f"output: {result.stdout}")
         sys.exit(result.returncode)
 
 

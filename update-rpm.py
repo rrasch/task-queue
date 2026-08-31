@@ -173,7 +173,14 @@ def main():
         format="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%m/%d/%Y %I:%M:%S %p",
         level=level,
-        handlers=[logging.StreamHandler(), logging.FileHandler(logfile)],
+        handlers=[
+            logging.StreamHandler(),
+            logging.handlers.RotatingFileHandler(
+                logfile,
+                maxBytes=50 * 1024,
+                backupCount=1,
+            ),
+        ],
     )
     logging.getLogger("pika").setLevel(logging.WARNING)
 

@@ -17,6 +17,13 @@ if [ -z "$REPO_HOST" ]; then
 	exit 1
 fi
 
+REPO_PORT=${REPO_PORT:-}
+
+if [ -z "$REPO_PORT" ]; then
+	echo "Error: You must set REPO_PORT."
+	exit 1
+fi
+
 GIT_NAME="task-queue"
 
 GIT_URL="https://github.com/rrasch/$GIT_NAME"
@@ -99,11 +106,6 @@ if (( PROD_BUILD )); then
 
 	if [[ -z "$REPO_HOST" ]]; then
 		echo "Repository host is required." >&2
-		exit 1
-	fi
-
-	if [[ -z "$REPO_PORT" ]]; then
-		echo "SSH port for repository host is required." >&2
 		exit 1
 	fi
 

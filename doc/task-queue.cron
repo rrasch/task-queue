@@ -6,5 +6,5 @@ PATH=/usr/sbin:/sbin:/usr/bin:/bin
 # We check the file every 5 minutes
 */5 * * * * root /usr/local/dlib/task-queue/tq-cmd.sh > /dev/null 2>&1
 
-# Check for updates to task-queue rpm package every day at 4am
-0 4 * * *   root LOG_LEVEL=DEBUG /usr/bin/python3 /usr/local/dlib/task-queue/update-rpm.py > /var/log/task-queue/update-rpm.log 2>&1
+# Check for updates to task-queue rpm package every day at 1am and 3am
+0 1,3 * * * root LOG_LEVEL=DEBUG /usr/bin/python3 /usr/local/dlib/task-queue/update-rpm.py > /dev/null 2>&1

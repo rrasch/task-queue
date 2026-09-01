@@ -155,10 +155,11 @@ def is_owned_by_root(path):
     return os.stat(path).st_uid == 0
 
 
-def send_mail(recipient, subject, body):
+def send_mail(sender, recipient, subject, body):
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
+        msg["From"] = sender
         msg["To"] = recipient
         msg.set_content(body)
         with smtplib.SMTP("localhost") as smtp:
@@ -267,7 +268,12 @@ def main():
         )
 
     if args.email:
-        send_mail(args.email, subject, result.stdout)
+        send_mail(
+            sender=f"noreply@{hostname}",
+            recipient=args.email,
+            subject=subject,
+            body=result.stdout,
+        )
 
     sys.exit(result.returncode)
 

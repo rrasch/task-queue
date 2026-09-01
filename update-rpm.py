@@ -6,10 +6,12 @@ import glob
 import logging
 import logging.handlers
 import os
+import smtplib
 import socket
 import subprocess
 import sys
 import tempfile
+from email.message import EmailMessage
 
 import pika
 import rpm
@@ -153,8 +155,25 @@ def is_owned_by_root(path):
     return os.stat(path).st_uid == 0
 
 
+def send_mail(recipient, subject, body):
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["To"] = recipient
+        msg.set_content(body)
+        with smtplib.SMTP("localhost") as smtp:
+            smtp.send_message(msg)
+    except Exception:
+        logger.exception("Failed to send email")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Update task queue")
+    parser.add_argument(
+        "-e",
+        "--email",
+        help="Email status message to this address",
+    )
     parser.add_argument(
         "-f",
         "--force",
@@ -237,11 +256,20 @@ def main():
 
     logger.debug(f"output: {result.stdout}")
 
-    if result.returncode != 0:
+    subject = f"Update of task-queue on {hostname} was "
+
+    if result.returncode == 0:
+        subject += "successful"
+    else:
+        subject += "unsuccessful"
         logger.error(
             f"Command {cmd_str} failed with return code {result.returncode}"
         )
-        sys.exit(result.returncode)
+
+    if args.email:
+        send_mail(args.email, subject, result.stdout)
+
+    sys.exit(result.returncode)
 
 
 if __name__ == "__main__":

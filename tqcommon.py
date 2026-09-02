@@ -1,6 +1,7 @@
-from configparser import ConfigParser
 import os
 import socket
+from configparser import ConfigParser
+
 import tomli
 import yaml
 
@@ -64,3 +65,12 @@ def get_services():
     with open(services_file) as fh:
         services = yaml.safe_load(fh)["services"]
     return services
+
+
+def get_email_map():
+    map_file = f"/content/{get_env()}/rstar/etc/email.yaml"
+    try:
+        with open(map_file) as file:
+            return yaml.safe_load(file) or {}
+    except FileNotFoundError:
+        return {}

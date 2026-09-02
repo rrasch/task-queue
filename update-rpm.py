@@ -185,6 +185,8 @@ def main():
 
     rstar_dir = tqcommon.get_rstar_dir()
 
+    mailto = args.email or tqcommon.get_email_map().get("rstar")
+
     hostname = socket.gethostname().split(".")[0]
     logfile = os.path.join(
         tempfile.gettempdir(), f"tq-update-{hostname}.log.txt"
@@ -210,14 +212,18 @@ def main():
 
     redhat_version = get_redhat_version()
     logger.debug(f"redhat version: {redhat_version}")
+
     rpmdir = os.path.join(repodir, redhat_version, "RPMS")
     logger.debug(f"rpm dir: {rpmdir}")
+
     rpms = sort_rpms(
         glob.glob(f"{rpmdir}{os.sep}**{os.sep}task-queue-*.rpm", recursive=True)
     )
+
     if not rpms:
         logger.info("No rpms found")
         return
+
     latest_rpm = rpms[-1]
     logger.debug(f"Latest rpm: {latest_rpm}")
 
@@ -267,10 +273,10 @@ def main():
             f"Command {cmd_str} failed with return code {result.returncode}"
         )
 
-    if args.email:
+    if mailto:
         send_mail(
             sender=f"noreply@{hostname}",
-            recipient=args.email,
+            recipient=mailto,
             subject=subject,
             body=result.stdout,
         )

@@ -1,10 +1,11 @@
 require 'mediainfo'
 require_relative './cmd'
+require_relative './tqcommon'
 
 class Video
 
   ENVIRON = {
-    "TMPDIR" => "/content/prod/rstar/tmp",
+    "TMPDIR" => TQCommon.tmpdir,
   }
 
   def initialize(args)
@@ -49,7 +50,7 @@ class Video
 
   def transcode_file
     @cmd.do_cmd("convert2mp4 -q "\
-            "--path_tmpdir /content/prod/rstar/tmp "\
+            "--path_tmpdir #{ENV['TMPDIR']} "\
             "--video_threads 1 "\
             "#{@args['extra_args']} "\
             "#{@args['input_path']} #{@args['output_path']}")
@@ -66,7 +67,7 @@ class Video
       cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
       cmds << "convert2mp4 -q "\
-              "--path_tmpdir /content/prod/rstar/tmp "\
+              "--path_tmpdir #{ENV['TMPDIR']} "\
               "--video_threads 1 "\
               "#{@args['extra_args']} "\
               "#{input_file} #{output_base}"

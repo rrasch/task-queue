@@ -24,7 +24,7 @@ fi
 
 # Clear environment and read values from config file. We don't
 # unset FOREGROUND because we set this in systemd service file
-unset TQHOME TQUSER LOGDIR MQHOST RVM_RUBY_VERSION
+unset TQHOME TQUSER LOGDIR LOG_LEVEL MQHOST RVM_RUBY_VERSION
 
 CONFIG_FILE=/content/$ENV/rstar/etc/task-queue.sysconfig
 
@@ -38,6 +38,8 @@ TQHOME=${TQHOME:-/usr/local/dlib/task-queue}
 TQUSER=${TQUSER:-rstar}
 
 LOGDIR=${LOGDIR:-/content/$ENV/rstar/tmp/mdi/task-queue/logs}
+
+LOG_LEVEL=${LOG_LEVEL:-info}
 
 MQHOST=${MQHOST:-localhost}
 
@@ -74,6 +76,9 @@ start() {
 		CMD+=("$RVM_GEM_DIR/ruby-$RVM_RUBY_VERSION@task-queue/wrappers/ruby")
 	fi
 	CMD+=("$TQHOME/log-job-status.rb" -m "$MQHOST" -c "$MY_CNF" -l "$LOGFILE")
+	if [ -n "$LOG_LEVEL" ]; then
+		CMD+=(--log-level "$LOG_LEVEL")
+	fi
 	if [ "$FOREGROUND" != "true" ]; then
 		CMD+=(-d)
 	fi

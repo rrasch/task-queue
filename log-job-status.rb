@@ -21,18 +21,13 @@ options = {
   :verbose   => false,
 }
 
-
-def find_coll_type(rstar_dir, wip_id)
-  data_dir = "#{rstar_dir}/wip/se/#{wip_id}/data"
-  if !Dir["#{data_dir}/*_d.mov"].empty?
-    'video'
-  elsif !Dir["#{data_dir}/*_mods.xml"].empty?
-    'book'
-  else
-    'photo'
-  end
-end
-
+log_levels = {
+  "debug" => Logger::DEBUG,
+  "info"  => Logger::INFO,
+  "warn"  => Logger::WARN,
+  "error" => Logger::ERROR,
+  "fatal" => Logger::FATAL
+}
 
 OptionParser.new do |opts|
 
@@ -46,16 +41,17 @@ OptionParser.new do |opts|
     options[:logfile] = l
   end
 
+  opts.on('--log-level LEVEL', log_levels.keys,
+          "Set log level (#{log_levels.keys.join(', ')})") do |level|
+    options[:log_level] = log_levels[level]
+  end
+
   opts.on('-c', '--my-cnf CONFIG FILE', 'MySQL config for taskqueue db') do |c|
     options[:my_cnf] = c
   end
 
   opts.on('-d', '--daemonize', 'Daemonize process') do
     options[:daemonize] = true
-  end
-
-  opts.on('-v', '--verbose', 'Enable debugging messages') do
-    options[:verbose] = true
   end
 
   opts.on('-h', '--help', 'Print help message') do
@@ -68,7 +64,7 @@ end.parse!
 logfile = File.new(options[:logfile], 'a')
 logfile.sync = true
 logger = Logger.new(logfile, 5, 1000000)
-logger.level = options[:verbose] ? Logger::DEBUG : Logger::INFO
+logger.level = options[:log_level]
 
 if options[:daemonize]
   logger.debug "Putting process #{Process.pid} in background"

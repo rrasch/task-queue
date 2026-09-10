@@ -19,9 +19,6 @@ class Audio
     @logger = @args['logger']
     @args['env'] = ENVIRON
     @cmd = Cmd.new(@args)
-    @minfo_bin_version = `mediainfo --Version`[/v([\d.]+)/, 1]
-    @minfo_gem_version = Gem.loaded_specs['mediainfo'].version
-    verify_mediainfo_version
   end
 
   def transcode
@@ -92,24 +89,13 @@ class Audio
                      bitrate)
   end
 
-  def incompatible_mediainfo_versions?
-    Gem::Version.new(@minfo_bin_version) <= Gem::Version.new('0.7.99') &&
-      Gem::Version.new(@minfo_gem_version) >= Gem::Version.new('1.0.0')
-  end
-
   def get_media_info(input_file)
-    if Gem::Version.new(@minfo_gem_version) >= Gem::Version.new('1.0.0')
-      MediaInfo.from(input_file)
-    else
-      Mediainfo.new(input_file)
+    info = MediaInfo.from(input_file)
+    unless info.audio?
+      raise InvalidTaskError, "Missing audio in media file #{input_file}"
     end
-  end
 
-  def verify_mediainfo_version
-    if incompatible_mediainfo_versions? # rubocop:disable Style/GuardClause
-      raise "Version of MediaInfo tool, #{@minfo_bin_version}, not " \
-            "compatible with version #{@minfo_gem_version} of mediainfo gem."
-    end
+    info
   end
 
   def build_ffmpeg_cmd(input_file, output_file, ch_layout_arg, num_channels,

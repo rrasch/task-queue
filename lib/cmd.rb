@@ -34,10 +34,11 @@ class Cmd
         success = false
       end
       total_output.concat(output)
+      clean_output = output.strip
       if success
-        @logger.debug output
+        @logger.debug clean_output
       else
-        @logger.error output
+        @logger.error clean_output
         break
       end
     end

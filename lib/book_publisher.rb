@@ -65,6 +65,14 @@ class BookPublisher
              'hocr2pdf.py')
   end
 
+  def shrink_aco_pdf
+    @cmd.do_cmd("#{BIN_DIR}/shrink-aco-pdf.py "\
+                "#{@args['extra_args']} "\
+                "#{@args['input_path']} #{@args['output_path']}")
+  end
+
+  private
+
   def exec_cmd(*script_names)
     if !@args['rstar_dir'].nil?
       @cmd.do_cmd(*script_names)

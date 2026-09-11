@@ -95,6 +95,7 @@ chmod 0755 %{buildroot}%{dlibdir}/workersctl
 chmod 0755 %{buildroot}%{dlibdir}/log-job-status-ctl
 chmod 0644 %{buildroot}%{dlibdir}/tqcommon.py
 chmod 0644 %{buildroot}%{dlibdir}/util.py
+chmod 0755 %{buildroot}%{dlibdir}/services/bin/*
 
 # build outside of buildroot to avoid check-buildroot error
 cp rerun.go %{tqbuilddir}

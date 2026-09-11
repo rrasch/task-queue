@@ -9,13 +9,12 @@ require 'optparse'
 require 'socket'
 require_relative './lib/email'
 require_relative './lib/joblog'
-
-env = /^d/ =~ Socket.gethostname ? 'dev' : 'prod'
+require_relative './lib/tqcommon'
 
 # Set default options
 options = {
   mqhost:    'localhost',
-  my_cnf:    "/content/#{env}/rstar/etc/my-taskqueue.cnf",
+  my_cnf:    "/content/#{TQCommon.env}/rstar/etc/my-taskqueue.cnf",
   logfile:   "#{Dir.pwd}/log-job-status.log",
   daemonize: false,
   verbose:   false

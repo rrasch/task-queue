@@ -17,11 +17,10 @@ require 'socket'
 require_relative './lib/audio'
 require_relative './lib/bagit'
 require_relative './lib/book_publisher'
+require_relative './lib/exceptions'
 require_relative './lib/tqcommon'
 require_relative './lib/util'
 require_relative './lib/video'
-
-class InvalidTaskError < StandardError; end
 
 module JobProcessor
 
@@ -370,7 +369,7 @@ config = {
   :foreground  => false,
   :min_workers => 1,
   :max_workers => max_workers,
-  :svc_lookup  => TQCommon.get_services.map { |svc| [svc, true] }.to_h,
+  :svc_lookup  => TQCommon.services.map { |svc| [svc, true] }.to_h,
 }
 
 log_levels = {

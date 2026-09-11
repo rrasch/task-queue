@@ -53,7 +53,7 @@ class Email
     job['worker_host_alias'] = @aliases.fetch(host, host)
     job.delete('logger')
     output = job.delete('output').to_s.strip
-    output = "output:\n#{out}" unless output.empty?
+    output = "output:\n#{output}" unless output.empty?
     [job, desc, output]
   end
 

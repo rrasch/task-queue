@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'rubygems'
 require 'bunny'
@@ -9,29 +10,27 @@ require 'socket'
 require_relative './lib/email'
 require_relative './lib/joblog'
 
-
-env = /^d/ =~ Socket.gethostname ? "dev" : "prod"
+env = /^d/ =~ Socket.gethostname ? 'dev' : 'prod'
 
 # Set default options
 options = {
-  :mqhost    => "localhost",
-  :my_cnf    => "/content/#{env}/rstar/etc/my-taskqueue.cnf",
-  :logfile   => Dir.pwd + "/log-job-status.log",
-  :daemonize => false,
-  :verbose   => false,
+  mqhost:    'localhost',
+  my_cnf:    "/content/#{env}/rstar/etc/my-taskqueue.cnf",
+  logfile:   "#{Dir.pwd}/log-job-status.log",
+  daemonize: false,
+  verbose:   false
 }
 
 log_levels = {
-  "debug" => Logger::DEBUG,
-  "info"  => Logger::INFO,
-  "warn"  => Logger::WARN,
-  "error" => Logger::ERROR,
-  "fatal" => Logger::FATAL
+  'debug' => Logger::DEBUG,
+  'info'  => Logger::INFO,
+  'warn'  => Logger::WARN,
+  'error' => Logger::ERROR,
+  'fatal' => Logger::FATAL
 }
 
 OptionParser.new do |opts|
-
-  opts.banner = "Usage: #{$0} [options]"
+  opts.banner = "Usage: #{$PROGRAM_NAME} [options]"
 
   opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |m|
     options[:mqhost] = m
@@ -58,12 +57,11 @@ OptionParser.new do |opts|
     puts opts
     exit
   end
-
 end.parse!
 
 logfile = File.new(options[:logfile], 'a')
 logfile.sync = true
-logger = Logger.new(logfile, 5, 1000000)
+logger = Logger.new(logfile, 5, 1_000_000)
 logger.level = options[:log_level]
 
 if options[:daemonize]
@@ -79,44 +77,39 @@ email = Email.new(logger)
 logger.debug "Lowering priority of process #{Process.pid}"
 Process.setpriority(Process::PRIO_PROCESS, 0, 19)
 
-conn = Bunny.new(:host => options[:mqhost],
-                 :logger => logger,
-                 :recover_from_connection_close => false,
-                )
+conn = Bunny.new(host: options[:mqhost],
+                 logger: logger,
+                 recover_from_connection_close: false)
 conn.start
 
 ch = conn.create_channel
-x = ch.topic("tq_logging", :durable => true, :auto_delete => false)
-q = ch.queue("tq_log_reader", :durable => true)
-q.bind(x, :routing_key => "task_queue.*")
+x = ch.topic('tq_logging', durable: true, auto_delete: false)
+q = ch.queue('tq_log_reader', durable: true)
+q.bind(x, routing_key: 'task_queue.*')
 
 consumer = nil
 error = nil
 
 begin
-  q.subscribe(:block => true,
-              :manual_ack => true) do |delivery_info, properties, payload|
+  q.subscribe(block: true,
+              manual_ack: true) do |delivery_info, properties, payload|
     consumer = delivery_info[:consumer]
-    logger.debug "Received #{payload}, "\
-                 "message properties are #{properties.inspect}, and "\
+    logger.debug "Received #{payload}, " \
+                 "message properties are #{properties.inspect}, and " \
                  "delivery info is #{delivery_info.inspect}"
     task = JSON.parse(payload)
     joblog = JobLog.new(options[:my_cnf], logger)
     joblog.update_job(task)
     joblog.close
     ch.ack(delivery_info.delivery_tag)
-    if task['state'] =~ /success|error/
-      email.send(task)
-    end
+    email.send(task) if task['state'] =~ /success|error/
   end
 rescue SignalException => e
   logger.info "Process #{Process.pid} received signal #{e} (#{e.signo})"
-rescue Bunny::ConnectionForced => e
-  error = e
 rescue StandardError => e
   error = e
 ensure
-  consumer.cancel if consumer
+  consumer&.cancel
   conn.close
 end
 

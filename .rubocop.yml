@@ -8,3 +8,4 @@ Layout/LineLength:
 Layout/HashAlignment:
   EnforcedColonStyle: table
   EnforcedHashRocketStyle: table
+  EnforcedLastArgumentHashStyle: ignore_implicit

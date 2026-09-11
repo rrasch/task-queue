@@ -4,3 +4,7 @@ AllCops:
 
 Layout/LineLength:
   Max: 80
+
+Layout/HashAlignment:
+  EnforcedColonStyle: table
+  EnforcedHashRocketStyle: table

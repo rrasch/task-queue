@@ -24,6 +24,7 @@ require_relative './lib/tqcommon'
 require_relative './lib/util'
 require_relative './lib/video'
 
+# JobProcessor defines method executed by each worker
 module JobProcessor
   # Open a connection to our RabbitMQ queue. This method is called once just
   # before entering the child run loop.
@@ -48,10 +49,10 @@ module JobProcessor
       @logger.debug 'Connected.'
     rescue Bunny::TCPConnectionFailed => e
       @logger.error "Connection to #{config[:mqhost]} failed - #{e}"
-      raise e
-    rescue Exception => e
+      raise
+    rescue StandardError => e
       @logger.error e
-      raise e
+      raise
     end
   end
 
@@ -80,7 +81,7 @@ module JobProcessor
 
     task['logger'] = @logger
     task['state'] = 'processing'
-    task['worker_host'] = get_ip_addr
+    task['worker_host'] = ip_addr
     task['started'] = Time.now.strftime('%Y-%m-%d %H:%M:%S')
     @x.publish(JSON.pretty_generate(task),
                routing_key: 'task_queue.processing')
@@ -167,7 +168,7 @@ module JobProcessor
       @logger.debug " [x] Received '#{body}'"
       task = {}
       process_task(body, task, delivery_info)
-    rescue Exception => e
+    rescue StandardError => e
       err_msg = if (is_invalid_err = e.is_a?(InvalidTaskError))
                   e.message
                 else
@@ -185,10 +186,10 @@ module JobProcessor
       @ch.nack(delivery_info.delivery_tag, false, false)
       @conn.close unless is_invalid_err
     end
-  rescue Exception => e
+  rescue StandardError => e
     @logger.error "execute error #{e.full_message}"
     @conn.close
-    raise e
+    raise
   end
 end
 
@@ -203,12 +204,14 @@ rescue NameError
   false
 end
 
-def get_ip_addr
+def ip_addr
   Socket.ip_address_list.detect do |ip|
     ip.ipv4? and !ip.ipv4_loopback? and !ip.ipv4_multicast?
   end.ip_address
 end
 
+# The TaskQueueServer class provides a pre-forking worker pool for
+# executing tasks in parallel using multiple processes.
 class TaskQueueServer < ::Servolux::Server
   # Create a preforking server that has the given minimum and
   # maximum boundaries
@@ -307,10 +310,14 @@ class TaskQueueServer < ::Servolux::Server
     # Start up child processes to handle jobs.
     log "Starting up the pool of #{@pool.max_workers} workers"
     @pool.start(@pool.max_workers)
-    log "Send a USR1 to add a worker                        (kill -usr1 #{Process.pid})"
-    log "Send a USR2 to kill all the workers                (kill -usr2 #{Process.pid})"
-    log "Send a INT (Ctrl-C) or TERM to shutdown the server (kill -term #{Process.pid})"
-    log "Send a HUP to reopen log file                      (kill -hup #{Process.pid})"
+    log 'Send a USR1 to add a worker                        ' \
+        "(kill -usr1 #{Process.pid})"
+    log 'Send a USR2 to kill all the workers                ' \
+        "(kill -usr2 #{Process.pid})"
+    log 'Send a INT (Ctrl-C) or TERM to shutdown the server ' \
+        "(kill -term #{Process.pid})"
+    log 'Send a HUP to reopen log file                      ' \
+        "(kill -hup #{Process.pid})"
   end
 
   # Add a worker to the pool when USR1 is received

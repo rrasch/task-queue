@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 #
 # Preforking RabbitMQ job runner using Servolux.
 #
@@ -23,29 +25,27 @@ require_relative './lib/util'
 require_relative './lib/video'
 
 module JobProcessor
-
   # Open a connection to our RabbitMQ queue. This method is called once just
   # before entering the child run loop.
   def before_executing
     @logger = config[:logger]
     @logger.debug "JobProcessor logger id: #{@logger.__id__}"
-    @logger.debug "entering JobProcessor.before_executing()"
+    @logger.debug 'entering JobProcessor.before_executing()'
     begin
       @logger.debug "Connecting to #{config[:mqhost]}"
       @conn = Bunny.new(
-        :host => config[:mqhost],
-        :automatically_recover => true,
-        :logger => @logger
+        host: config[:mqhost],
+        automatically_recover: true,
+        logger: @logger
       )
       @conn.start
       @ch = @conn.create_channel
-      @q = @ch.queue("task_queue",
-        :durable => true,
-        :arguments => {"x-max-priority" => 10}
-      )
+      @q = @ch.queue('task_queue',
+                     durable: true,
+                     arguments: { 'x-max-priority' => 10 })
       @ch.prefetch(1)
-      @x = @ch.topic("tq_logging", :durable => true, :auto_delete => false)
-      @logger.debug "Connected."
+      @x = @ch.topic('tq_logging', durable: true, auto_delete: false)
+      @logger.debug 'Connected.'
     rescue Bunny::TCPConnectionFailed => e
       @logger.error "Connection to #{config[:mqhost]} failed - #{e}"
       raise e
@@ -58,7 +58,7 @@ module JobProcessor
   # Close the connection to our RabbitMQ queue. This method is called once
   # just after the child run loop stops and just before the child exits.
   def after_executing
-    @logger.debug "entering JobProcessor.after_executing()"
+    @logger.debug 'entering JobProcessor.after_executing()'
     @conn.close
   end
 
@@ -79,78 +79,76 @@ module JobProcessor
     end
 
     task['logger'] = @logger
-    task['state'] = "processing"
+    task['state'] = 'processing'
     task['worker_host'] = get_ip_addr
-    task['started'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+    task['started'] = Time.now.strftime('%Y-%m-%d %H:%M:%S')
     @x.publish(JSON.pretty_generate(task),
-               :routing_key => "task_queue.processing")
+               routing_key: 'task_queue.processing')
 
     svc = "#{task['class']}:#{task['operation']}"
-    if !@config[:svc_lookup].has_key?(svc)
+    unless @config[:svc_lookup].key?(svc)
       raise InvalidTaskError, "Invalid service: #{svc}"
     end
 
     class_name = classify(task['class'].to_s.strip)
 
-    if class_name.empty?
-      raise InvalidTaskError, "Class name isn't defined."
-    end
+    raise InvalidTaskError, "Class name isn't defined." if class_name.empty?
 
-    if !class_exists?(class_name)
+    unless class_exists?(class_name)
       raise InvalidTaskError, "Class '#{class_name}' doesn't exist."
     end
 
-    unless task['class'] == "util"
-      has_rstar = task.key?("rstar_dir")
-      has_input = task.key?("input_path")
-      has_output = task.key?("output_path")
+    unless task['class'] == 'util'
+      has_rstar = task.key?('rstar_dir')
+      has_input = task.key?('input_path')
+      has_output = task.key?('output_path')
 
       # must have one mode or the other
       unless has_rstar || (has_input && has_output)
         raise InvalidTaskError,
-          "Must provide rstar_dir OR input_path+output_path"
+              'Must provide rstar_dir OR input_path+output_path'
       end
 
       # rstar_dir is mutually exclusive with input/output
       if has_rstar && (has_input || has_output)
         raise InvalidTaskError,
-          "rstar_dir cannot be used with input_path/output_path"
+              'rstar_dir cannot be used with input_path/output_path'
       end
 
       # input and output must be paired
       if has_input ^ has_output
         raise InvalidTaskError,
-          "input_path and output_path must be provided together"
+              'input_path and output_path must be provided together'
       end
     end
 
     @logger.debug "Creating new '#{class_name}' object"
-    obj = Object::const_get(class_name).new(task)
+    obj = Object.const_get(class_name).new(task)
     method_name = task['operation'].to_s.tr('-', '_')
 
-    if !obj.respond_to?(method_name)
+    unless obj.respond_to?(method_name)
       raise InvalidTaskError,
-        "Method '#{class_name}.#{method_name}' does not exist."
+            "Method '#{class_name}.#{method_name}' does not exist."
     end
 
     @logger.debug "Executing '#{method_name}'"
     status = obj.send(method_name)
-    if status[:success]
-      state = 'success'
-    else
-      state = 'error'
-    end
+    state = if status[:success]
+              'success'
+            else
+              'error'
+            end
     output = status[:output]
 
     @logger.debug "#{state.capitalize}!"
-    @logger.debug " [x] Done"
+    @logger.debug ' [x] Done'
     task['state'] = state
     task['output'] = output
-    task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+    task['completed'] = Time.now.strftime('%Y-%m-%d %H:%M:%S')
     @logger.debug "Publishing to task_queue.#{state}"
     @x.publish(JSON.pretty_generate(task),
-              :routing_key => "task_queue.#{state}")
-    @logger.debug "Sending ack"
+               routing_key: "task_queue.#{state}")
+    @logger.debug 'Sending ack'
     @ch.ack(delivery_info.delivery_tag)
     @logger.info "Task completed #{task}"
   end
@@ -162,31 +160,30 @@ module JobProcessor
   # This method is called repeatedly by the child run loop until the child is
   # killed via SIGHUP or SIGTERM or halted by the parent.
   def execute
-    @logger.debug "entering JobProcessor.execute()"
-    @q.subscribe(:manual_ack => true, :block => true) do |delivery_info,
-                                                          properties, body|
-      begin
-        @logger.debug " [x] Received '#{body}'"
-        task = {}
-        process_task(body, task, delivery_info)
-      rescue Exception => e
-        if (is_invalid_err = e.is_a?(InvalidTaskError))
-          err_msg = e.message
-        else
-          err_msg = e.full_message
-        end
-        @logger.error "#{e.class}: #{err_msg}"
-        if task.any?
-          task['state'] = 'error'
-          task['output'] = err_msg
-          task['completed'] = Time.now.strftime("%Y-%m-%d %H:%M:%S")
-          @x.publish(JSON.pretty_generate(task),
-                     :routing_key => "task_queue.error")
-        end
-        @logger.debug("Rejecting message: #{delivery_info}")
-        @ch.nack(delivery_info.delivery_tag, false, false)
-        @conn.close unless is_invalid_err
+    @logger.debug 'entering JobProcessor.execute()'
+    @q.subscribe(manual_ack: true, block: true) do |delivery_info,
+                                                          _properties, body|
+
+      @logger.debug " [x] Received '#{body}'"
+      task = {}
+      process_task(body, task, delivery_info)
+    rescue Exception => e
+      err_msg = if (is_invalid_err = e.is_a?(InvalidTaskError))
+                  e.message
+                else
+                  e.full_message
+                end
+      @logger.error "#{e.class}: #{err_msg}"
+      if task.any?
+        task['state'] = 'error'
+        task['output'] = err_msg
+        task['completed'] = Time.now.strftime('%Y-%m-%d %H:%M:%S')
+        @x.publish(JSON.pretty_generate(task),
+                   routing_key: 'task_queue.error')
       end
+      @logger.debug("Rejecting message: #{delivery_info}")
+      @ch.nack(delivery_info.delivery_tag, false, false)
+      @conn.close unless is_invalid_err
     end
   rescue Exception => e
     @logger.error "execute error #{e.full_message}"
@@ -201,28 +198,27 @@ end
 
 def class_exists?(class_name)
   klass = Module.const_get(class_name)
-  return klass.is_a?(Class)
+  klass.is_a?(Class)
 rescue NameError
-  return false
+  false
 end
 
 def get_ip_addr
-  Socket.ip_address_list.detect{|ip|
-    ip.ipv4? and !ip.ipv4_loopback? and !ip.ipv4_multicast?}.ip_address
+  Socket.ip_address_list.detect do |ip|
+    ip.ipv4? and !ip.ipv4_loopback? and !ip.ipv4_multicast?
+  end.ip_address
 end
 
 class TaskQueueServer < ::Servolux::Server
-
   # Create a preforking server that has the given minimum and
   # maximum boundaries
   #
   def initialize(config)
-
     @config = config
     @logger = config[:logger]
 
-    super(self.class.name, :interval => 120, :logger => @logger,
-      :pid_file => config[:pidfile])
+    super(self.class.name, interval: 120, logger: @logger,
+      pid_file: config[:pidfile])
 
     @logger.debug "TaskQueueServer logger id: #{@logger.__id__}"
 
@@ -240,11 +236,11 @@ class TaskQueueServer < ::Servolux::Server
     # longer than 10 minutes to run, that child worker will be
     # killed.
     @pool = Servolux::Prefork.new(
-      :module => JobProcessor,
-      :timeout => config[:timeout],
-      :config => config,
-      :min_workers => config[:min_workers],
-      :max_workers => config[:max_workers]
+      module: JobProcessor,
+      timeout: config[:timeout],
+      config: config,
+      min_workers: config[:min_workers],
+      max_workers: config[:max_workers]
     )
   end
 
@@ -253,22 +249,23 @@ class TaskQueueServer < ::Servolux::Server
   end
 
   def log_pool_status
-    @logger.debug "Pool status: #{@pool.worker_counts.inspect} "\
+    @logger.debug "Pool status: #{@pool.worker_counts.inspect} " \
                   "living pids #{live_worker_pids.join(' ')}"
   end
 
   def live_worker_pids
     pids = []
     @pool.each_worker { |w| pids << w.pid if w.alive? }
-    return pids
+    pids
   end
 
   def shutdown_workers
-    log "Shutting down all workers"
+    log 'Shutting down all workers'
     @pool.stop
     loop do
       log_pool_status
       break if @pool.live_worker_count <= 0
+
       sleep 0.25
     end
   end
@@ -276,28 +273,28 @@ class TaskQueueServer < ::Servolux::Server
   def remove_worker
     workers = []
     @pool.each_worker { |w| workers << w if w.alive? }
-    if workers.size > @pool.min_workers
-      retiring_worker = workers.last
-      retiring_worker.stop
-      sleep 0.5
-      retiring_worker.reap
-    end
+    return unless workers.size > @pool.min_workers
+
+    retiring_worker = workers.last
+    retiring_worker.stop
+    sleep 0.5
+    retiring_worker.reap
   end
 
   def log_worker_status(worker)
-    if not worker.alive? then
-      worker.wait
-      if worker.error then
-        log "Worker #{worker.pid} child error: #{worker.error.inspect}"
-      elsif worker.exited? then
-        log "Worker #{worker.pid} exited with status #{worker.exitstatus}"
-      elsif worker.signaled? then
-        log "Worker #{worker.pid} signaled by #{worker.termsig}"
-      elsif worker.stopped? then
-        log "Worker #{worker.pid} stopped by #{worker.stopsig}"
-      else
-        log "I have no clue #{worker.inspect}"
-      end
+    return if worker.alive?
+
+    worker.wait
+    if worker.error
+      log "Worker #{worker.pid} child error: #{worker.error.inspect}"
+    elsif worker.exited?
+      log "Worker #{worker.pid} exited with status #{worker.exitstatus}"
+    elsif worker.signaled?
+      log "Worker #{worker.pid} signaled by #{worker.termsig}"
+    elsif worker.stopped?
+      log "Worker #{worker.pid} stopped by #{worker.stopsig}"
+    else
+      log "I have no clue #{worker.inspect}"
     end
   end
 
@@ -318,13 +315,13 @@ class TaskQueueServer < ::Servolux::Server
 
   # Add a worker to the pool when USR1 is received
   def usr1
-    log "Adding a worker"
+    log 'Adding a worker'
     @pool.add_workers
   end
 
   # Remove a worker from the pool when USR2 is received
   def usr2
-    log "Removing a worker"
+    log 'Removing a worker'
     remove_worker
   end
 
@@ -353,7 +350,6 @@ class TaskQueueServer < ::Servolux::Server
   end
 end
 
-
 # Start
 
 # Max number of workers is number of cpus - 1
@@ -361,28 +357,27 @@ end
 max_workers = [1, Etc.nprocessors - 1].max
 
 config = {
-  :mqhost      => "localhost",
-  :timeout     => nil,
-  :logfile     => Dir.pwd + "/worker.log",
-  :pidfile     => Dir.pwd + "/taskqueueserver.pid",
-  :log_level   => Logger::INFO,
-  :foreground  => false,
-  :min_workers => 1,
-  :max_workers => max_workers,
-  :svc_lookup  => TQCommon.services.map { |svc| [svc, true] }.to_h,
+  mqhost:      'localhost',
+  timeout:     nil,
+  logfile:     "#{Dir.pwd}/worker.log",
+  pidfile:     "#{Dir.pwd}/taskqueueserver.pid",
+  log_level:   Logger::INFO,
+  foreground:  false,
+  min_workers: 1,
+  max_workers: max_workers,
+  svc_lookup:  TQCommon.services.map { |svc| [svc, true] }.to_h
 }
 
 log_levels = {
-  "debug" => Logger::DEBUG,
-  "info"  => Logger::INFO,
-  "warn"  => Logger::WARN,
-  "error" => Logger::ERROR,
-  "fatal" => Logger::FATAL
+  'debug' => Logger::DEBUG,
+  'info'  => Logger::INFO,
+  'warn'  => Logger::WARN,
+  'error' => Logger::ERROR,
+  'fatal' => Logger::FATAL
 }
 
 OptionParser.new do |opts|
-
-  opts.banner = "Usage: workers.rb [options]"
+  opts.banner = 'Usage: workers.rb [options]'
 
   opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |m|
     config[:mqhost] = m
@@ -409,11 +404,13 @@ OptionParser.new do |opts|
     config[:log_level] = log_levels[level]
   end
 
-  opts.on('-n', '--min-workers MIN_WORKERS', Integer, 'Min number of workers') do |n|
+  opts.on('-n', '--min-workers MIN_WORKERS', Integer,
+          'Min number of workers') do |n|
     config[:min_workers] = n
   end
 
-  opts.on('-x', '--max-workers MAX_WORKERS', Integer, 'Max number of workers') do |x|
+  opts.on('-x', '--max-workers MAX_WORKERS', Integer,
+          'Max number of workers') do |x|
     config[:max_workers] = x
   end
 
@@ -421,27 +418,24 @@ OptionParser.new do |opts|
     puts opts
     exit
   end
-
 end.parse!
 
 if config[:max_workers] < config[:min_workers]
-  abort("Max workers (#{config[:max_workers]}) must "\
+  abort("Max workers (#{config[:max_workers]}) must " \
         "be greater than min workers (#{config[:min_workers]})")
 end
 
 config[:logfh] = File.new(config[:logfile], 'a')
 config[:logfh].sync = true
 
-if !config[:foreground]
-  Process.daemon
-end
+Process.daemon unless config[:foreground]
 
 $stdout = config[:logfh]
 $stderr = config[:logfh]
 config[:logger] = ::Logger.new(config[:logfh])
 config[:logger].level = config[:log_level]
 
-ENV["TQ_SERVER_PID"] = Process.pid.to_s
+ENV['TQ_SERVER_PID'] = Process.pid.to_s
 
 tqs = TaskQueueServer.new(config)
 tqs.startup

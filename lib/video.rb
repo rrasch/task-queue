@@ -1,12 +1,13 @@
+# frozen_string_literal: true
+
 require 'mediainfo'
 require_relative './cmd'
 require_relative './tqcommon'
 
 class Video
-
   ENVIRON = {
-    "TMPDIR" => TQCommon.tmpdir,
-  }
+    'TMPDIR' => TQCommon.tmpdir
+  }.freeze
 
   def initialize(args)
     @args = args.clone
@@ -25,8 +26,8 @@ class Video
         transcode_file
       end
     else
-      @logger.error "Video.transcode: Must specify rstar_dir or input_path."
-      return { :success => false }
+      @logger.error 'Video.transcode: Must specify rstar_dir or input_path.'
+      { success: false }
     end
   end
 
@@ -36,7 +37,7 @@ class Video
   end
 
   def transcode_wip
-    cmds = Array.new
+    cmds = []
     @args['identifiers'].each do |id|
       @logger.debug "Processing #{id}"
       data_dir = "#{@args['rstar_dir']}/wip/se/#{id}/data"
@@ -49,49 +50,48 @@ class Video
   end
 
   def transcode_file
-    @cmd.do_cmd("convert2mp4 -q "\
-            "--path_tmpdir #{ENV['TMPDIR']} "\
-            "--video_threads 1 "\
-            "#{@args['extra_args']} "\
-            "#{@args['input_path']} #{@args['output_path']}")
+    @cmd.do_cmd('convert2mp4 -q ' \
+                "--path_tmpdir #{ENV.fetch('TMPDIR', nil)} " \
+                '--video_threads 1 ' \
+                "#{@args['extra_args']} " \
+                "#{@args['input_path']} #{@args['output_path']}")
   end
 
   def get_transcode_cmds(input_path, output_path)
-    cmds = Array.new
+    cmds = []
     input_files = Dir.glob("#{input_path}/*_d.{avi,mkv,mov,mp4}")
     input_files.each do |input_file|
       @logger.debug "Input_file: #{input_file}"
-      basename = File.basename(input_file, ".*")
+      basename = File.basename(input_file, '.*')
       basename.sub!(/_d$/, '')
       output_base = "#{output_path}/#{basename}"
       cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
-      cmds << "convert2mp4 -q "\
-              "--path_tmpdir #{ENV['TMPDIR']} "\
-              "--video_threads 1 "\
-              "#{@args['extra_args']} "\
+      cmds << 'convert2mp4 -q ' \
+              "--path_tmpdir #{ENV.fetch('TMPDIR', nil)} " \
+              '--video_threads 1 ' \
+              "#{@args['extra_args']} " \
               "#{input_file} #{output_base}"
-      if !File.file?(cs_file)
+      unless File.file?(cs_file)
         cmds << "vcs -q -Wc -n 8 -o #{cs_file} #{input_file}"
       end
     end
-    return cmds
+    cmds
   end
 
   def convert_iso
     logdir = File.join(ENVIRON['TMPDIR'], 'rstar', 'logs')
-    timestamp = Time.now.strftime("%Y%m%d-%H%M%S")
+    timestamp = Time.now.strftime('%Y%m%d-%H%M%S')
     pid = Process.pid
     basename = File.basename(
       @args['output_path'],
       File.extname(@args['output_path'])
     )
     logfile = File.join(logdir, "#{basename}-#{timestamp}-#{pid}.log")
-    @cmd.do_cmd("convert_iso --quiet "\
-                "--threads 1 "\
-                "--log-file #{logfile} "\
-                "#{@args['extra_args']} "\
+    @cmd.do_cmd('convert_iso --quiet ' \
+                '--threads 1 ' \
+                "--log-file #{logfile} " \
+                "#{@args['extra_args']} " \
                 "#{@args['input_path']} #{@args['output_path']}")
   end
-
 end

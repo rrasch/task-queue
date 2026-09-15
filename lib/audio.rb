@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'mediainfo'
+require 'shellwords'
 require_relative './cmd'
 require_relative './exceptions'
 require_relative './tqcommon'
@@ -11,7 +12,7 @@ class Audio
 
   ENVIRON = {
     'PYTHONPATH' => TQCommon::INSTALL_DIR,
-    'TMPDIR' => TQCommon.tmpdir
+    'TMPDIR'     => TQCommon.tmpdir
   }.freeze
 
   def initialize(args)
@@ -35,9 +36,10 @@ class Audio
   end
 
   def transcribe
-    @cmd.do_cmd("#{TQCommon::INSTALL_DIR}/services/bin/transcribe.py " \
-                "#{@args['extra_args']} " \
-                "#{@args['input_path']} #{@args['output_path']}")
+    @cmd.do_cmd(["#{TQCommon::INSTALL_DIR}/services/bin/transcribe.py",
+                 *@args['extra_args'].shellsplit,
+                 @args['input_path'],
+                 @args['output_path']])
   end
 
   private
@@ -81,11 +83,11 @@ class Audio
     minfo = get_media_info(input_file)
     num_channels = minfo.audio.channels
     bitrate = "#{num_channels * 64}k"
-    ch_layout_arg = ''
+    ch_layout_args = []
     if minfo.general.format == 'Wave' && LAYOUT[num_channels]
-      ch_layout_arg = "-channel_layout #{LAYOUT[num_channels]}"
+      ch_layout_args = ['-channel_layout', LAYOUT[num_channels]]
     end
-    build_ffmpeg_cmd(input_file, output_file, ch_layout_arg, num_channels,
+    build_ffmpeg_cmd(input_file, output_file, ch_layout_args, num_channels,
                      bitrate)
   end
 
@@ -98,11 +100,17 @@ class Audio
     info
   end
 
-  def build_ffmpeg_cmd(input_file, output_file, ch_layout_arg, num_channels,
+  def build_ffmpeg_cmd(input_file, output_file, ch_layout_args, num_channels,
                        bitrate)
-    'ffmpeg -y -nostats -loglevel warning ' \
-      "#{ch_layout_arg} -i '#{input_file}' -c:a libfdk_aac " \
-      "-b:a #{bitrate} -ac #{num_channels} " \
-      "-ar 44.1k -movflags +faststart '#{output_file}'"
+    ['ffmpeg', '-y', '-nostats',
+     '-loglevel', 'warning',
+     *ch_layout_args,
+     '-i', input_file,
+     '-c:a', 'libfdk_aac',
+     '-b:a', bitrate,
+     '-ac', num_channels,
+     '-ar', '44.1k',
+     '-movflags', '+faststart',
+     output_file]
   end
 end

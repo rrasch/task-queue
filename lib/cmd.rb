@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 require 'open3'
 require 'shellwords'
 
+# Cmd is a class to execute commands
 class Cmd
-
   BIN_DIR = '/usr/bin'
 
   def initialize(args)
@@ -11,30 +13,38 @@ class Cmd
     @bin_dir = @args['bin_dir'] || BIN_DIR
   end
 
-  def do_cmd(*script_names)
-    total_output = ""
+  def do_cmd(*cmd_list)
+    total_output = String.new
     success = true
-    script_names.each do |script_name|
-      if !@args['rstar_dir'].nil? && script_name !~ / -r /
-        cmd = "#{@bin_dir}/#{script_name} -q -r #{@args['rstar_dir']} "\
-              "#{@args['extra_args']} "\
-              "#{@args['identifiers'].join(' ')}"
-      else
-        cmd = "#{script_name}"
+    cmd_list.each do |cmd|
+      prog, *args = cmd
+
+      final_cmd = cmd
+      if needs_rstar_arg(cmd)
+        final_cmd = ["#{@bin_dir}/#{prog}",
+                     *args,
+                     '-q',
+                     '-r', @args['rstar_dir'],
+                     *@args['extra_args'].shellsplit,
+                     *@args['identifiers']]
       end
+
       env = @args.fetch('env', {})
-      cmd_list = Shellwords.split(cmd)
-      @logger.info("Executing '#{cmd}' with env #{env}")
-      @logger.debug("Cmd list: #{cmd_list}")
+
+      @logger.debug("Cmd: #{final_cmd}")
+      @logger.info("Executing '#{final_cmd.shelljoin}' with env #{env}")
+
       begin
-        output, status = Open3.capture2e(env, *cmd_list)
+        output, status = capture(env, final_cmd)
         success = status.exitstatus.zero?
       rescue SystemCallError => e
         output = "Failed to execute '#{cmd}': #{e.class} #{e.message}"
         success = false
       end
+
       total_output.concat(output)
       clean_output = output.strip
+
       if success
         @logger.debug clean_output
       else
@@ -42,23 +52,36 @@ class Cmd
         break
       end
     end
-    return {
-      :success => success,
-      :output  => total_output,
+    {
+      success: success,
+      output:  total_output
     }
   end
 
   def self.do_or_die(cmd, logger)
-    cmd_list = Shellwords.split(cmd)
     logger.info "Running '#{cmd}'"
     logger.debug("Cmd list: #{cmd_list}")
-    output, status = Open3.capture2e(*cmd_list)
+    output, status = capture({}, cmd)
     logger.debug output
-    if ! status.exitstatus.zero?
+    unless status.exitstatus.zero?
       logger.error "#{cmd} exited with status #{status.exitstatus}"
       exit 1
     end
-    return output
+    output
   end
 
+  private
+
+  def needs_rstar_arg(cmd)
+    !@args['rstar_dir'].nil? &&
+      cmd.none? { |arg| ['-r', '--rstar'].include?(arg) }
+  end
+
+  # run Open3.capture2e with no shell
+  def capture(env, cmd)
+    raise InvalidTaskError, "Command can't be empty" if cmd.empty?
+
+    prog, *args = cmd
+    Open3.capture2e(env, [prog, prog], *args)
+  end
 end

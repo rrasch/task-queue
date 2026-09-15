@@ -2,9 +2,12 @@
 
 require 'fileutils'
 require 'securerandom'
+require 'shellwords'
 require 'tmpdir'
 require_relative './cmd'
 
+# BookPublisher is class to perform book and image
+# processing such as generating derivatives and pdfs.
 class BookPublisher
   BIN_DIR = '/usr/local/dlib/book-publisher/bin'
 
@@ -24,65 +27,66 @@ class BookPublisher
   end
 
   def create_derivatives
-    exec_cmd('create-deriv-images.pl')
+    exec_cmd(['create-deriv-images.pl'])
   end
 
   def create_dmakers
-    exec_cmd('create-deriv-images.pl -m')
+    exec_cmd(['create-deriv-images.pl', '-m'])
   end
 
   def stitch_pages
-    exec_cmd('stitch-pages.pl')
+    exec_cmd(['stitch-pages.pl'])
   end
 
   def create_pdf
-    exec_cmd('create-pdf.pl')
+    exec_cmd(['create-pdf.pl'])
   end
 
   def create_ocr
-    exec_cmd('create-ocr.pl')
+    exec_cmd(['create-ocr.pl'])
   end
 
   def create_map
-    exec_cmd('gen-kml.pl')
+    exec_cmd(['gen-kml.pl'])
   end
 
   def gen_all
-    exec_cmd('create-deriv-images.pl',
-             'create-pdf.pl')
+    exec_cmd(['create-deriv-images.pl'],
+             ['create-pdf.pl'])
   end
 
   # create low resolution pdf that will be uploaded
   # to yaiglobal to extract hocr
   def make_yaiglobal_upload_pdf
-    opts = '--force --lores'
-    exec_cmd("create-deriv-images.pl #{opts}",
-             "create-pdf.pl #{opts}",
-             'clean-aux.py --exclude _lo.pdf')
+    opts = ['--force', '--lores']
+    exec_cmd(['create-deriv-images.pl', *opts],
+             ['create-pdf.pl', *opts],
+             ['clean-aux.py', '--exclude', '_lo.pdf'])
   end
 
   def hocr2pdf
-    exec_cmd('create-deriv-images.pl --dmakers',
-             'hocr2pdf.py')
+    exec_cmd(['create-deriv-images.pl', '--dmakers'],
+             ['hocr2pdf.py'])
   end
 
   def shrink_aco_pdf
-    @cmd.do_cmd("#{BIN_DIR}/shrink-aco-pdf.py " \
-                "#{@args['extra_args']} " \
-                "#{@args['input_path']} #{@args['output_path']}")
+    @cmd.do_cmd(["#{BIN_DIR}/shrink-aco-pdf.py",
+                 *@args['extra_args'].shellsplit,
+                 @args['input_path'],
+                 @args['output_path']])
   end
 
   private
 
-  def exec_cmd(*script_names)
+  def exec_cmd(*cmd_list)
     if @args['rstar_dir'].nil?
-      rstar_wrap(*script_names)
+      rstar_wrap(*cmd_list)
     else
-      @cmd.do_cmd(*script_names)
+      @cmd.do_cmd(*cmd_list)
     end
   end
 
-  def rstar_wrap(*script_names)
+  def rstar_wrap(*cmd_list)
     mets_file = Dir.glob("#{@args['input_path']}/*_mets.xml").first
     if mets_file.nil?
       @logger.warn "Can't find METS file. Generating random id ..."
@@ -99,14 +103,21 @@ class BookPublisher
       FileUtils.mkdir_p(rstar_dir)
       FileUtils.ln_s(@args['input_path'], data_dir)
       FileUtils.ln_s(@args['output_path'], aux_dir)
-      cmds = []
-      script_names.each do |script_name|
-        rstar_cmd = "#{BIN_DIR}/#{script_name} -q -r #{dir} " \
-                    "#{@args['extra_args']} #{id}"
+      full_cmd_list = []
+      cmd_list.each do |cmd|
+        prog, *args = cmd
+        rstar_cmd = [
+          "#{BIN_DIR}/#{prog}",
+          *args,
+          '-q',
+          '-r', dir,
+          *@args['extra_args'].shellsplit,
+          id
+        ]
         @logger.debug("rstar_wrap cmd: #{rstar_cmd}")
-        cmds.push(rstar_cmd)
+        full_cmd_list.push(rstar_cmd)
       end
-      @cmd.do_cmd(*cmds)
+      @cmd.do_cmd(*full_cmd_list)
     end
   end
 end

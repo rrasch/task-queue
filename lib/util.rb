@@ -9,15 +9,15 @@ class Util
   end
 
   def ping
-    @cmd.do_cmd('ping -c1 -W1 www.google.com')
+    @cmd.do_cmd(['ping', '-c1', '-W1', 'www.google.com'])
   end
 
   def fortune
-    @cmd.do_cmd('fortune')
+    @cmd.do_cmd(['fortune'])
   end
 
   def nope
-    @cmd.do_cmd('false')
+    @cmd.do_cmd(['false'])
   end
 
   def env
@@ -42,7 +42,7 @@ class Util
       Patch Level: #{RUBY_PATCHLEVEL}
       Platform: #{RUBY_PLATFORM}
       Release Date: #{RUBY_RELEASE_DATE}
-      Current Date: #{Time.now.to_s}
+      Current Date: #{Time.now}
       Engine: #{defined?(RUBY_ENGINE) ? RUBY_ENGINE : 'ruby'}
       Description: #{RUBY_DESCRIPTION}
       Executable: #{RbConfig.ruby}

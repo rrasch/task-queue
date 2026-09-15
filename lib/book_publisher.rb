@@ -1,18 +1,19 @@
+# frozen_string_literal: true
+
 require 'fileutils'
 require 'securerandom'
 require 'tmpdir'
 require_relative './cmd'
 
 class BookPublisher
-
-  BIN_DIR = "/usr/local/dlib/book-publisher/bin"
+  BIN_DIR = '/usr/local/dlib/book-publisher/bin'
 
   ENVIRON = {
-    "MAGICK_THREAD_LIMIT" => "1",
-    "OMP_THREAD_LIMIT" => "1",
-    "PYTHONPATH" => "/usr/local/dlib/aco-scripts",
-    "PERL5LIB" => "/usr/local/dlib/book-publisher/lib",
-  }
+    'MAGICK_THREAD_LIMIT' => '1',
+    'OMP_THREAD_LIMIT'    => '1',
+    'PYTHONPATH'          => '/usr/local/dlib/aco-scripts',
+    'PERL5LIB'            => '/usr/local/dlib/book-publisher/lib'
+  }.freeze
 
   def initialize(args)
     @args = args.clone
@@ -66,18 +67,18 @@ class BookPublisher
   end
 
   def shrink_aco_pdf
-    @cmd.do_cmd("#{BIN_DIR}/shrink-aco-pdf.py "\
-                "#{@args['extra_args']} "\
+    @cmd.do_cmd("#{BIN_DIR}/shrink-aco-pdf.py " \
+                "#{@args['extra_args']} " \
                 "#{@args['input_path']} #{@args['output_path']}")
   end
 
   private
 
   def exec_cmd(*script_names)
-    if !@args['rstar_dir'].nil?
-      @cmd.do_cmd(*script_names)
-    else
+    if @args['rstar_dir'].nil?
       rstar_wrap(*script_names)
+    else
+      @cmd.do_cmd(*script_names)
     end
   end
 
@@ -91,22 +92,21 @@ class BookPublisher
       id = File.basename(mets_file).sub(/_mets.xml$/, '')
     end
     @logger.debug("wip id: #{id}")
-    Dir.mktmpdir('task-queue') {|dir|
+    Dir.mktmpdir('task-queue') do |dir|
       rstar_dir = "#{dir}/wip/se/#{id}"
       data_dir  = "#{rstar_dir}/data"
       aux_dir   = "#{rstar_dir}/aux"
       FileUtils.mkdir_p(rstar_dir)
       FileUtils.ln_s(@args['input_path'], data_dir)
       FileUtils.ln_s(@args['output_path'], aux_dir)
-      cmds = Array.new
+      cmds = []
       script_names.each do |script_name|
-        rstar_cmd = "#{BIN_DIR}/#{script_name} -q -r #{dir} "\
+        rstar_cmd = "#{BIN_DIR}/#{script_name} -q -r #{dir} " \
                     "#{@args['extra_args']} #{id}"
         @logger.debug("rstar_wrap cmd: #{rstar_cmd}")
         cmds.push(rstar_cmd)
       end
       @cmd.do_cmd(*cmds)
-    }
+    end
   end
-
 end

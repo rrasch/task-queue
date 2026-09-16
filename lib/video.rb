@@ -54,11 +54,6 @@ class Video
 
   private
 
-  def transcode_dir
-    cmds = get_transcode_cmds(@args['input_path'], @args['output_path'])
-    @cmd.do_cmd(*cmds)
-  end
-
   def transcode_wip
     cmds = []
     @args['identifiers'].each do |id|
@@ -72,18 +67,13 @@ class Video
     @cmd.do_cmd(*cmds)
   end
 
-  def build_conv_cmd(input_path, output_path)
-    ['convert2mp4',
-     '--quiet',
-     '--path_tmpdir', ENVIRON['TMPDIR'],
-     '--video_threads', '1',
-     *@args['extra_args'].shellsplit,
-     input_path,
-     output_path]
+  def transcode_dir
+    cmds = get_transcode_cmds(@args['input_path'], @args['output_path'])
+    @cmd.do_cmd(*cmds)
   end
 
   def transcode_file
-    build_conv_cmd(@args['input_path'], @args['output_path'])
+    @cmd.do_cmd(build_conv_cmd(@args['input_path'], @args['output_path']))
   end
 
   def get_transcode_cmds(input_path, output_path)
@@ -102,5 +92,15 @@ class Video
       end
     end
     cmds
+  end
+
+  def build_conv_cmd(input_path, output_path)
+    ['convert2mp4',
+     '--quiet',
+     '--path_tmpdir', ENVIRON['TMPDIR'],
+     '--video_threads', '1',
+     *@args['extra_args'].shellsplit,
+     input_path,
+     output_path]
   end
 end

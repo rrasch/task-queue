@@ -108,7 +108,7 @@ class Audio
      '-i', input_file,
      '-c:a', 'libfdk_aac',
      '-b:a', bitrate,
-     '-ac', num_channels,
+     '-ac', num_channels.to_s,
      '-ar', '44.1k',
      '-movflags', '+faststart',
      output_file]

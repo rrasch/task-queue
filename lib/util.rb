@@ -64,7 +64,7 @@ class Util
     ruby_bin_dir = File.dirname(RbConfig.ruby)
     ruby_bin_name = File.basename(RbConfig.ruby)
     gem_bin_path = File.join(ruby_bin_dir, ruby_bin_name.sub('ruby', 'gem'))
-    gem_env_cmd = "#{gem_bin_path} env"
+    gem_env_cmd = [gem_bin_path, 'env']
     gem_env_output = @cmd.do_cmd(gem_env_cmd)[:output]
     "Output of '#{gem_env_cmd}':\n#{gem_env_output}"
   end

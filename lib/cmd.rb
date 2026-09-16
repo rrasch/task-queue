@@ -32,13 +32,14 @@ class Cmd
       env = @args.fetch('env', {})
 
       @logger.debug("Cmd: #{final_cmd}")
-      @logger.info("Executing '#{final_cmd.shelljoin}' with env #{env}")
+      @logger.info("Executing [#{final_cmd.shelljoin}] with env #{env}")
 
       begin
         output, status = capture(env, final_cmd)
         success = status.exitstatus.zero?
       rescue SystemCallError => e
-        output = "Failed to execute '#{cmd}': #{e.class} #{e.message}"
+        output = 'Failed to execute ' \
+                 "[#{final_cmd.shelljoin}]': #{e.class} #{e.message}"
         success = false
       end
 
@@ -52,6 +53,7 @@ class Cmd
         break
       end
     end
+
     {
       success: success,
       output:  total_output

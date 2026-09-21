@@ -20,29 +20,19 @@ class Video
   end
 
   def transcode
-    if !@args['rstar_dir'].nil?
-      transcode_wip
-    elsif !@args['input_path'].nil?
-      if File.directory?(@args['input_path'])
-        transcode_dir
-      else
-        transcode_file
-      end
-    else
+    if @args['rstar_dir'].nil? && @args['input_path'].nil?
       raise InvalidTaskError,
             'Video.transcode: Must specify rstar_dir or input_path.'
     end
+
+    return transcode_wip unless @args['rstar_dir'].nil?
+
+    return transcode_dir if File.directory?(@args['input_path'])
+
+    transcode_file
   end
 
   def convert_iso
-    logdir = File.join(ENVIRON['TMPDIR'], 'rstar', 'logs')
-    timestamp = Time.now.strftime('%Y%m%d-%H%M%S')
-    pid = Process.pid
-    basename = File.basename(
-      @args['output_path'],
-      File.extname(@args['output_path'])
-    )
-    logfile = File.join(logdir, "#{basename}-#{timestamp}-#{pid}.log")
     @cmd.do_cmd(['convert_iso',
                  '--quiet',
                  '--threads', '1',
@@ -53,6 +43,16 @@ class Video
   end
 
   private
+
+  def logfile
+    logdir = File.join(ENVIRON['TMPDIR'], 'rstar', 'logs')
+    timestamp = Time.now.strftime('%Y%m%d-%H%M%S')
+    basename = File.basename(
+      @args['output_path'],
+      File.extname(@args['output_path'])
+    )
+    File.join(logdir, "#{basename}-#{timestamp}-#{Process.pid}.log")
+  end
 
   def transcode_wip
     cmds = []
@@ -78,29 +78,47 @@ class Video
 
   def get_transcode_cmds(input_path, output_path)
     cmds = []
-    input_files = Dir.glob("#{input_path}/*_d.{avi,mkv,mov,mp4}")
-    input_files.each do |input_file|
+
+    Dir.glob("#{input_path}/*_d.{avi,mkv,mov,mp4}").each do |input_file|
       @logger.debug "Input_file: #{input_file}"
-      basename = File.basename(input_file, '.*')
-      basename.sub!(/_d$/, '')
-      output_base = "#{output_path}/#{basename}"
+      output_base = get_output_base(input_file, output_path)
+
       cs_file = "#{output_base}_contact_sheet.jpg"
       @logger.debug "Output base: #{output_base}"
+
       cmds << build_conv_cmd(input_file, output_base)
-      unless File.file?(cs_file)
-        cmds << ['vcs', '-q', '-Wc', '-n', '8', '-o', cs_file, input_file]
-      end
+      cmds << build_vcs_cmd(input_file, cs_file) unless File.file?(cs_file)
     end
+
     cmds
   end
 
+  def get_output_base(input_file, output_path)
+    basename = File.basename(input_file, '.*')
+    basename.sub!(/_d$/, '')
+    File.join(output_path, basename)
+  end
+
   def build_conv_cmd(input_path, output_path)
-    ['convert2mp4',
-     '--quiet',
-     '--path_tmpdir', ENVIRON['TMPDIR'],
-     '--video_threads', '1',
-     *@args['extra_args'].shellsplit,
-     input_path,
-     output_path]
+    [
+      'convert2mp4',
+      '--quiet',
+      '--path_tmpdir', ENVIRON['TMPDIR'],
+      '--video_threads', '1',
+      *@args['extra_args'].shellsplit,
+      input_path,
+      output_path
+    ]
+  end
+
+  def build_vcs_cmd(input_file, output_file)
+    [
+      'vcs',
+      '--quiet',
+      '-Wc',
+      '--numcaps', '8',
+      '--output', output_file,
+      input_file
+    ]
   end
 end

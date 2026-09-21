@@ -37,7 +37,7 @@ class Video
                  '--quiet',
                  '--threads', '1',
                  '--log-file', logfile,
-                 @args['extra_args'],
+                 *@args['extra_args'].shellsplit,
                  @args['input_path'],
                  @args['output_path']])
   end

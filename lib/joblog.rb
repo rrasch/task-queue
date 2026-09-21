@@ -1,15 +1,18 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'mysql2'
 require 'sql-maker'
 
-class JobLog
-
+# JobLog is a class to query and update the job log table
+# in the task queue MySQL database
+class JobLog # rubocop:disable Metrics/ClassLength
   def initialize(config_file, logger)
     @client = Mysql2::Client.new(
-      :default_file  => config_file,
-      :read_timeout => 30,
-      :write_timeout => 60,
-      :connect_timeout => 10,
+      default_file: config_file,
+      read_timeout: 30,
+      write_timeout: 60,
+      connect_timeout: 10
     )
     @logger = logger
   end
@@ -18,63 +21,51 @@ class JobLog
     @logger.debug "batch id: #{batch_id}"
     query = SQL::Maker::Select.new.add_select('*').add_from('batch')
     if batch_id.is_a?(Array)
-        query.add_where('batch_id' => {:between => batch_id})
+      query.add_where('batch_id' => { between: batch_id })
     else
-        query.add_where('batch_id' => batch_id)
+      query.add_where('batch_id' => batch_id)
     end
-    @logger.debug "sql: #{query.as_sql}"
-    @logger.debug "bind value: #{query.bind}"
-    stmt = @client.prepare(query.as_sql)
-    result = stmt.execute(*(query.bind))
+    do_query(query)
   end
 
-  def select_job(args)
+  def select_job(args) # rubocop:disable Metrics/AbcSize
     @logger.debug "entering select_job(#{args})"
     subquery = SQL::Maker::Select.new.add_select('*').add_from('job')
     if args.key?(:batch_id)
       if args[:batch_id].is_a?(Array)
-        subquery.add_where('batch_id' => {:between => args[:batch_id]})
+        subquery.add_where('batch_id' => { between: args[:batch_id] })
       else
         subquery.add_where('batch_id' => args[:batch_id])
       end
     end
     if args.key?(:from)
       @logger.debug "starting date: #{args[:from]}"
-      subquery.add_where('submitted' => {'>=' => args[:from]})
+      subquery.add_where('submitted' => { '>=' => args[:from] })
     end
     if args.key?(:to)
       @logger.debug "ending date: #{args[:to]}"
-      subquery.add_where('submitted' => {'<=' => args[:to]})
+      subquery.add_where('submitted' => { '<=' => args[:to] })
     end
     subquery.add_order_by('job_id' => 'DESC')
-    if args.key?(:limit)
-      subquery.limit(args[:limit].to_s)
-    end
+    subquery.limit(args[:limit].to_s) if args.key?(:limit)
     query = SQL::Maker::Select.new.add_select('*')
-                                  .add_from(subquery => 'job_table')
-                                  .add_order_by('job_id' => 'ASC')
-    @logger.debug "sql: #{query.as_sql}"
-    @logger.debug "bind values: #{query.bind}"
-    stmt = @client.prepare(query.as_sql)
-    result = stmt.execute(*(query.bind))
+                              .add_from(subquery => 'job_table')
+                              .add_order_by('job_id' => 'ASC')
+    do_query(query)
   end
 
   def state_counts(args)
     @logger.debug "entering state_counts(#{args})"
     query = SQL::Maker::Select.new
     query.add_select('state')
-         .add_select(SQL::QueryMaker::sql_raw('COUNT(*)') => 'count')
+         .add_select(SQL::QueryMaker.sql_raw('COUNT(*)') => 'count')
          .add_from('job')
-         .add_where('batch_id' => {:between => args[:batch_id]})
+         .add_where('batch_id' => { between: args[:batch_id] })
          .add_group_by('state')
-    @logger.debug "sql: #{query.as_sql}"
-    @logger.debug "bind values: #{query.bind}"
-    stmt = @client.prepare(query.as_sql)
-    result = stmt.execute(*(query.bind))
+    do_query(query)
   end
 
-  def update_job(task, create=true)
-    result = nil
+  def update_job(task, create: true) # rubocop:disable Metrics/AbcSize
     output = task['output']
     if output.to_s.strip.empty?
       output = nil
@@ -85,41 +76,53 @@ class JobLog
     if task['job_id'].nil? && create
       @logger.debug "Inserting job into batch_id=#{task['batch_id']}"
       insert_job = @client.prepare(
-       "INSERT INTO job (
+        "INSERT INTO job (
         batch_id, state,
         output, request,
         user_id, worker_host,
         started, completed)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      result = insert_job.execute(
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      insert_job.execute(
         task['batch_id'], task['state'],
         output, JSON.generate(task),
         task['user_id'], task['worker_host'],
-        task['started'], task['completed'])
+        task['started'], task['completed']
+      )
       task['job_id'] = @client.last_id
       @logger.debug "Created job_id=#{task['job_id']}"
     else
       @logger.debug "Updating job_id=#{task['job_id']}"
       update_job = @client.prepare(
-       "UPDATE job
+        "UPDATE job
         SET state = ?, output = ?,
         worker_host = ?, started = ?,
         completed = ?
-        WHERE job_id = ?")
-      result = update_job.execute(
+        WHERE job_id = ?"
+      )
+      update_job.execute(
         task['state'], output,
         task['worker_host'], task['started'],
         task['completed'],
-        task['job_id'])
+        task['job_id']
+      )
       @logger.debug "Updated job_id=#{task['job_id']}"
     end
     num_rows = @client.affected_rows
     @logger.debug "Query updated #{num_rows} rows."
-    return num_rows
+    num_rows
   end
 
   def close
     @client.close
   end
 
+  private
+
+  def do_query(query)
+    @logger.debug "sql: #{query.as_sql}"
+    @logger.debug "bind values: #{query.bind}"
+    stmt = @client.prepare(query.as_sql)
+    stmt.execute(*query.bind)
+  end
 end

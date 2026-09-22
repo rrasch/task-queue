@@ -86,7 +86,7 @@ class BookPublisher
     end
   end
 
-  def objid
+  def book_id
     mets_file = Dir.glob("#{@args['input_path']}/*_mets.xml").first
     if mets_file.nil?
       @logger.warn "Can't find METS file. Generating random id ..."
@@ -97,33 +97,33 @@ class BookPublisher
     end
   end
 
-  def make_rstar_dir(dir)
-    rstar_dir = "#{dir}/wip/se/#{id}"
-    data_dir  = "#{rstar_dir}/data"
-    aux_dir   = "#{rstar_dir}/aux"
-    FileUtils.mkdir_p(rstar_dir)
+  def make_book_tree(tmp_dir, id)
+    book_dir = "#{tmp_dir}/wip/se/#{id}"
+    data_dir = "#{book_dir}/data"
+    aux_dir  = "#{book_dir}/aux"
+    FileUtils.mkdir_p(book_dir)
     FileUtils.ln_s(@args['input_path'], data_dir)
     FileUtils.ln_s(@args['output_path'], aux_dir)
   end
 
-  def build_full_cmd(cmd, id)
+  def build_full_cmd(cmd, tmp_dir, id)
     prog, *args = cmd
     [
       "#{BIN_DIR}/#{prog}",
       *args,
       '-q',
-      '-r', dir,
+      '-r', tmp_dir,
       *@args['extra_args'].shellsplit,
       id
     ]
   end
 
   def rstar_wrap(*cmd_list)
-    id = objid
-    @logger.debug("wip id: #{id}")
-    Dir.mktmpdir('task-queue') do |dir|
-      make_rstar_dir(dir)
-      full_cmd_list = cmd_list.map { |cmd| build_full_cmd(cmd, id) }
+    id = book_id
+    @logger.debug("id: #{id}")
+    Dir.mktmpdir('task-queue') do |tmp_dir|
+      make_book_tree(tmp_dir, id)
+      full_cmd_list = cmd_list.map { |cmd| build_full_cmd(cmd, tmp_dir, id) }
       @logger.debug "Full command list: #{full_cmd_list}"
       @cmd.do_cmd(*full_cmd_list)
     end

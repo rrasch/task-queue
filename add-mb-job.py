@@ -366,11 +366,12 @@ WARNING: The task-queue currently has multiple workers per host.
 Running HandBrake in parallel with other jobs may overload the server.
 Do you want to still send this job?
 Type 'yes' to confirm, anything else will cancel.
-"""
-    print(warning)
-    response = input("> ").strip().lower()
+
+> """
+    print(warning, file=sys.stderr, end="", flush=True)
+    response = input().strip().lower()
     if response != "yes":
-        print("Job cancelled to avoid server overload.")
+        print("Job cancelled to avoid server overload.", file=sys.stderr)
         sys.exit(0)
 
 

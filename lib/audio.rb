@@ -8,7 +8,12 @@ require_relative './tqcommon'
 
 # Class to execute audio jobs
 class Audio
-  LAYOUT = { 1 => 'mono', 2 => 'stereo', 6 => '5.1' }.freeze
+  LAYOUT = {
+    1 => 'mono',
+    2 => 'stereo',
+    6 => '5.1',
+    8 => '7.1'
+  }.freeze
 
   ENVIRON = {
     'PYTHONPATH' => TQCommon::INSTALL_DIR,
@@ -45,20 +50,19 @@ class Audio
   private
 
   def transcode_dir
-    cmds = get_transcode_cmds(@args['input_path'], @args['output_path'])
+    cmds = dir_transcode_cmds(@args['input_path'], @args['output_path'])
     @cmd.do_cmd(*cmds)
   end
 
   def transcode_wip
-    cmds = []
-    @args['identifiers'].each do |id|
+    cmds = @args['identifiers'].flat_map do |id|
       @logger.debug "Processing #{id}"
       data_dir = "#{@args['rstar_dir']}/wip/se/#{id}/data"
       aux_dir  = "#{@args['rstar_dir']}/wip/se/#{id}/aux"
       @logger.debug "data dir: #{data_dir}"
-      cmds.concat(get_transcode_cmds(data_dir, aux_dir))
+      dir_transcode_cmds(data_dir, aux_dir)
     end
-    @logger.debug cmds.inspect
+    @logger.debug "wip cmds: #{cmds}"
     @cmd.do_cmd(*cmds)
   end
 
@@ -66,33 +70,48 @@ class Audio
     @cmd.do_cmd(transcode_cmd(@args['input_path'], @args['output_path']))
   end
 
-  def get_transcode_cmds(input_path, output_path)
-    cmds = []
-    input_files = Dir.glob("#{input_path}/*_m.{mp3,wav}")
-    input_files.each do |input_file|
-      @logger.debug "Input_file: #{input_file}"
-      basename = File.basename(input_file, '.*').sub!(/_m$/, '')
-      output_file = "#{output_path}/#{basename}_s.m4a"
-      @logger.debug "Output file: #{output_file}"
-      cmds << transcode_cmd(input_file, output_file)
+  def mezz_audio_files(input_path)
+    audio_files = Dir.glob("#{input_path}/*_m.{mp3,wav}")
+    unless audio_files.any?
+      raise InvalidTaskError,
+            "No mezzanine audio files found in #{input_path}"
     end
-    cmds
+    audio_files
   end
 
+  def dir_transcode_cmds(input_path, output_path)
+    mezz_audio_files(input_path).map do |input_file|
+      @logger.debug "Input_file: #{input_file}"
+      basename = File.basename(input_file, '.*').sub(/_m$/, '')
+      output_file = "#{output_path}/#{basename}_s.m4a"
+      @logger.debug "Output file: #{output_file}"
+      transcode_cmd(input_file, output_file)
+    end
+  end
+
+  # rubocop:disable Metrics/MethodLength
   def transcode_cmd(input_file, output_file)
     minfo = get_media_info(input_file)
-    num_channels = minfo.audio.channels
-    bitrate = "#{num_channels * 64}k"
-    ch_layout_args = []
-    if minfo.general.format == 'Wave' && LAYOUT[num_channels]
-      ch_layout_args = ['-channel_layout', LAYOUT[num_channels]]
-    end
-    build_ffmpeg_cmd(input_file, output_file, ch_layout_args, num_channels,
-                     bitrate)
+    [
+      'ffmpeg',
+      '-y',
+      '-nostats',
+      '-loglevel', 'warning',
+      *channel_layout_args(minfo),
+      '-i', input_file,
+      '-c:a', 'libfdk_aac',
+      '-b:a', "#{minfo.audio.channels * 64}k",
+      '-ar', '48k',
+      '-movflags', '+faststart',
+      *@args['extra_args'].shellsplit,
+      output_file
+    ]
   end
+  # rubocop:enable Metrics/MethodLength
 
   def get_media_info(input_file)
     info = MediaInfo.from(input_file)
+
     unless info.audio?
       raise InvalidTaskError, "Missing audio in media file #{input_file}"
     end
@@ -100,17 +119,8 @@ class Audio
     info
   end
 
-  def build_ffmpeg_cmd(input_file, output_file, ch_layout_args, num_channels,
-                       bitrate)
-    ['ffmpeg', '-y', '-nostats',
-     '-loglevel', 'warning',
-     *ch_layout_args,
-     '-i', input_file,
-     '-c:a', 'libfdk_aac',
-     '-b:a', bitrate,
-     '-ac', num_channels.to_s,
-     '-ar', '44.1k',
-     '-movflags', '+faststart',
-     output_file]
+  def channel_layout_args(minfo)
+    layout = LAYOUT[minfo.audio.channels]
+    minfo.general.format == 'Wave' && layout ? ['-channel_layout', layout] : []
   end
 end

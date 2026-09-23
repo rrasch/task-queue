@@ -28,7 +28,7 @@ class JobLog # rubocop:disable Metrics/ClassLength
     do_query(query)
   end
 
-  def select_job(args) # rubocop:disable Metrics/AbcSize
+  def select_job(args) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     @logger.debug "entering select_job(#{args})"
     subquery = SQL::Maker::Select.new.add_select('*').add_from('job')
     if args.key?(:batch_id)
@@ -65,7 +65,8 @@ class JobLog # rubocop:disable Metrics/ClassLength
     do_query(query)
   end
 
-  def update_job(task, create: true) # rubocop:disable Metrics/AbcSize
+  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+  def update_job(task, create: true)
     output = task['output']
     if output.to_s.strip.empty?
       output = nil
@@ -112,6 +113,7 @@ class JobLog # rubocop:disable Metrics/ClassLength
     @logger.debug "Query updated #{num_rows} rows."
     num_rows
   end
+  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
   def close
     @client.close

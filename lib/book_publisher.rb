@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'pp' # rubocop:disable Lint/RedundantRequireStatement
 require 'securerandom'
 require 'shellwords'
 require 'tmpdir'
@@ -121,10 +122,10 @@ class BookPublisher
   def rstar_wrap(*cmd_list)
     id = book_id
     @logger.debug("id: #{id}")
-    Dir.mktmpdir('task-queue') do |tmp_dir|
+    Dir.mktmpdir('task-queue-') do |tmp_dir|
       make_book_tree(tmp_dir, id)
       full_cmd_list = cmd_list.map { |cmd| build_full_cmd(cmd, tmp_dir, id) }
-      @logger.debug "Full command list: #{full_cmd_list}"
+      @logger.debug "Full command list: #{full_cmd_list.pretty_inspect}"
       @cmd.do_cmd(*full_cmd_list)
     end
   end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'logger'
 require 'pp' # rubocop:disable Lint/RedundantRequireStatement
 require 'securerandom'
 require 'shellwords'
@@ -19,12 +20,12 @@ class BookPublisher
     'PERL5LIB'            => '/usr/local/dlib/book-publisher/lib'
   }.freeze
 
-  def initialize(args)
-    @args = args.clone
-    @logger = args['logger']
+  def initialize(args, logger)
+    @args = args.dup
+    @logger = logger
     @args['bin_dir'] = BIN_DIR
     @args['env'] = ENVIRON
-    @cmd = Cmd.new(@args)
+    @cmd = Cmd.new(@args, @logger)
   end
 
   def create_derivatives

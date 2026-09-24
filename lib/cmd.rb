@@ -7,9 +7,9 @@ require 'shellwords'
 class Cmd
   BIN_DIR = '/usr/bin'
 
-  def initialize(args)
-    @args    = args.clone
-    @logger  = @args['logger']
+  def initialize(args, logger)
+    @args    = args.dup
+    @logger  = logger
     @bin_dir = @args['bin_dir'] || BIN_DIR
   end
 

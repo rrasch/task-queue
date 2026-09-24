@@ -12,11 +12,11 @@ class Video
     'TMPDIR' => TQCommon.tmpdir
   }.freeze
 
-  def initialize(args)
-    @args = args.clone
-    @logger = @args['logger']
+  def initialize(args, logger)
+    @args = args.dup
+    @logger = logger
     @args['env'] = ENVIRON
-    @cmd = Cmd.new(@args)
+    @cmd = Cmd.new(@args, @logger)
   end
 
   def transcode

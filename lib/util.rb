@@ -4,8 +4,10 @@ require_relative './cmd'
 
 # Class for utility services
 class Util
-  def initialize(args)
-    @cmd = Cmd.new(args)
+  def initialize(args, logger)
+    @args = args.dup
+    @logger = logger
+    @cmd = Cmd.new(@args, @logger)
   end
 
   def ping

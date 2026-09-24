@@ -15,22 +15,17 @@ require 'json'
 require 'logger'
 require 'optparse'
 require 'servolux'
-require 'socket'
-require_relative './lib/audio'
-require_relative './lib/bagit'
-require_relative './lib/book_publisher'
 require_relative './lib/exceptions'
+require_relative './lib/helpers'
+require_relative './lib/task'
 require_relative './lib/tqcommon'
-require_relative './lib/util'
-require_relative './lib/video'
 
-# JobProcessor defines method executed by each worker
+# JobProcessor defines methods executed by each worker
 module JobProcessor
   # Open a connection to our RabbitMQ queue. This method is called once just
   # before entering the child run loop.
-  def before_executing
+  def before_executing # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     @logger = config[:logger]
-    @logger.debug "JobProcessor logger id: #{@logger.__id__}"
     @logger.debug 'entering JobProcessor.before_executing()'
     begin
       @logger.debug "Connecting to #{config[:mqhost]}"
@@ -71,119 +66,24 @@ module JobProcessor
     @thread.wakeup
   end
 
-  def process_task(body, task, delivery_info)
-    begin
-      task.merge!(JSON.parse(body))
-      @logger.info "Parsed JSON task: #{task}"
-    rescue JSON::JSONError => e
-      raise InvalidTaskError, "Can't parse JSON '#{body}' - #{e.message}"
-    end
-
-    task['logger'] = @logger
-    task['state'] = 'processing'
-    task['worker_host'] = ip_addr
-    task['started'] = Time.now.strftime('%Y-%m-%d %H:%M:%S')
-    @x.publish(JSON.pretty_generate(task),
-               routing_key: 'task_queue.processing')
-
-    svc = "#{task['class']}:#{task['operation']}"
-    unless @config[:svc_lookup].key?(svc)
-      raise InvalidTaskError, "Invalid service: #{svc}"
-    end
-
-    class_name = classify(task['class'].to_s.strip)
-
-    raise InvalidTaskError, "Class name isn't defined." if class_name.empty?
-
-    unless class_exists?(class_name)
-      raise InvalidTaskError, "Class '#{class_name}' doesn't exist."
-    end
-
-    unless task['class'] == 'util'
-      has_rstar = task.key?('rstar_dir')
-      has_input = task.key?('input_path')
-      has_output = task.key?('output_path')
-
-      # must have one mode or the other
-      unless has_rstar || (has_input && has_output)
-        raise InvalidTaskError,
-              'Must provide rstar_dir OR input_path+output_path'
-      end
-
-      # rstar_dir is mutually exclusive with input/output
-      if has_rstar && (has_input || has_output)
-        raise InvalidTaskError,
-              'rstar_dir cannot be used with input_path/output_path'
-      end
-
-      # input and output must be paired
-      if has_input ^ has_output
-        raise InvalidTaskError,
-              'input_path and output_path must be provided together'
-      end
-    end
-
-    @logger.debug "Creating new '#{class_name}' object"
-    obj = Object.const_get(class_name).new(task)
-    method_name = task['operation'].to_s.tr('-', '_')
-
-    unless obj.respond_to?(method_name)
-      raise InvalidTaskError,
-            "Method '#{class_name}.#{method_name}' does not exist."
-    end
-
-    @logger.debug "Executing '#{method_name}'"
-    status = obj.send(method_name)
-    state = if status[:success]
-              'success'
-            else
-              'error'
-            end
-    output = status[:output]
-
-    @logger.debug "#{state.capitalize}!"
-    @logger.debug ' [x] Done'
-    task['state'] = state
-    task['output'] = output
-    task['completed'] = Time.now.strftime('%Y-%m-%d %H:%M:%S')
-    @logger.debug "Publishing to task_queue.#{state}"
-    @x.publish(JSON.pretty_generate(task),
-               routing_key: "task_queue.#{state}")
-    @logger.debug 'Sending ack'
-    @ch.ack(delivery_info.delivery_tag)
-    @logger.info "Task completed #{task}"
-  end
-
-  # Reserve a job from the RabbitMQ queue, and processes jobs as we receive
-  # them. We have a timeout set for 2 minutes so that we can send a heartbeat
-  # back to the parent process even if the RabbitMQ queue is empty.
-  #
-  # This method is called repeatedly by the child run loop until the child is
-  # killed via SIGHUP or SIGTERM or halted by the parent.
-  def execute
+  # Process jobs from RabbitMQ
+  def execute # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     @logger.debug 'entering JobProcessor.execute()'
-    @q.subscribe(manual_ack: true, block: true) do |delivery_info,
-                                                          _properties, body|
-
-      @logger.debug " [x] Received '#{body}'"
-      task = {}
-      process_task(body, task, delivery_info)
+    @q.subscribe(manual_ack: true, block: true) do |delivery_info, _props, body|
+      @logger.debug "[x] Received '#{body}'"
+      task = Task.new(body: body,
+                      logger: @logger,
+                      channel: @ch,
+                      exchange: @x,
+                      delivery_tag: delivery_info.delivery_tag,
+                      services: @config[:svc_lookup])
+      @logger.debug "task: #{task}"
+      task.process
     rescue StandardError => e
-      err_msg = if (is_invalid_err = e.is_a?(InvalidTaskError))
-                  e.message
-                else
-                  e.full_message
-                end
-      @logger.error "#{e.class}: #{err_msg}"
-      if task.any?
-        task['state'] = 'error'
-        task['output'] = err_msg
-        task['completed'] = Time.now.strftime('%Y-%m-%d %H:%M:%S')
-        @x.publish(JSON.pretty_generate(task),
-                   routing_key: 'task_queue.error')
-      end
-      @logger.debug("Rejecting message: #{delivery_info}")
-      @ch.nack(delivery_info.delivery_tag, false, false)
+      #raise
+      is_invalid_err = e.is_a?(InvalidTaskError)
+      err_msg = is_invalid_err ? e.message : e.full_message
+      task.mark_error(e, err_msg)
       @conn.close unless is_invalid_err
     end
   rescue StandardError => e
@@ -193,54 +93,19 @@ module JobProcessor
   end
 end
 
-def classify(str)
-  str.split(/[_-]/).collect(&:capitalize).join
-end
-
-def class_exists?(class_name)
-  klass = Module.const_get(class_name)
-  klass.is_a?(Class)
-rescue NameError
-  false
-end
-
-def ip_addr
-  Socket.ip_address_list.detect do |ip|
-    ip.ipv4? and !ip.ipv4_loopback? and !ip.ipv4_multicast?
-  end.ip_address
-end
-
 # The TaskQueueServer class provides a pre-forking worker pool for
 # executing tasks in parallel using multiple processes.
-class TaskQueueServer < ::Servolux::Server
+class TaskQueueServer < Servolux::Server
   # Create a preforking server that has the given minimum and
   # maximum boundaries
   #
   def initialize(config)
-    @config = config
-    @logger = config[:logger]
-
-    super(self.class.name, interval: 120, logger: @logger,
-      pid_file: config[:pidfile])
-
-    @logger.debug "TaskQueueServer logger id: #{@logger.__id__}"
+    super(self.class.name, config)
 
     # Create our preforking worker pool. Each worker will run the
-    # code found in the JobProcessor module. We set a timeout of 10
-    # minutes. The child process must send a "heartbeat" message to
-    # the parent within this timeout period; otherwise, the parent
-    # will halt the child process.
-    #
-    # Our execute code in the JobProcessor takes this into account.
-    # It will wakeup every 2 minutes, if no jobs are reserved from
-    # the RabbitMQ queue, and send the heartbeat message.
-    #
-    # This also means that if any job processed by a worker takes
-    # longer than 10 minutes to run, that child worker will be
-    # killed.
+    # code found in the JobProcessor module.
     @pool = Servolux::Prefork.new(
       module: JobProcessor,
-      timeout: config[:timeout],
       config: config,
       min_workers: config[:min_workers],
       max_workers: config[:max_workers]
@@ -288,16 +153,20 @@ class TaskQueueServer < ::Servolux::Server
     return if worker.alive?
 
     worker.wait
+    log worker_status_message(worker)
+  end
+
+  def worker_status_message(worker) # rubocop:disable Metrics/MethodLength
     if worker.error
-      log "Worker #{worker.pid} child error: #{worker.error.inspect}"
+      "Worker #{worker.pid} child error: #{worker.error.inspect}"
     elsif worker.exited?
-      log "Worker #{worker.pid} exited with status #{worker.exitstatus}"
+      "Worker #{worker.pid} exited with status #{worker.exitstatus}"
     elsif worker.signaled?
-      log "Worker #{worker.pid} signaled by #{worker.termsig}"
+      "Worker #{worker.pid} signaled by #{worker.termsig}"
     elsif worker.stopped?
-      log "Worker #{worker.pid} stopped by #{worker.stopsig}"
+      "Worker #{worker.pid} stopped by #{worker.stopsig}"
     else
-      log "I have no clue #{worker.inspect}"
+      "I have no clue #{worker.inspect}"
     end
   end
 
@@ -347,7 +216,6 @@ class TaskQueueServer < ::Servolux::Server
   end
 
   # This is the method that is executed during the run loop
-  #
   def run
     log_pool_status
     @pool.each_worker do |worker|
@@ -365,7 +233,7 @@ max_workers = [1, Etc.nprocessors - 1].max
 
 config = {
   mqhost:      'localhost',
-  timeout:     nil,
+  interval:    120,
   logfile:     "#{Dir.pwd}/worker.log",
   pidfile:     "#{Dir.pwd}/taskqueueserver.pid",
   log_level:   Logger::INFO,
@@ -383,15 +251,15 @@ log_levels = {
   'fatal' => Logger::FATAL
 }
 
-OptionParser.new do |opts|
+OptionParser.new do |opts| # rubocop:disable Metrics/BlockLength
   opts.banner = 'Usage: workers.rb [options]'
 
   opts.on('-m', '--mqhost MQHOST', 'RabbitMQ Host') do |m|
     config[:mqhost] = m
   end
 
-  opts.on('-t', '--timeout TIMEOUT', 'Worker timeout') do |t|
-    config[:timeout] = t
+  opts.on('-i', '--interval INTERVAL', 'Run loop interval') do |i|
+    config[:interval] = i
   end
 
   opts.on('-l', '--logfile LOGFILE', 'Log output here') do |l|
@@ -399,14 +267,14 @@ OptionParser.new do |opts|
   end
 
   opts.on('-p', '--pidfile PIDFILE', 'Pid file') do |p|
-    config[:pidfile] = p
+    config[:pid_file] = p
   end
 
   opts.on('-f', '--foreground', 'Stay in the foreground') do
     config[:foreground] = true
   end
 
-  opts.on('--log-level LEVEL', log_levels.keys,
+  opts.on('-L', '--log-level LEVEL', log_levels.keys,
           "Set log level (#{log_levels.keys.join(', ')})") do |level|
     config[:log_level] = log_levels[level]
   end
@@ -439,8 +307,10 @@ Process.daemon unless config[:foreground]
 
 $stdout = config[:logfh]
 $stderr = config[:logfh]
-config[:logger] = ::Logger.new(config[:logfh])
+config[:logger] = Logger.new(config[:logfh])
 config[:logger].level = config[:log_level]
+
+config[:logger].debug beautify(config)
 
 ENV['TQ_SERVER_PID'] = Process.pid.to_s
 

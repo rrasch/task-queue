@@ -136,6 +136,27 @@ def sort_rpms(rpms):
     return [path for path, _ in rpms_with_evr]
 
 
+def is_update_available():
+    """Return True if an upgrade is available for package."""
+    result = subprocess.run(
+        ["dnf", "check-upgrade", "task-queue"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+    if result.returncode == 100:
+        return True
+
+    if result.returncode != 0:
+        logger.error(
+            "dnf check-upgrade failed for task-queue: "
+            f"exit status {result.returncode}"
+        )
+
+    return False
+
+
 def is_queue_empty():
     host = tqcommon.get_sysconfig()["mqhost"]
     conn = pika.BlockingConnection(pika.ConnectionParameters(host=host))
@@ -228,7 +249,8 @@ def main():
     logger.debug(f"Latest rpm: {latest_rpm}")
 
     if not args.force:
-        if not can_update(latest_rpm):
+        # if not can_update(latest_rpm):
+        if not is_update_available():
             logger.info("No update available")
             return
 

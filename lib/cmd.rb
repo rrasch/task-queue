@@ -13,6 +13,14 @@ class Cmd
     @bin_dir = @args['bin_dir'] || BIN_DIR
   end
 
+  def [](key)
+    @args[key]
+  end
+
+  def []=(key, value)
+    @args[key] = value
+  end
+
   def do_cmd(*cmd_list)
     total_output = String.new
     success = true
@@ -35,7 +43,7 @@ class Cmd
       @logger.info("Executing [#{final_cmd.shelljoin}] with env #{env}")
 
       begin
-        output, status = capture(env, final_cmd)
+        output, status = self.class.capture(env, final_cmd)
         success = status.exitstatus.zero?
       rescue SystemCallError => e
         output = 'Failed to execute ' \
@@ -47,9 +55,9 @@ class Cmd
       clean_output = output.strip
 
       if success
-        @logger.debug clean_output
+        @logger.debug "Output: #{clean_output}"
       else
-        @logger.error clean_output
+        @logger.error "Output: #{clean_output}"
         break
       end
     end
@@ -62,7 +70,6 @@ class Cmd
 
   def self.do_or_die(cmd, logger)
     logger.info "Running '#{cmd}'"
-    logger.debug("Cmd list: #{cmd_list}")
     output, status = capture({}, cmd)
     logger.debug output
     unless status.exitstatus.zero?
@@ -72,18 +79,18 @@ class Cmd
     output
   end
 
+  # run Open3.capture2e with no shell
+  def self.capture(env, cmd)
+    raise InvalidTaskError, "Command can't be empty" if cmd.empty?
+
+    prog, *args = cmd
+    Open3.capture2e(env, [prog, prog], *args)
+  end
+
   private
 
   def needs_rstar_arg(cmd)
     !@args['rstar_dir'].nil? &&
       cmd.none? { |arg| ['-r', '--rstar'].include?(arg) }
-  end
-
-  # run Open3.capture2e with no shell
-  def capture(env, cmd)
-    raise InvalidTaskError, "Command can't be empty" if cmd.empty?
-
-    prog, *args = cmd
-    Open3.capture2e(env, [prog, prog], *args)
   end
 end

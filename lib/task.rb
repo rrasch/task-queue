@@ -31,6 +31,10 @@ class Task # rubocop:disable Metrics/ClassLength
     @data[key]
   end
 
+  def []=(key, value)
+    @data[key] = value
+  end
+
   def process
     parse_body
     validate_service
@@ -38,8 +42,8 @@ class Task # rubocop:disable Metrics/ClassLength
     validate_paths
     mark_processing
     exec
-    mark_done
     validate_result
+    mark_done
   end
 
   def format

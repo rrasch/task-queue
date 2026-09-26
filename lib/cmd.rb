@@ -2,7 +2,7 @@
 
 require 'open3'
 require 'shellwords'
-require 'tqcommon'
+require_relative './tqcommon'
 
 # Cmd is a class to execute commands
 class Cmd

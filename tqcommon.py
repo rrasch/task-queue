@@ -14,6 +14,10 @@ def get_rstar_dir() -> str:
     return os.path.join(os.sep, "content", get_env(), "rstar")
 
 
+def get_tmpdir() -> str:
+    return os.path.join(get_rstar_dir(), "tmp")
+
+
 def get_sysconfig():
     env = get_env()
     etcdir = f"/content/{env}/rstar/etc"

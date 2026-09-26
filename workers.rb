@@ -77,10 +77,8 @@ module JobProcessor
                       exchange: @x,
                       delivery_tag: delivery_info.delivery_tag,
                       services: @config[:svc_lookup])
-      @logger.debug "task: #{task}"
       task.process
     rescue StandardError => e
-      #raise
       is_invalid_err = e.is_a?(InvalidTaskError)
       err_msg = is_invalid_err ? e.message : e.full_message
       task.mark_error(e, err_msg)

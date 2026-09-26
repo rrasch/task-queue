@@ -2,6 +2,7 @@
 
 require 'open3'
 require 'shellwords'
+require 'tqcommon'
 
 # Cmd is a class to execute commands
 class Cmd
@@ -21,10 +22,10 @@ class Cmd
     @args[key] = value
   end
 
-  def do_cmd(*cmd_list)
+  def do_cmd(*cmd_list) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     total_output = String.new
     success = true
-    cmd_list.each do |cmd|
+    cmd_list.each do |cmd| # rubocop:disable Metrics/BlockLength
       prog, *args = cmd
 
       final_cmd = cmd
@@ -37,7 +38,8 @@ class Cmd
                      *@args['identifiers']]
       end
 
-      env = @args.fetch('env', {})
+      env = @args.fetch('env', {}).dup
+      env['TMPDIR'] ||= TQCommon.tmpdir
 
       @logger.debug("Cmd: #{final_cmd}")
       @logger.info("Executing [#{final_cmd.shelljoin}] with env #{env}")

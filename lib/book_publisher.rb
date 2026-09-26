@@ -7,17 +7,21 @@ require 'securerandom'
 require 'shellwords'
 require 'tmpdir'
 require_relative './cmd'
+require_relative './tqcommon'
 
 # BookPublisher is class to perform book and image
 # processing such as generating derivatives and pdfs.
 class BookPublisher
-  BIN_DIR = '/usr/local/dlib/book-publisher/bin'
+  DLIB_DIR = '/usr/local/dlib'
 
-  ENVIRON = {
+  BIN_DIR  = "#{DLIB_DIR}/book-publisher/bin"
+
+  ENVIRON  = {
     'MAGICK_THREAD_LIMIT' => '1',
     'OMP_THREAD_LIMIT'    => '1',
-    'PYTHONPATH'          => '/usr/local/dlib/aco-scripts',
-    'PERL5LIB'            => '/usr/local/dlib/book-publisher/lib'
+    'PERL5LIB'            => "#{DLIB_DIR}/book-publisher/lib",
+    'PYTHONPATH'          => "#{DLIB_DIR}/aco-scripts:#{DLIB_DIR}/task-queue",
+    'TMPDIR'              => TQCommon.tmpdir
   }.freeze
 
   def initialize(args, logger)
@@ -110,14 +114,12 @@ class BookPublisher
 
   def build_full_cmd(cmd, tmp_dir, id)
     prog, *args = cmd
-    [
-      "#{BIN_DIR}/#{prog}",
-      *args,
-      '-q',
-      '-r', tmp_dir,
-      *@args['extra_args'].shellsplit,
-      id
-    ]
+    ["#{BIN_DIR}/#{prog}",
+     *args,
+     '-q',
+     '-r', tmp_dir,
+     *@args['extra_args'].shellsplit,
+     id]
   end
 
   def rstar_wrap(*cmd_list)

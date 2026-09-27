@@ -311,6 +311,7 @@ config[:logger].level = config[:log_level]
 config[:logger].debug beautify(config)
 
 ENV['TQ_SERVER_PID'] = Process.pid.to_s
+ENV['TMPDIR'] = TQCommon.tmpdir
 
 tqs = TaskQueueServer.new(config)
 tqs.startup

@@ -2,11 +2,14 @@
 
 import argparse
 import logging
-import pandas as pd
 import subprocess
 import tempfile
 from pathlib import Path
+
+import pandas as pd
 from tabulate import tabulate
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -52,7 +55,7 @@ def gen_csv(args, csv_path):
         else:
             cmd.extend([flag, str(value)])
 
-    logging.debug("Running cmd '%s'", " ".join(cmd))
+    logger.debug("Running cmd '%s'", " ".join(cmd))
     subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
 
 
@@ -64,7 +67,7 @@ def print_df(df):
 def main():
     args = parse_args()
 
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.WARN)
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.WARNING)
 
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
         csv_path = Path(tmp.name)

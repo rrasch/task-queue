@@ -1,9 +1,11 @@
-from argparse import ArgumentTypeError
-from datetime import datetime
 import logging
-import time
 import shlex
 import subprocess
+import time
+from argparse import ArgumentTypeError
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 def quote(val):
@@ -16,7 +18,7 @@ def quote(val):
 def create_args_str(*args, **kwargs):
     sep = ", "
     arg_str = sep.join([quote(a) for a in args])
-    kw_str = sep.join([f"{k}={quote(kwargs[k])}" for k in kwargs.keys()])
+    kw_str = sep.join([f"{k}={quote(kwargs[k])}" for k in kwargs])
 
     if arg_str and kw_str:
         return arg_str + sep + kw_str
@@ -29,9 +31,9 @@ def create_args_str(*args, **kwargs):
 def logfunc(func):
     def wrapper(*args, **kwargs):
         arg_str = create_args_str(*args, **kwargs)
-        logging.debug(f"{time.ctime()}  entering {func.__name__}({arg_str})")
+        logger.debug(f"{time.ctime()}  entering {func.__name__}({arg_str})")
         retvals = func(*args, **kwargs)
-        logging.debug(f"{time.ctime()}  {func.__name__} returned: {retvals}")
+        logger.debug(f"{time.ctime()}  {func.__name__} returned: {retvals}")
         return retvals
 
     return wrapper
@@ -68,11 +70,9 @@ def get_boot_time():
 
     boot_str = result.stdout.strip()  # e.g. "2025-12-03 16:37:06"
 
-    # Parse into a datetime object
+    # Parse into a datetime object, then
+    # make it timezone-aware using the system's local timezone
     # uptime -s always uses "%Y-%m-%d %H:%M:%S"
-    boot_dt = datetime.strptime(boot_str, "%Y-%m-%d %H:%M:%S")
-
-    # Make it timezone-aware using the system's local timezone
-    boot_dt = boot_dt.astimezone()
+    boot_dt = datetime.strptime(boot_str, "%Y-%m-%d %H:%M:%S").astimezone()
 
     return boot_dt

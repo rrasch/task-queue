@@ -1,12 +1,16 @@
 #!/usr/bin/python3
 
-from pprint import pformat
 import argparse
 import json
 import logging
-import requests
 import socket
+from pprint import pformat
+
+import requests
+
 import tqcommon
+
+logger = logging.getLogger(__name__)
 
 
 def call_rabbitmq_api(host, port, user, passwd, qname):
@@ -55,14 +59,14 @@ def main():
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
 
-    logging.debug("config=%s", pformat(config))
-    logging.debug("aliases=%s", pformat(aliases))
+    logger.debug("config=%s", pformat(config))
+    logger.debug("aliases=%s", pformat(aliases))
 
     try:
         from tabulate import tabulate
         tab_loaded = True
     except ImportError:
-        logging.warning("Can't load tabulate module")
+        logger.warning("Can't load tabulate module")
         tab_loaded = False
 
     res = call_rabbitmq_api(
@@ -70,8 +74,8 @@ def main():
     )
     qdata = res.json()
 
-    logging.debug("--- dump json ---")
-    logging.debug(json.dumps(qdata, indent=4))
+    logger.debug("--- dump json ---")
+    logger.debug(json.dumps(qdata, indent=4))
 
     if qdata.get("consumer_details", []):
         headers = ["Host", "Port", "Queue"]

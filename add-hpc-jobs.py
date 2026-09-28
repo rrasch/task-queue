@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 
-from glob import glob
-from pathlib import Path
-from pprint import pformat
-from util import is_pos_int
-import MySQLdb
 import argparse
 import errno
 import json
 import logging
 import os
-import pika
 import re
 import sqlite3
 import sys
+from glob import glob
+from pathlib import Path
+from pprint import pformat
+
+import MySQLdb
+import pika
+
 import tqcommon
+from util import is_pos_int
+
+logger = logging.getLogger(__name__)
 
 
 def gen_vid_requests(req):
@@ -90,7 +94,7 @@ def main():
     )
     logging.getLogger("pika").setLevel(logging.WARNING)
 
-    logging.debug(f"args: {args}")
+    logger.debug(f"args: {args}")
 
     myconfig = tqcommon.get_myconfig()
     sysconfig = tqcommon.get_sysconfig()
@@ -114,7 +118,7 @@ def main():
         arguments={"x-max-priority": 10},
     )
 
-    logging.debug(
+    logger.debug(
         f"Queue {hpc_config['queue_name']} message count: "
         f"{queue.method.message_count}"
     )
@@ -130,7 +134,7 @@ def main():
         "LIMIT %s "
     )
     num_rows = cursor.execute(query, (args.job_state, args.limit))
-    logging.debug(f"Num rows: {num_rows}")
+    logger.debug(f"Num rows: {num_rows}")
 
     requests = []
 
@@ -142,7 +146,7 @@ def main():
             continue
         requests.extend(gen_vid_requests(req))
 
-    logging.debug("requests:\n%s", pformat(requests))
+    logger.debug("requests:\n%s", pformat(requests))
 
     cursor.close()
     dbconn.close()
@@ -177,11 +181,11 @@ def main():
         )
         row = result.fetchone()
         if row:
-            logging.info("job_id %s already in db", request["job_id"])
+            logger.info("job_id %s already in db", request["job_id"])
             continue
 
         body = json.dumps(request, indent=4)
-        logging.info("Adding video request: %s", body)
+        logger.info("Adding video request: %s", body)
         channel.basic_publish(
             exchange="",
             routing_key=hpc_config["queue_name"],

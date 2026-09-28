@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 
-from datetime import timedelta
-from pathlib import Path
-from pprint import pformat
-from pymediainfo import MediaInfo
-from subprocess import CalledProcessError, PIPE, STDOUT, run
-from tld import get_fld
 import argparse
 import json
 import logging
 import os
-import paramiko
-import pika
 import re
 import shlex
 import socket
 import sqlite3
 import sys
-import tqcommon
+from datetime import timedelta
+from pathlib import Path
+from pprint import pformat
+from subprocess import PIPE, STDOUT, CalledProcessError, run
 
+import paramiko
+import pika
+from pymediainfo import MediaInfo
+from tld import get_fld
+
+import tqcommon
 
 SACCT_FORMAT = (
     "JobID,JobName%-90,Partition,Account,"
@@ -27,10 +28,12 @@ SACCT_FORMAT = (
 
 SQUEUE_FORMAT = "%.15i %.25j %.8u %.10M %.2t %.9P"
 
+logger = logging.getLogger(__name__)
+
 
 class BooleanAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        super(BooleanAction, self).__init__(
+        super().__init__(
             option_strings, dest, nargs=0, **kwargs
         )
 
@@ -38,7 +41,7 @@ class BooleanAction(argparse.Action):
         setattr(
             namespace,
             self.dest,
-            False if option_string.startswith("--no") else True,
+            not option_string.startswith("--no"),
         )
 
 
@@ -69,13 +72,13 @@ def delta_to_dict(delta):
 
 def fmt_time(seconds):
     duration = delta_to_dict(timedelta(seconds=seconds))
-    logging.debug(f"duration dict: {pformat(duration)}")
+    logger.debug(f"duration dict: {pformat(duration)}")
     time_str = ":".join(
         f"{duration[unit]:02d}" for unit in ("hours", "minutes", "seconds")
     )
     if duration["days"] > 0:
         time_str = duration["days"] + "-" + time_str
-    logging.debug(f"time: {time_str}")
+    logger.debug(f"time: {time_str}")
     return time_str
 
 
@@ -95,21 +98,21 @@ def duration(input_file, minutes=True):
     if not video_tracks:
         raise VideoTrackNotFound(f"No video track found for {input_file}")
     video = video_tracks[0]
-    logging.debug("data: %s", pformat(video.to_data()))
-    logging.debug(
+    logger.debug("data: %s", pformat(video.to_data()))
+    logger.debug(
         f"Bit rate: {video.bit_rate}, Frame rate: {video.frame_rate}, "
         f"Format: {video.format}, "
         f"Duration (raw value): {video.duration} "
     )
     duration_sec = video.duration / 1000
     duration_min = duration_sec / 60
-    logging.debug(f"duration: {duration_min:.3f} minutes")
+    logger.debug(f"duration: {duration_min:.3f} minutes")
     return duration_min if minutes else duration_sec
 
 
 def max_time(input_file):
     duration_sec = duration(input_file, minutes=False)
-    logging.debug(f"Duration of {input_file} is {duration_sec} seconds.")
+    logger.debug(f"Duration of {input_file} is {duration_sec} seconds.")
     max_time_str = fmt_time(duration_sec * 5)
     return max_time_str
 
@@ -122,7 +125,7 @@ def clear_rsync_env():
     for name, value in os.environ.items():
         if name.startswith("RSYNC"):
             os.environ.pop(name)
-            logging.debug(f"Unset var {name}='{value}'")
+            logger.debug(f"Unset var {name}='{value}'")
 
 
 def escape_quote(filename):
@@ -142,10 +145,10 @@ def get_profiles(args_str):
     parser = ArgumentParser(allow_abbrev=False)
     parser.add_argument("--profiles_path", nargs="*")
     try:
-        logging.debug(f"args_str={args_str}")
+        logger.debug(f"args_str={args_str}")
         args = parser.parse_args(shlex.split(args_str))
     except ArgumentParsingError:
-        logging.exception("Error processing arguments")
+        logger.exception("Error processing arguments")
         sys.exit(1)
     return args.profiles_path
 
@@ -165,7 +168,7 @@ def add_slurm_id(job_id, slurm_id, dbfile):
 
 
 def do_cmd(cmdlist, **kwargs):
-    logging.debug("Running command: %s", shlex_join(cmdlist))
+    logger.debug("Running command: %s", shlex_join(cmdlist))
     try:
         process = run(
             cmdlist,
@@ -175,9 +178,9 @@ def do_cmd(cmdlist, **kwargs):
             universal_newlines=True,
             **kwargs,
         )
-        logging.debug("rsync output: %s", process.stdout)
+        logger.debug("rsync output: %s", process.stdout)
     except CalledProcessError as e:
-        logging.error("%s\n%s", e, e.output)
+        logger.error("%s\n%s", e, e.output)
         sys.exit(1)
     return process
 
@@ -188,7 +191,7 @@ def transcode(req, host, email, hpc_config):
     keyfile = os.path.join(ssh_dir, "id_rsa")
 
     config = paramiko.SSHConfig.from_path(config_file).lookup(host)
-    logging.debug("config: %s", pformat(config))
+    logger.debug("config: %s", pformat(config))
 
     remote_homedir = root_join("home", config["user"])
 
@@ -196,15 +199,15 @@ def transcode(req, host, email, hpc_config):
     sacct_path = root_join(remote_homedir, "bin", "sacct.sh")
     sacct = do_cmd(["ssh", host, sacct_path])
     if basename in sacct.stdout:
-        logging.info(f"{basename} already running")
+        logger.info(f"{basename} already running")
         return
 
     max_duration = max_time(req["input"])
-    logging.debug(f"Max transcode duration: {max_duration}")
+    logger.debug(f"Max transcode duration: {max_duration}")
 
     rounded_duration = int(round_down_min(duration(req["input"])))
-    logging.debug(f"rounded duration: {rounded_duration} minutes")
-    memory = "8GB" if rounded_duration >= 120 else "8GB"
+    logger.debug(f"rounded duration: {rounded_duration} minutes")
+    memory = "16GB" if rounded_duration >= 120 else "8GB"
 
     logdir = root_join("scratch", config["user"], "logs")
     remote_script = root_join(
@@ -246,9 +249,9 @@ def transcode(req, host, email, hpc_config):
 
     remote_cmd = shlex_join(remote_cmd_list)
 
-    logging.debug(f"remote script = {remote_script!s}")
-    logging.debug(f"remote input = {remote_input!s}")
-    logging.debug(f"remote cmd = {remote_cmd!s}")
+    logger.debug(f"remote script = {remote_script!s}")
+    logger.debug(f"remote input = {remote_input!s}")
+    logger.debug(f"remote cmd = {remote_cmd!s}")
 
     try:
         ret = run(
@@ -266,9 +269,9 @@ def transcode(req, host, email, hpc_config):
             stderr=STDOUT,
             universal_newlines=True,
         )
-        logging.debug("rsync output: %s", ret.stdout)
+        logger.debug("rsync output: %s", ret.stdout)
     except CalledProcessError as e:
-        logging.error("%s\n%s", e, e.output)
+        logger.error("%s\n%s", e, e.output)
         sys.exit(1)
 
     ssh = paramiko.SSHClient()
@@ -280,20 +283,20 @@ def transcode(req, host, email, hpc_config):
         key_filename=keyfile,
         allow_agent=True,
     )
-    stdin, stdout, stderr = ssh.exec_command(remote_cmd)
+    _stdin, stdout, _stderr = ssh.exec_command(remote_cmd)
     stdout.channel.set_combine_stderr(True)
     status = stdout.channel.recv_exit_status()
     output = stdout.read().decode()
     for line in output.splitlines():
-        logging.debug(f"output: {line}")
+        logger.debug(f"output: {line}")
     ssh.close()
-    logging.debug(f"Remote exit status={status}")
+    logger.debug(f"Remote exit status={status}")
     if status:
         sys.exit(f"Transcoding on host {host} failed")
     match = re.search(r"Submitted batch job (\d+)", output)
     if match:
         slurm_id = int(match.group(1))
-        logging.debug(f"Slurm ID = {slurm_id}")
+        logger.debug(f"Slurm ID = {slurm_id}")
         add_slurm_id(job_id, slurm_id, hpc_config["dbfile"])
 
 
@@ -364,9 +367,9 @@ def main():
 
     script_dir, script_name = script_paths()
     missing_file = os.path.join(script_dir, "missing.txt")
-    logging.debug(f"script dir='{script_dir}'")
-    logging.debug(f"script_name='{script_name}'")
-    logging.debug(f"missing file='{missing_file}'")
+    logger.debug(f"script dir='{script_dir}'")
+    logger.debug(f"script_name='{script_name}'")
+    logger.debug(f"missing file='{missing_file}'")
 
     clear_rsync_env()
 
@@ -380,16 +383,16 @@ def main():
         queue=queue_name, durable=True, arguments={"x-max-priority": 10}
     )
     queue_size = queue.method.message_count
-    logging.debug(f"{queue_name} queue size: {queue_size}")
+    logger.debug(f"{queue_name} queue size: {queue_size}")
 
     for _ in range(args.count):
-        method_frame, header_frame, body = channel.basic_get(queue=queue_name)
+        method_frame, _header_frame, body = channel.basic_get(queue=queue_name)
         if not method_frame:
-            logging.debug("No message available")
+            logger.debug("No message available")
             break
 
         request = body.decode()
-        logging.info(f"Processing {request}")
+        logger.info(f"Processing {request}")
         req = json.loads(request)
         if not os.path.isfile(req["input"]):
             with open(missing_file, "a") as out:
@@ -397,7 +400,7 @@ def main():
         transcode(req, args.host, args.email, hpc_config)
 
         channel.basic_ack(method_frame.delivery_tag)
-        logging.debug("Sent ack")
+        logger.debug("Sent ack")
 
     connection.close()
 

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
-from concurrent.futures import ThreadPoolExecutor
-from systemd import journal
 import argparse
 import os
 import socket
 import subprocess as sp
-import time
-import tqcommon
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+from systemd import journal
+
+import tqcommon
 
 
 def test_port(host, port, retries=5, delay=2):
@@ -29,7 +31,7 @@ def test_port(host, port, retries=5, delay=2):
         try:
             sock.connect((host, int(port)))
             return True
-        except socket.error:
+        except OSError:
             time.sleep(delay)
         finally:
             sock.close()
@@ -83,7 +85,7 @@ def check_nfs_mount(mount_point):
         return False
     if not is_nfs_mount(mount_point):
         return False
-    if not can_list_files(mount_point):
+    if not can_list_files(mount_point):  # noqa: SIM103
         return False
     return True
 
@@ -165,11 +167,11 @@ def main():
                 nfs_future = executor.submit(check_nfs_mount, mount_point)
 
     success = True
-    for future in futures:
+    for future, port in futures.items():
         is_port_open = future.result()
         status = "open" if is_port_open else "closed"
         success = success and is_port_open
-        log(f"Port {futures[future]} is {status}")
+        log(f"Port {port} is {status}")
 
     if nfs_future:
         is_nfs_up = nfs_future.result()

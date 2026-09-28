@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-import MySQLdb
 import argparse
+
 import dateutil.parser
+import MySQLdb
+
 import tqcommon
 
 

@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 
 import argparse
+
 import pika
+
 import tqcommon
 
 
@@ -43,7 +45,7 @@ def main():
     print(f"Scanning queue={args.queue} for pattern={args.pattern!r}")
 
     while True:
-        method, props, body = channel.basic_get(args.queue, auto_ack=False)
+        method, _props, body = channel.basic_get(args.queue, auto_ack=False)
 
         if method is None:
             print("Queue is empty.")

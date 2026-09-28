@@ -1,12 +1,5 @@
 #!/usr/bin/python3
 
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from filelock import FileLock
-from logging.handlers import RotatingFileHandler
-from pprint import pformat
-import MySQLdb
 import argparse
 import contextlib
 import importlib
@@ -19,8 +12,19 @@ import smtplib
 import sqlite3
 import subprocess
 import sys
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from logging.handlers import RotatingFileHandler
+from pprint import pformat
+
+import MySQLdb
+from filelock import FileLock
+
 import tqcommon
 import util
+
+logger = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
@@ -32,7 +36,10 @@ def remember_cwd():
         os.chdir(curdir)
 
 
-def send_mail(sender, receivers, subject, body, attachments=[]):
+def send_mail(sender, receivers, subject, body, attachments=None):
+    if attachments is None:
+        attachments = []
+
     msg = MIMEMultipart()
     msg["From"] = sender
     msg["To"] = ", ".join(receivers)
@@ -54,7 +61,7 @@ def send_mail(sender, receivers, subject, body, attachments=[]):
 def post_photo(user, pwd, img_file, caption):
     try:
         instagrapi = importlib.import_module("instagrapi")
-        Client = getattr(instagrapi, "Client")
+        Client = instagrapi.Client
     except ModuleNotFoundError:
         raise RuntimeError(
             "instagrapi module is not installed. "
@@ -76,7 +83,7 @@ def post_photo(user, pwd, img_file, caption):
         cl.dump_settings(cred_file)
 
     media = cl.photo_upload(path=img_file, caption=caption)
-    logging.debug("media: %s", pformat(media))
+    logger.debug("media: %s", pformat(media))
 
 
 def notify(data, attachments, config):
@@ -135,16 +142,16 @@ def move_file(path, jobid, config):
         data = json.load(f)
 
     output_dir = os.path.dirname(data["output_base"])
-    logging.debug(f"output_dir: {output_dir}")
+    logger.debug(f"output_dir: {output_dir}")
     output_dir = output_dir[len(config["remote_dir"]) :]
-    logging.debug(f"output_dir: {output_dir}")
+    logger.debug(f"output_dir: {output_dir}")
 
     input_dir = config["local_dir"] + output_dir
-    logging.debug(f"input_dur: {input_dir}")
+    logger.debug(f"input_dur: {input_dir}")
 
     basename = os.path.basename(data["output_base"])
     checksum_file = os.path.join(input_dir, f"{basename}_md5.txt")
-    logging.debug(f"checksum file: {checksum_file}")
+    logger.debug(f"checksum file: {checksum_file}")
     if not os.path.isfile(checksum_file):
         return
 
@@ -156,21 +163,21 @@ def move_file(path, jobid, config):
     os.chdir(cwd)
 
     if process.returncode != 0:
-        logging.error(f"md5sum failed for {checksum_file}")
+        logger.error(f"md5sum failed for {checksum_file}")
         return
 
     with open(checksum_file) as f:
         files = [line.split()[1] for line in f]
 
-    logging.debug("files: %s", pformat(files))
+    logger.debug("files: %s", pformat(files))
 
     for f in files:
         src = os.path.join(input_dir, f)
         dst = os.path.join(output_dir, f)
-        logging.debug(f"src file: {src}")
-        logging.debug(f"dst file: {dst}")
+        logger.debug(f"src file: {src}")
+        logger.debug(f"dst file: {dst}")
         if os.path.isfile(dst):
-            logging.info(f"Video file '{dst}' already exists.")
+            logger.info(f"Video file '{dst}' already exists.")
         else:
             shutil.move(src, dst)
             os.chmod(dst, 0o644)
@@ -182,7 +189,7 @@ def move_file(path, jobid, config):
 
     cmd = get_ssh(config, for_rsync=False) + [f"~/bin/cleanup {data['job_id']}"]
     output = do_cmd(cmd, stderr=subprocess.STDOUT)
-    logging.debug(f"cleanup output: {output}")
+    logger.debug(f"cleanup output: {output}")
 
     cs_file = os.path.join(input_dir, f"{basename}_contact_sheet.jpg")
     attachments = [cs_file] if os.path.isfile(cs_file) else []
@@ -195,7 +202,7 @@ def process(config):
         match = re.search(r"^(\d+)\.json$", entry)
         if match:
             jobid = match.group(1)
-            logging.debug(f"logfile: {path}")
+            logger.debug(f"logfile: {path}")
             move_file(path, jobid, config)
 
 
@@ -255,7 +262,7 @@ def sync_fs(config):
         ],
         stderr=subprocess.STDOUT,
     )
-    logging.debug("rsync output: %s", output)
+    logger.debug("rsync output: %s", output)
 
 
 def validate_filepath(filepath):
@@ -274,7 +281,7 @@ def validate_email(email):
 
 
 def main():
-    script_name, ext = os.path.splitext(
+    script_name, _ext = os.path.splitext(
         os.path.basename(os.path.realpath(sys.argv[0]))
     )
     default_logfile = os.path.join(

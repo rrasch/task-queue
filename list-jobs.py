@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-from tabulate import tabulate
 import configparser
+
 import MySQLdb
+from tabulate import tabulate
+
 import tqcommon
 
 
@@ -34,11 +36,8 @@ def main():
     )
     cursor.execute(query)
 
-    rows = []
-
     # Fetch the results
-    for row in cursor:
-        rows.append(row)
+    rows = list(cursor)
 
     # Close the cursor and connection
     cursor.close()

@@ -87,6 +87,7 @@ git -c advice.detachedHead=false checkout %{git_tag}
 
 rm -rf %{buildroot}%{dlibdir}/.git*
 rm -rf %{buildroot}%{dlibdir}/.rubocop.yml
+rm -rf %{buildroot}%{dlibdir}/pyproject.toml
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0755
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0644
 find %{buildroot}%{dlibdir} -maxdepth 1 -regextype posix-extended \

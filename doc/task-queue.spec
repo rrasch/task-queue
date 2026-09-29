@@ -260,5 +260,9 @@ rm -rf %{buildroot}
 
 
 %changelog
-* Sun Mar 22 2026 Rasan Rasch <rasan@nyu.edu> - 1.5.2-1
+* Tue Sep 29 2026 Rasan Rasch  1.5.7-1
+- Update to 1.5.7
+- Handle filenames containing spaces and special characters
+
+* Sun Mar 22 2026 Rasan Rasch - 1.5.2-1
 - add video:convert_iso

@@ -309,7 +309,7 @@ def main():
             sender=f"noreply@{hostname}",
             recipient=mailto,
             subject=subject,
-            body=result.stdout,
+            body=f"{subject}\n\n{result.stdout}",
         )
 
     sys.exit(result.returncode)

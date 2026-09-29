@@ -139,7 +139,13 @@ def sort_rpms(rpms):
 def is_update_available():
     """Return True if an upgrade is available for package."""
     result = subprocess.run(
-        ["dnf", "check-upgrade", "task-queue"],
+        [
+            "dnf",
+            "-y",
+            "--enablerepo=epel,dlts-publishing",
+            "check-upgrade",
+            "task-queue",
+        ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,

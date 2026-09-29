@@ -11,7 +11,7 @@ require_relative './tqcommon'
 
 # BookPublisher is class to perform book and image
 # processing such as generating derivatives and pdfs.
-class BookPublisher
+class BookPublisher # rubocop:disable Metrics/ClassLength
   DLIB_DIR = '/usr/local/dlib'
 
   BIN_DIR  = "#{DLIB_DIR}/book-publisher/bin"
@@ -108,8 +108,8 @@ class BookPublisher
     data_dir = "#{book_dir}/data"
     aux_dir  = "#{book_dir}/aux"
     FileUtils.mkdir_p(book_dir)
-    FileUtils.ln_s(@args['input_path'], data_dir)
-    FileUtils.ln_s(@args['output_path'], aux_dir)
+    safe_ln_s(@args['input_path'], data_dir)
+    safe_ln_s(@args['output_path'], aux_dir)
   end
 
   def build_full_cmd(cmd, tmp_dir, id)
@@ -131,5 +131,13 @@ class BookPublisher
       @logger.debug "Full command list: #{full_cmd_list.pretty_inspect}"
       @cmd.do_cmd(*full_cmd_list)
     end
+  end
+
+  def safe_ln_s(src, dest)
+    unless File.exist?(src)
+      raise InvalidTaskError, "No such file or directory - #{src}"
+    end
+
+    FileUtils.ln_s(src, dest)
   end
 end

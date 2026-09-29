@@ -195,6 +195,16 @@ def send_mail(sender, recipient, subject, body):
         logger.exception("Failed to send email")
 
 
+def get_log_level():
+    level_name = os.environ.get("LOG_LEVEL", "WARNING").upper()
+    level = logging.getLevelName(level_name)
+
+    if not isinstance(level, int):
+        sys.exit(f"Invalid value for LOG_LEVEL: {level_name!r}")
+
+    return level
+
+
 def main():
     parser = argparse.ArgumentParser(description="Update task queue")
     parser.add_argument(
@@ -221,11 +231,10 @@ def main():
     logfile = os.path.join(
         tempfile.gettempdir(), f"tq-update-{host_short}.log.txt"
     )
-    level = logging.getLevelName(os.environ.get("LOG_LEVEL", "WARNING"))
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%m/%d/%Y %I:%M:%S %p",
-        level=level,
+        level=get_log_level(),
         handlers=[
             logging.StreamHandler(),
             logging.handlers.RotatingFileHandler(
@@ -236,6 +245,13 @@ def main():
         ],
     )
     logging.getLogger("pika").setLevel(logging.WARNING)
+
+    logger.debug(
+        f"hostname={hostname!r}, "
+        f"host_short={host_short!r}, "
+        f"host_alias={host_alias!r} "
+    )
+    logger.debug(f"mailto={mailto!r}")
 
     repodir = os.path.join(rstar_dir, "repo", "publishing")
     logger.debug(f"repo dir: {repodir}")

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+COPY=0
+
 TAG=${1:-}
 
 if [ -z "$TAG" ]; then
@@ -26,11 +28,29 @@ WORK_DIR=$HOME/work/$GIT_NAME
 pushd "$WORK_DIR"
 git pull
 
+latest_git_tag()
+{
+	git ls-remote --tags "$1" |
+		awk -F/ '$2 == "tags" && $NF !~ /\^\{\}$/ { print $NF }' |
+		sort -V |
+		tail -n 1
+}
+
+git_tag_commit()
+{
+	git ls-remote "$1" "refs/tags/$2" | cut -f1 | cut -c1-7
+}
+
 if [ "$TAG" = "0.0.0" ] || [ "$TAG" = "v0.0.0" ]; then
 	COMMIT=$(git rev-parse --short HEAD)
 	PROD_BUILD=0
+elif [[ "${TAG,,}" == "latest" ]]; then
+	TAG=$(latest_git_tag "$GIT_URL")
+	COMMIT=$(git_tag_commit "$GIT_URL" "$TAG")
+	PROD_BUILD=1
+	echo "Latest tag for $GIT_NAME is $TAG ($COMMIT)"
 else
-	COMMIT=$(git ls-remote $GIT_URL "refs/tags/$TAG" | cut -f1 | cut -c1-7)
+	COMMIT=$(git_tag_commit "$GIT_URL" "$TAG")
 	PROD_BUILD=1
 fi
 
@@ -77,7 +97,7 @@ rpmbuild \
 	--without cgroup_v1 \
 	--define "git_tag $TAG" \
 	--define "git_commit $COMMIT" \
-	$GIT_NAME.spec 2>&1 | tee "build-${OSVER}".log
+	$GIT_NAME.spec 2>&1 | tee "build-${TAG}-${OSVER}".log
 
 sudo dnf -y remove $GIT_NAME
 
@@ -94,7 +114,7 @@ sleep 30
 sudo service log-job-status start
 sudo service $GIT_NAME start
 
-if (( PROD_BUILD )); then
+if (( PROD_BUILD && COPY )); then
 	read -r -p "Repository host: " REPO_HOST
 
 	if [[ -z "$REPO_HOST" ]]; then
@@ -102,7 +122,7 @@ if (( PROD_BUILD )); then
 		exit 1
 	fi
 
-	rsync -avz -e ssh "$RPM_DIR/$GIT_NAME"-*.rpm "$REPO_HOST:$RPM_DIR"
+	scp $RPM_DIR/$GIT_NAME-*.rpm $REPO_HOST:$RPM_DIR
 
 	read -r -p "Repository host: " REPO_HOST
 

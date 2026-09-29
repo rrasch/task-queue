@@ -38,7 +38,26 @@ latest_git_tag()
 
 git_tag_commit()
 {
-	git ls-remote "$1" "refs/tags/$2" | cut -f1 | cut -c1-7
+	local refs
+
+	refs=$(git ls-remote "$1" "refs/tags/$2*") || return 1
+
+	printf '%s\n' "$refs" |
+		awk -v tag="$2" '
+			$2 == "refs/tags/" tag "^{}" {
+				print substr($1, 1, 7)
+				found = 1
+				exit
+			}
+			$2 == "refs/tags/" tag {
+				commit = substr($1, 1, 7)
+			}
+			END {
+				if (!found && commit) {
+					print commit
+				}
+			}
+		'
 }
 
 if [ "$TAG" = "0.0.0" ] || [ "$TAG" = "v0.0.0" ]; then

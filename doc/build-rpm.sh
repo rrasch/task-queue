@@ -12,12 +12,12 @@ if [ -z "$TAG" ]; then
 	exit 1
 fi
 
-REPO_HOST=${REPO_HOST:-}
-
-if [ -z "$REPO_HOST" ]; then
-	echo "Error: You must set REPO_HOST."
-	exit 1
-fi
+# REPO_HOST=${REPO_HOST:-}
+# 
+# if [ -z "$REPO_HOST" ]; then
+# 	echo "Error: You must set REPO_HOST."
+# 	exit 1
+# fi
 
 GIT_NAME="task-queue"
 

@@ -214,9 +214,12 @@ def main():
 
     mailto = args.email or tqcommon.get_email_map().get("rstar")
 
-    hostname = socket.gethostname().split(".")[0]
+    hostname = socket.gethostname()
+    host_short = hostname.split(".")[0]
+    host_alias = tqcommon.get_host_aliases().get(hostname, host_short)
+
     logfile = os.path.join(
-        tempfile.gettempdir(), f"tq-update-{hostname}.log.txt"
+        tempfile.gettempdir(), f"tq-update-{host_short}.log.txt"
     )
     level = logging.getLevelName(os.environ.get("LOG_LEVEL", "WARNING"))
     logging.basicConfig(
@@ -291,7 +294,7 @@ def main():
 
     logger.debug(f"output: {result.stdout}")
 
-    subject = f"Update of task-queue on {hostname} was "
+    subject = f"Update of task-queue on {host_alias} was "
 
     if result.returncode == 0:
         subject += "successful"

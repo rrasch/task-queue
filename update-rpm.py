@@ -19,6 +19,16 @@ import rpm
 import tqcommon
 from util import shlex_join
 
+PACKAGES = [
+    "HandBrake",
+    "aco-tools",
+    "book-publisher",
+    "convert2mp4",
+    "hocr-tools",
+    "kakadu",
+    "task-queue",
+]
+
 logger = logging.getLogger(__name__)
 
 
@@ -137,19 +147,21 @@ def sort_rpms(rpms):
 
 
 def is_update_available():
-    """Return True if an upgrade is available for package."""
+    """Return True if package upgrades are available."""
     result = subprocess.run(
         [
             "dnf",
             "-y",
             "--enablerepo=epel,dlts-publishing",
             "check-upgrade",
-            "task-queue",
+            *PACKAGES,
         ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         check=False,
     )
+
+    logger.debug(f"output: {result.stdout}")
 
     if result.returncode == 100:
         return True
@@ -182,15 +194,27 @@ def is_owned_by_root(path):
     return os.stat(path).st_uid == 0
 
 
-def send_mail(sender, recipient, subject, body):
+def send_mail_smtp(sender, recipient, subject, body):
     try:
         msg = EmailMessage()
-        msg["Subject"] = subject
         msg["From"] = sender
         msg["To"] = recipient
+        msg["Subject"] = subject
         msg.set_content(body)
         with smtplib.SMTP("localhost") as smtp:
             smtp.send_message(msg)
+    except Exception:
+        logger.exception("Failed to send email")
+
+
+def send_mail(sender, recipient, subject, body):
+    try:
+        subprocess.run(
+            ["mail", "-s", subject, "-r", sender, recipient],
+            input=body,
+            universal_newlines=True,
+            check=True,
+        )
     except Exception:
         logger.exception("Failed to send email")
 

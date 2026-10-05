@@ -26,6 +26,7 @@ CHANNEL_MAX = 32
 PERSISTENT_DELIVERY_MODE = 2
 
 PATH_ARGS = ("rstar_dir", "input_path", "output_path")
+SHELL_CHARS = set("|&;()<> $`\\\"'")
 
 IDENT_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
@@ -179,6 +180,10 @@ def validate_io_paths(args, parser):
             ``parser.error()``, which prints an error message and
             exits the program, or by helper validation functions.
     """
+    args_dict = vars(args)
+
+    warn_shell_chars(args_dict)
+
     has_rstar = bool(args.rstar_dir)
     has_input = bool(args.input_path)
     has_output = bool(args.output_path)
@@ -197,7 +202,7 @@ def validate_io_paths(args, parser):
         parser.error("input/output paths must be set together")
 
     # Make sure any path given is on isilon filesystem
-    check_paths_on_nfs(vars(args))
+    check_paths_on_nfs(args_dict)
 
 
 def validate_transcode_output_path(input_path, output_path):
@@ -294,6 +299,23 @@ def check_paths_on_nfs(args_dict):
             filepath.startswith(mount) for mount in nfs_mounts
         ):
             sys.exit(f"ERROR: {filepath} must be on an NFS mount")
+
+
+def warn_shell_chars(args_dict):
+    """Warn if path arguments contain shell metacharacters."""
+    for arg_name in PATH_ARGS:
+        filepath = args_dict.get(arg_name)
+        if filepath is None:
+            continue
+
+        chars = SHELL_CHARS.intersection(filepath)
+        if chars:
+            logger.warning(
+                "Argument %r contains shell metacharacters %r: %r",
+                arg_name,
+                sorted(chars),
+                filepath,
+            )
 
 
 def rewrite_extra_args(argv):
@@ -597,8 +619,12 @@ def main():
     if not args.test:
         cls, op = parse_service(args.service, parser)
         if cls != "util":
-            validate_io_paths(args, parser)
-            validate_operation(args, op)
+            try:
+                validate_io_paths(args, parser)
+                validate_operation(args, op)
+            except ValueError as e:
+                logger.error(e)
+                sys.exit(1)
 
     mq_conn = None
     db_conn = None

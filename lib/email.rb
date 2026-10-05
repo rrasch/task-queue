@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require 'net/smtp'
-require 'yaml'
+require 'open3'
 require 'uri'
+require 'yaml'
 require_relative './tqcommon'
 
 # Sends email notifications for job status.
@@ -48,7 +49,7 @@ class Email
 
   def display_values(task)
     desc = build_desc(task)
-    job = task.clone
+    job = task.dup
     host = TQCommon.hostname(job['worker_host'])
     job['worker_host_alias'] = @aliases.fetch(host, host)
     job.delete('logger')
@@ -68,11 +69,20 @@ class Email
       #{job.sort.map { |k, v| "#{k}: #{v}" }.join("\n")}
 
       #{output}
-
     EMAIL
   end
 
-  def deliver_email(mailto, msg)
+  def format_body(desc, job, output)
+    <<~EMAIL
+      #{desc}
+
+      #{job.sort.map { |k, v| "#{k}: #{v}" }.join("\n")}
+
+      #{output}
+    EMAIL
+  end
+
+  def deliver_email_smtp(mailto, msg)
     smtp = Net::SMTP.new(@smtp_host)
     smtp.open_timeout = 5
     smtp.read_timeout = 5
@@ -84,6 +94,24 @@ class Email
     @logger.error %(#{e.class} #{e.message}\n#{e.backtrace.join("\n")})
   end
 
+  # rubocop:disable Metrics/MethodLength
+  def deliver_email(mailto, subject, body)
+    output, status = Open3.capture2e(
+      'mail',
+      '-r',
+      mailto,
+      '-s',
+      subject,
+      '--',
+      mailto,
+      stdin_data: body
+    )
+    raise "mail command failed: #{output.strip}" unless status.success?
+  rescue StandardError => e
+    @logger.error %(#{e.class} #{e.message}\n#{e.backtrace.join("\n")})
+  end
+  # rubocop:enable Metrics/MethodLength
+
   def send(task)
     @logger.debug 'entering send()'
     mailto = @addr[task['user_id']]
@@ -93,7 +121,7 @@ class Email
       return
     end
     job, desc, output = display_values(task)
-    msg = format_email(mailto, desc, job, output)
-    deliver_email(mailto, msg)
+    body = format_body(desc, job, output)
+    deliver_email(mailto, desc, body)
   end
 end

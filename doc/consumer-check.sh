@@ -2,7 +2,16 @@
 
 set -eu
 
-. /content/prod/rstar/etc/task-queue.sysconfig
+HOST=$(hostname -s)
+if [[ $HOST =~ ^d ]]; then
+    ENV=dev
+else
+    ENV=prod
+fi
+
+# shellcheck disable=SC1090
+. /content/$ENV/rstar/etc/task-queue.sysconfig
+
 : "${MAX_WORKERS:=$(nproc --ignore=1)}"
 (( MAX_WORKERS < 1 )) && MAX_WORKERS=1
 NUM_WORKER_HOSTS=6
@@ -18,9 +27,9 @@ fi
 
 WORKDIR=$HOME/work/task-queue
 
-MY_CNF="/content/prod/rstar/etc/my-taskqueue.cnf"
+MY_CNF="/content/$ENV/rstar/etc/my-taskqueue.cnf"
 
-EMAIL_CNF="/content/prod/rstar/etc/email.yaml"
+EMAIL_CNF="/content/$ENV/rstar/etc/email.yaml"
 
 MAILTO=$(awk '{print $2}' $EMAIL_CNF | sort | uniq \
     | grep -v '-' | paste -sd ',' - | sed 's/,/, /g')
@@ -58,7 +67,7 @@ fi
 
 OUTPUT=$(echo "SELECT job_id FROM job ORDER BY job_id DESC LIMIT 1" \
     | mysql --defaults-extra-file=$MY_CNF --skip-column-names --batch 2>&1 \
-	| tee /dev/null)
+    | tee /dev/null)
 
 if ! [[ "$OUTPUT" =~ ^[0-9]+$ ]]; then
     add_err "There was a problem connecting to MySQL"

@@ -158,6 +158,7 @@ def is_update_available():
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        universal_newlines=True,
         check=False,
     )
 
@@ -327,9 +328,9 @@ def main():
 
     result = subprocess.run(
         update_cmd,
-        universal_newlines=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        universal_newlines=True,
     )
 
     logger.debug(f"output: {result.stdout}")

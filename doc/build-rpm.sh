@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-COPY=0
+COPY=1
 
 TAG=${1:-}
 
@@ -12,12 +12,12 @@ if [ -z "$TAG" ]; then
 	exit 1
 fi
 
-# REPO_HOST=${REPO_HOST:-}
-# 
-# if [ -z "$REPO_HOST" ]; then
-# 	echo "Error: You must set REPO_HOST."
-# 	exit 1
-# fi
+REPO_HOST=${REPO_HOST:-}
+
+if [ -z "$REPO_HOST" ]; then
+	echo "Error: You must set REPO_HOST."
+	exit 1
+fi
 
 GIT_NAME="task-queue"
 
@@ -134,21 +134,21 @@ sudo service log-job-status start
 sudo service $GIT_NAME start
 
 if (( PROD_BUILD && COPY )); then
-	read -r -p "Repository host: " REPO_HOST
+	BTCONNSTR=$(zzuip "$REPO_HOST")
 
-	if [[ -z "$REPO_HOST" ]]; then
-		echo "Repository host is required." >&2
+	if [[ -z "$BTCONNSTR" ]]; then
+		echo "BeyondTrust connection string is required." >&2
 		exit 1
 	fi
 
-	scp $RPM_DIR/$GIT_NAME-*.rpm $REPO_HOST:$RPM_DIR
+	scp $RPM_DIR/$GIT_NAME-*.rpm "$BTCONNSTR:$RPM_DIR"
 
-	read -r -p "Repository host: " REPO_HOST
+	BTCONNSTR=$(zzuip "$REPO_HOST")
 
-	if [[ -z "$REPO_HOST" ]]; then
-		echo "Repository host is required." >&2
+	if [[ -z "$BTCONNSTR" ]]; then
+		echo "BeyondTrust connection string is required." >&2
 		exit 1
 	fi
 
-	ssh "$REPO_HOST" createrepo --update "$REPO_DIR"
+	ssh "$BTCONNSTR" createrepo --update "$REPO_DIR"
 fi

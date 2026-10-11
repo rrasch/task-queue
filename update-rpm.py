@@ -24,10 +24,14 @@ PACKAGES = [
     "aco-tools",
     "book-publisher",
     "convert2mp4",
+    "ffmpeg",
     "hocr-tools",
     "kakadu",
     "task-queue",
 ]
+
+DNF = ["dnf", "-y", "--enablerepo=epel,dlts-publishing"]
+
 
 logger = logging.getLogger(__name__)
 
@@ -146,16 +150,17 @@ def sort_rpms(rpms):
     return [path for path, _ in rpms_with_evr]
 
 
-def is_update_available():
+def updates_available(packages):
     """Return True if package upgrades are available."""
+    if not packages:
+        return False
+
+    cmd = DNF + ["check-upgrade"] + packages
+
+    logger.debug("Running command: %s", shlex_join(cmd))
+
     result = subprocess.run(
-        [
-            "dnf",
-            "-y",
-            "--enablerepo=epel,dlts-publishing",
-            "check-upgrade",
-            *PACKAGES,
-        ],
+        cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         universal_newlines=True,
@@ -174,6 +179,75 @@ def is_update_available():
         )
 
     return False
+
+
+def _stream_installed_lines(lines):
+    """
+    Helper generator that skips everything up to and including
+    the 'Installed Packages' header, yielding only the actual data.
+    """
+    found_header = False
+    for line in lines:
+        if found_header:
+            yield line
+        elif "Installed Packages" in line:
+            found_header = True
+
+
+def find_uninstalled_packages(packages):
+    """
+    Finds which packages from a given list are not installed by
+    parsing dnf output strictly after the 'Installed Packages' header.
+    """
+    if not packages:
+        return []
+
+    cmd = DNF + ["list", "--installed"] + packages
+
+    logger.debug("Running command: %s", shlex_join(cmd))
+
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        check=False,
+    )
+
+    logger.debug("stdout: %s", result.stdout.strip())
+    logger.debug("stderr: %s", result.stderr.strip())
+
+    if result.returncode != 0:
+        logger.error(
+            f"dnf failed with exit status {result.returncode}: "
+            f"{result.stderr.strip()}"
+        )
+        return []
+
+    # Clean up whitespace and drop empty lines
+    lines = (
+        line.strip() for line in result.stdout.splitlines() if line.strip()
+    )
+
+    # Get a stream that only contains the package data lines
+    data_lines = _stream_installed_lines(lines)
+
+    installed = set()
+
+    # Parse the data lines directly
+    for line in data_lines:
+        parts = line.split()
+        if parts:
+            full_name = parts[0]  # e.g., "aco-scripts.noarch"
+            base_name = full_name.rsplit(".", 1)[0]
+            installed.add(base_name)
+
+    # Get packages from the original list that were not found
+    uninstalled = [pkg for pkg in packages if pkg not in installed]
+
+    logger.debug("Uninstalled packages: %s", uninstalled)
+
+    return uninstalled
 
 
 def is_queue_empty():
@@ -299,9 +373,14 @@ def main():
     logger.debug(f"Latest rpm: {latest_rpm}")
 
     if not args.force:
-        # if not can_update(latest_rpm):
-        if not is_update_available():
-            logger.info("No update available")
+        if not (
+            updates_available(PACKAGES) or find_uninstalled_packages(PACKAGES)
+        ):
+            logger.info(
+                "No updates available and no packages need "
+                "to be installed fron package list (%s)",
+                ", ".join(PACKAGES),
+            )
             return
 
         if not is_queue_empty():
@@ -331,6 +410,7 @@ def main():
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         universal_newlines=True,
+        check=False,
     )
 
     logger.debug(f"output: {result.stdout}")

@@ -21,10 +21,9 @@ from util import shlex_join
 
 PACKAGES = [
     "HandBrake",
-    "aco-tools",
+    "aco-scripts",
     "book-publisher",
     "convert2mp4",
-    "ffmpeg",
     "hocr-tools",
     "kakadu",
     "task-queue",

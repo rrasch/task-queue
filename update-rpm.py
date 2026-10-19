@@ -347,7 +347,7 @@ def main():
     logger.debug(
         f"hostname={hostname!r}, "
         f"host_short={host_short!r}, "
-        f"host_alias={host_alias!r} "
+        f"host_alias={host_alias!r}"
     )
     logger.debug(f"mailto={mailto!r}")
 

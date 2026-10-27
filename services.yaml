@@ -1,5 +1,6 @@
 ---
 services:
+  - audio:fast_transcribe
   - audio:transcode
   - audio:transcribe
   - bagit:validate

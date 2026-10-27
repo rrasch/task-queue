@@ -7,7 +7,7 @@ require_relative './exceptions'
 require_relative './tqcommon'
 
 # Class to execute audio jobs
-class Audio
+class Audio # rubocop:disable Metrics/ClassLength
   LAYOUT = {
     1 => 'mono',
     2 => 'stereo',
@@ -45,6 +45,18 @@ class Audio
                  *@args['extra_args'].shellsplit,
                  @args['input_path'],
                  @args['output_path']])
+  end
+
+  def fast_transcribe
+    whisper_dir = File.join(ENVIRON['TMPDIR'], 'whisper')
+    @cmd.do_cmd([File.join(whisper_dir,
+                           'venv', 'faster-whisper', 'bin', 'python3'),
+                 File.join(TQCommon::INSTALL_DIR,
+                           'services', 'bin', 'fast_transcribe.py'),
+                 '--cache-dir', File.join(whisper_dir, 'models'),
+                 '--output', @args['output_path'],
+                 *@args['extra_args'].shellsplit,
+                 @args['input_path']])
   end
 
   private

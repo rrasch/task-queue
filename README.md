@@ -4,110 +4,104 @@ This is a project to run a set of jobs in parallel using the RabbitMQ message br
 
 ## Requirements ##
 
+Ruby
+
 - bunny gem
 - chronic gem
 - mediainfo gem
 - mysql2 gem
 - servolux gem
 - sql-maker gem
-- Net::AMQP::RabbitMQ perl module
+
+Python
+
+- python3.11
+- python3.12
+- mysqlclient
+- pika
+- psutil
+- tabulate
+- tomli
 
 ## Usage ##
 
-To see a list of all available options available run the script with the '-h' help switch:
+To see a list of all available options available run the script with the `--help` switch:
+
+```bash
+add-mb-job --help
+```
+
+Here is the usage message:
 
 ```
-    add-mb-job -h
-    usage: add-mb-job [-h] [-v] [-t] [-m MQHOST] [-r RSTAR_DIR] [-i INPUT_PATH]
-                    [-o OUTPUT_PATH] [-c MYSQL_CONFIG_FILE]
-                    [-p {0,1,2,3,4,5,6,7,8,9,10}]
-                    [-s {audio:transcode,
-                    audio:transcribe,
-                    bagit:validate,
-                    book_publisher:create_derivatives,
-                    book_publisher:create_dmakers,
-                    book_publisher:create_map,
-                    book_publisher:create_ocr,
-                    book_publisher:create_pdf,
-                    book_publisher:gen_all,
-                    book_publisher:hocr2pdf,
-                    book_publisher:make_yaiglobal_upload_pdf,
-                    book_publisher:shrink_aco_pdf,
-                    book_publisher:stitch_pages,
-                    util:env,
-                    util:fortune,
-                    util:nope,
-                    util:ping,
-                    video:convert_iso,
-                    video:transcode}]
-                    [-e EXTRA_ARGS] [-j JSON_CONFIG]
-                    [ID [ID ...]]
+usage: add-mb-joby [-h] [-v] [-t] [-m MQHOST] [-r RSTAR_DIR]
+                   [-i INPUT_PATH] [-o OUTPUT_PATH]
+                   [-c MYSQL_CONFIG_FILE]
+                   [-p {0,1,2,3,4,5,6,7,8,9,10}]
+                   [-s {audio:fast_transcribe,
+                        audio:transcode,
+                        audio:transcribe,
+                        bagit:validate,
+                        book_publisher:create_derivatives,
+                        book_publisher:create_dmakers,
+                        book_publisher:create_map,
+                        book_publisher:create_ocr,
+                        book_publisher:create_pdf,
+                        book_publisher:gen_all,
+                        book_publisher:hocr2pdf,
+                        book_publisher:make_yaiglobal_upload_pdf,
+                        book_publisher:shrink_aco_pdf,
+                        book_publisher:stitch_pages,
+                        util:env,util:fortune,
+                        util:nope,util:ping,
+                        video:convert_iso,
+                        video:transcode}]
+                   [-e EXTRA_ARGS] [-j JSON_CONFIG]
+                   [ID ...]
 
-    positional arguments:
-    ID                    Digital object identifier
+positional arguments:
+  ID                    Digital object identifier
 
-    optional arguments:
-    -h, --help            show this help message and exit
-    -v, --verbose         Enable verbose messages
-    -t, --test            Test connection to rabbitmq and mysql
-    -m MQHOST, --mqhost MQHOST
-                            hostname for RabbitMQ messaging server (default:
-                            mb1.dlib.nyu.edu)
-    -r RSTAR_DIR, --rstar-dir RSTAR_DIR
-                            R* (Rstar) directory
-    -i INPUT_PATH, --input-path INPUT_PATH
-                            input path (directory or file)
-    -o OUTPUT_PATH, --output-path OUTPUT_PATH
-                            output path (directory or file prefix)
-    -c MYSQL_CONFIG_FILE, --mysql-config-file MYSQL_CONFIG_FILE
-                            mysql config file (default:
-                            /content/prod/rstar/etc/my-taskqueue.cnf)
-    -p {0,1,2,3,4,5,6,7,8,9,10}, --priority {0,1,2,3,4,5,6,7,8,9,10}
-                            message priority (default: 0, lowest priority)
-    -s {audio:transcode,
-        audio:transcribe,
-        bagit:validate,
-        book_publisher:create_derivatives,
-        book_publisher:create_dmakers,
-        book_publisher:create_map,
-        book_publisher:create_ocr,
-        book_publisher:create_pdf,
-        book_publisher:gen_all,
-        book_publisher:hocr2pdf,
-        book_publisher:make_yaiglobal_upload_pdf,
-        book_publisher:shrink_aco_pdf,
-        book_publisher:stitch_pages,
-        util:env,
-        util:fortune,
-        util:nope,
-        util:ping,
-        video:convert_iso,
-        video:transcode},
- --service {audio:transcode,
-            audio:transcribe,
-            bagit:validate,
-            book_publisher:create_derivatives,
-            book_publisher:create_dmakers,
-            book_publisher:create_map,
-            book_publisher:create_ocr,
-            book_publisher:create_pdf,
-            book_publisher:gen_all,
-            book_publisher:hocr2pdf,
-            book_publisher:make_yaiglobal_upload_pdf,
-            book_publisher:shrink_aco_pdf,
-            book_publisher:stitch_pages,
-            util:env,
-            util:fortune,
-            util:nope,
-            util:ping,
-            video:convert_iso,
-            video:transcode}
-                            service, e.g. video:transcode
-    -e EXTRA_ARGS, --extra-args EXTRA_ARGS
-                            extra command line args
-    -j JSON_CONFIG, --json-config JSON_CONFIG
-                            json config to pass to job
-
+options:
+  -h, --help            show this help message and exit
+  -v, --verbose         Enable verbose messages
+  -t, --test            Test connection to rabbitmq and mysql
+  -m, --mqhost MQHOST   hostname for RabbitMQ messaging server (default: localhost)
+  -r, --rstar-dir RSTAR_DIR
+                        R* (Rstar) directory
+  -i, --input-path INPUT_PATH
+                        input path (directory or file)
+  -o, --output-path OUTPUT_PATH
+                        output path (directory or file prefix)
+  -c, --mysql-config-file MYSQL_CONFIG_FILE
+                        mysql config file (default: /content/<env>/rstar/etc/my-taskqueue.cnf)
+  -p, --priority {0,1,2,3,4,5,6,7,8,9,10}
+                        message priority (default: 0, lowest priority)
+  -s, --service {audio:fast_transcribe,
+                 audio:transcode,
+                 audio:transcribe,
+                 bagit:validate,
+                 book_publisher:create_derivatives,
+                 book_publisher:create_dmakers,
+                 book_publisher:create_map,
+                 book_publisher:create_ocr,
+                 book_publisher:create_pdf,
+                 book_publisher:gen_all,
+                 book_publisher:hocr2pdf,
+                 book_publisher:make_yaiglobal_upload_pdf,
+                 book_publisher:shrink_aco_pdf,
+                 book_publisher:stitch_pages,
+                 util:env,
+                 util:fortune,
+                 util:nope,
+                 util:ping,
+                 video:convert_iso,
+                 video:transcode}
+                        service, e.g. video:transcode
+  -e, --extra-args EXTRA_ARGS
+                        extra command line args
+  -j, --json-config JSON_CONFIG
+                        json config to pass to job
 ```
 
 The main options are `-m` (RabbitMQ host), `-r` (RSTAR directory), `-i` and `-o`
@@ -121,10 +115,10 @@ provided, all objects in the R* directory are submitted.
 To add jobs to the task queue, run the 'add-mb-job.pl' script.  For example, to generate derivatives for the book 'cornell_aco000384' from the Cornell ACO collection, the invocation would look like:
 
 ```bash
-    add-mb-job -m localhost \
-        -r /root/path/of/rstar/content/cornell/aco \
-        -s  book_publisher:create_derivatives \
-        cornell_aco000384
+add-mb-job -m localhost \
+    -r /root/path/of/rstar/content/cornell/aco \
+    -s  book_publisher:create_derivatives \
+    cornell_aco000384
 ```
 
 Here the '-r' option sets the path to the rstar directory, '-m' specifies the hostname of RabbitMQ message broker, and the 's' flag sets the service to "book_publisher:create_derivatives" which tells the workers to generate derivatives for the book.
@@ -133,34 +127,34 @@ To generate derivatives and a PDF for a book, simply change the -s to
 `book_publisher:gen_all`:
 
 ```bash
-    add-mb-job -m localhost \
-        -r /root/path/of/rstar/content/cornell/aco \
-        -s book_publisher:gen_all \
-        cornell_aco000384
+add-mb-job -m localhost \
+    -r /root/path/of/rstar/content/cornell/aco \
+    -s book_publisher:gen_all \
+    cornell_aco000384
 ```
 
 If you would like to process all wip ids in the rstar directory, do no specify any wip ids on the command line.
 
 ```bash
-    add-mb-job -m localhost \
-        -r /root/path/of/rstar/content/cornell/aco \
-        -s book_publisher:gen_all
+add-mb-job -m localhost \
+    -r /root/path/of/rstar/content/cornell/aco \
+    -s book_publisher:gen_all
 ```
 
 If you have a file containing a list of wip ids you could do the following:
 
 ```bash
-    cat wip_id_list.txt | xargs add-mb-job \
-        -r /root/path/of/rstar/content/cornell/aco \
-        -s book_publisher:gen_all
+cat wip_id_list.txt | xargs add-mb-job \
+    -r /root/path/of/rstar/content/cornell/aco \
+    -s book_publisher:gen_all
 ```
 
 OR
 
 ```bash
-    add-mb-job \
-        -r /root/path/of/rstar/content/cornell/aco \
-        -s book_publisher:gen_all `cat wip_id_list.txt`
+add-mb-job \
+    -r /root/path/of/rstar/content/cornell/aco \
+    -s book_publisher:gen_all `cat wip_id_list.txt`
 ```
 
 ## Audio/Video Encoding ##
@@ -168,37 +162,37 @@ OR
 To transcode videos in a wip structure, you would use an invocation similar to above but would change the service to "video:transcode".  For example:
 
 ```bash
-    add-mb-job -m localhost \
-        -r /root/path/of/rstar/provider/collection \
-        -s  video:transcode \
-        wip_id
+add-mb-job -m localhost \
+    -r /root/path/of/rstar/provider/collection \
+    -s  video:transcode \
+    wip_id
 ```
 
 To transcode videos from an input directory and place the newly encoded files in an output directory, set the -i and -o options for source and destination directories.
 
 ```bash
-    add-mb-job -m localhost \
-        -i /input/directory \
-        -o /output/directory \
-        -s  video:transcode
+add-mb-job -m localhost \
+    -i /input/directory \
+    -o /output/directory \
+    -s  video:transcode
 ```
 
 To transcode a single video file, set -i to the path of the source video file, set -o to the output prefix.  If the -o option is not set, the output prefix will be determined by the path of the source video file.
 
 ```bash
-    add-mb-job -m localhost \
-        -i /path/to/video/file \
-        -o /output/path/prefix \
-        -s  video:transcode
+add-mb-job -m localhost \
+    -i /path/to/video/file \
+    -o /output/path/prefix \
+    -s  video:transcode
 ```
 
 To encode audio files:
 
 ```bash
-    add-mb-job -m localhost \
-        -i /input/directory \
-        -o /output/directory \
-        -s  audio:transcode
+add-mb-job -m localhost \
+    -i /input/directory \
+    -o /output/directory \
+    -s  audio:transcode
 ```
 
 ## Testing ##
@@ -209,9 +203,10 @@ simple command line utilities.
 The values are
 
 ```bash
-    util:ping
-    util:fortune
-    util:nope
+util:env
+util:fortune
+util:nope
+util:ping
 ```
 
 which execute the ping, fortune, and false commands respectively.
@@ -219,7 +214,7 @@ You will only need to set the -m and -s options for add-mb-job
 to run these utilities.  For example,
 
 ```bash
-    add-mb-job -m 192.168.32 -s util:nope
+add-mb-job -m 192.168.11.2 -s util:nope
 ```
 
 We should expect the example above to result in a failed job since
@@ -284,36 +279,36 @@ Sending jobs to the task-queue causes the backends scripts to run with their def
 Method 1:
 
 ```bash
-    add-mb-job -m localhost \
-        -i /input/directory \
-        -o /output/directory \
-        -s  video:transcode \
-        -e "--profiles_path profiles-hidvl.xml"
- ```
+add-mb-job -m localhost \
+    -i /input/directory \
+    -o /output/directory \
+    -s  video:transcode \
+    -e "--profiles_path profiles-hidvl.xml"
+```
 
 Method 2:
 
 ```bash
    echo '{"extra_args": "--profiles_path profiles-hidvl.xml"}' > config.json
-    add-mb-job -m localhost \
-        -i /input/directory \
-        -o /output/directory \
-        -s  video:transcode \
-        -j config.json
+add-mb-job -m localhost \
+    -i /input/directory \
+    -o /output/directory \
+    -s  video:transcode \
+    -j config.json
 ```
 
 ## JSON Configuration ##
 
 In the above example, you saw how we set extra_args using a json file to change the default profile for video encoding.  You can use it to also set different parameters for the backend class.  You can find more examples in the doc/samples directory.
 
-# Job Status ##
+## Job Status ##
 
 You will notice that once a job is submitted, you will receive a batch number which you can use to track all jobs within a batch.  This is probably more useful when submitting rstar related jobs because you might have multiple wip ids in a batch.
 
 Once you've added jobs to the queue, you'll probably want to check their status.  This can be accomplished by running the following script:
 
 ```bash
-    check-job-status
+check-job-status
 ```
 
 This will produce a simple table that shows the wip id, job status (such as 'processing', 'success', 'error'), and date of completion.
@@ -321,7 +316,7 @@ This will produce a simple table that shows the wip id, job status (such as 'pro
 To check the status of jobs in a particular batch, please add the batch number to the -b switch.  For example to check the status of batch 3:
 
 ```bash
-    check-job-status -b 3
+check-job-status -b 3
 ```
 
 You can see the list of available options by specifying the '--help' flag.

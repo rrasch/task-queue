@@ -105,7 +105,7 @@ def main():
 
     logger.debug(
         f"Detected language '{info.language}' with probability "
-        f"{info.language_probability}"
+        f"{info.language_probability:.1%}"
     )
 
     with open(output_file, "w", encoding="utf-8") as f:

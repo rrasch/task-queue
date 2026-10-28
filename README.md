@@ -23,6 +23,17 @@ Python
 - tabulate
 - tomli
 
+A/V, Imaging, and PDF Tools
+
+- FFmpeg with libfdk_aac
+- HandBrake
+- ImageMagick
+- Faster Whisper
+- OpenAI Whisper
+- Tesseract
+- Poppler
+- PDFtk
+
 ## Usage ##
 
 To see a list of all available options available run the script with the `--help` switch:
@@ -289,7 +300,7 @@ add-mb-job -m localhost \
 Method 2:
 
 ```bash
-   echo '{"extra_args": "--profiles_path profiles-hidvl.xml"}' > config.json
+echo '{"extra_args": "--profiles_path profiles-hidvl.xml"}' > config.json
 add-mb-job -m localhost \
     -i /input/directory \
     -o /output/directory \
@@ -319,4 +330,4 @@ To check the status of jobs in a particular batch, please add the batch number t
 check-job-status -b 3
 ```
 
-You can see the list of available options by specifying the '--help' flag.
+You can see the list of available options by specifying the `--help` flag.

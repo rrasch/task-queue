@@ -263,6 +263,10 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Wed Oct 28 2026 Rasan Rasch - 1.5.9-1
+- Update to 1.5.9
+- Add audio:fast_transcribe service
+
 * Mon Oct 05 2026 Rasan Rasch - 1.5.8-1
 - Update to 1.5.8
 - Use mail mua to send notifications

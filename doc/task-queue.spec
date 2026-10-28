@@ -115,6 +115,7 @@ popd
 export GO111MODULE=off
 export GOPATH=%{tqbuilddir}/gopath:$HOME/go:/usr/share/gocode
 go build -trimpath -ldflags="-s -w" rerun.go
+chmod -R u+rwX %{tqbuilddir}/gopath
 install -m 0755 rerun %{buildroot}%{dlibdir}/rerun
 popd
 

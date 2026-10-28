@@ -3,12 +3,23 @@
 import argparse
 import logging
 import os
+import sys
 import time
 
+import av
 import humanreadable as hr
 from faster_whisper import WhisperModel
 
 logger = logging.getLogger(__name__)
+
+
+def has_audio(file_path: str) -> bool:
+    """Checks if a media file contains at least one audio stream."""
+    try:
+        with av.open(file_path) as container:
+            return len(container.streams.audio) > 0
+    except av.FFmpegError:
+        return False
 
 
 def format_timestamp(seconds: float) -> str:
@@ -74,6 +85,10 @@ def main():
         base_name = os.path.splitext(input_file)[0]
         output_file = base_name + ".srt"
 
+    if not has_audio(input_file):
+        logger.error(f"'{input_file}' doesn't contain any audio tracks")
+        sys.exit(1)
+
     start_time = time.monotonic()
 
     logger.debug(f"Loading model: {args.model}")
@@ -82,7 +97,11 @@ def main():
     )
 
     logger.debug("Transcribing...")
-    segments, info = model.transcribe(input_file)
+    try:
+        segments, info = model.transcribe(input_file)
+    except av.FFmpegError as e:
+        logger.error(f"Transcription failed for '{input_file}': {e.strerror}")
+        sys.exit(1)
 
     logger.debug(
         f"Detected language '{info.language}' with probability "

@@ -86,7 +86,7 @@ def main():
         output_file = base_name + ".srt"
 
     if not has_audio(input_file):
-        logger.error(f"'{input_file}' doesn't contain any audio tracks")
+        logger.error(f"Input file '{input_file}' doesn't have audio")
         sys.exit(1)
 
     start_time = time.monotonic()

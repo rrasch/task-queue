@@ -59,6 +59,8 @@ Requires:       fortune-mod
 Requires:       iputils
 Requires:       jq
 Requires:       perl-DBD-MySQL
+Requires:       python3.11
+Requires:       python3.12
 Requires:       python3-mysqlclient
 Requires:       python3-pika
 Requires:       python3-psutil

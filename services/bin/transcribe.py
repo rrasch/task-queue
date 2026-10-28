@@ -100,8 +100,8 @@ def main():
     rstar_tmp_dir = Path(get_rstar_dir()) / "tmp"
 
     whisper_dir = rstar_tmp_dir / "whisper"
-    whisper_exe = whisper_dir / "venv" / "whisper" / "bin" / "whisper"
-    whisper_model_dir = whisper_dir / "models"
+    whisper_exe = whisper_dir / "venv" / "openai-whisper" / "bin" / "whisper"
+    whisper_model_dir = whisper_dir / "models" / "openai-whisper"
 
     with tempfile.TemporaryDirectory(dir=rstar_tmp_dir) as temp_dir:
         tmp_srt = Path(temp_dir) / f"{args.input_file.stem}.srt"

@@ -53,7 +53,7 @@ class Audio # rubocop:disable Metrics/ClassLength
                            'venv', 'faster-whisper', 'bin', 'python3'),
                  File.join(TQCommon::INSTALL_DIR,
                            'services', 'bin', 'fast_transcribe.py'),
-                 '--cache-dir', File.join(whisper_dir, 'models'),
+                 '--cache', File.join(whisper_dir, 'models', 'faster-whisper'),
                  '--output', @args['output_path'],
                  *@args['extra_args'].shellsplit,
                  @args['input_path']])

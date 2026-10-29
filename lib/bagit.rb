@@ -30,6 +30,7 @@ class Bagit
       @cmd.do_cmd([BAGIT_CMD,
                    'verifyvalid',
                    @args['input_path'],
+                   '--noresultfile',
                    '--log-verbose',
                    *@args['extra_args'].shellsplit])
     end
